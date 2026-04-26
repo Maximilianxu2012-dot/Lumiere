@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F5F1EA">
+<title>Lumière — Kalorien & Küche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F1EA;
+  --surface: #FBF8F2;
+  --surface-2: #FFFFFF;
+
+  --ink: #002147;
+  --ink-soft: #5C6776;
+  --ink-mute: #A8A39A;
+
+  --gold: #B89968;
+  --gold-deep: #94774A;
+  --gold-glow: #C9A961;
+
+  --charcoal: #1A1614;
+  --charcoal-soft: #2C2622;
+
+  --line: #E5DFD3;
+  --line-soft: #EDE8DD;
+  --line-dark: rgba(201, 169, 97, 0.18);
+  --shadow: 0 1px 2px rgba(0,33,71,.04), 0 8px 24px rgba(0,33,71,.05);
+  --shadow-deep: 0 2px 4px rgba(0,0,0,.2), 0 24px 64px rgba(0,0,0,.35);
+
+  --navy: #002147;
+  --danger: #8B2E2E;
+  --positive: #4F6B4F;
+
+  --fs-micro: clamp(10px, 0.4vw + 9px, 11px);
+  --fs-meta: clamp(12px, 0.4vw + 11px, 13px);
+  --fs-body: clamp(14px, 0.4vw + 13px, 16px);
+  --fs-h3: clamp(18px, 1vw + 14px, 22px);
+  --fs-h2: clamp(24px, 1.5vw + 18px, 32px);
+  --fs-h1: clamp(32px, 3vw + 22px, 48px);
+  --fs-display: clamp(44px, 5vw + 28px, 72px);
+
+  --space-1: clamp(8px, 1vw, 12px);
+  --space-2: clamp(16px, 2vw, 24px);
+  --space-3: clamp(24px, 3vw, 40px);
+  --space-4: clamp(40px, 5vw, 64px);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 var(--fs-body)/1.6 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.serif { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
+.eyebrow {
+  font-size: var(--fs-micro); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 500;
+}
+
+/* ── Editorial surfaces — Charcoal sections (Aman/Four-Seasons mood) ──
+   Use .surface-dark on a section to flip it into the dark, cinematic
+   register. Inherited text stays light; eyebrows pick up gold-glow. */
+.surface-dark {
+  background: var(--charcoal);
+  color: #EDE5D8;
+}
+.surface-dark .eyebrow,
+.surface-dark .hero-eyebrow { color: var(--gold-glow); }
+.surface-dark a { color: var(--gold-glow); }
+.surface-dark .hairline { background: var(--line-dark); }
+
+/* Editorial Hero — for the largest typographic moments. Italic by intent;
+   restraint comes from line-height and tracking, not size alone. */
+.hero-display {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--fs-display);
+  line-height: 1.02;
+  letter-spacing: -0.012em;
+  margin: 0;
+}
+.hero-eyebrow {
+  display: inline-block;
+  font-size: var(--fs-micro);
+  letter-spacing: .32em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--gold-glow);
+}
+
+/* Bronze hairline divider — sparse, never decorative */
+.hairline {
+  border: 0;
+  height: 1px;
+  background: var(--line);
+  margin: var(--space-2) 0;
+}
+.hairline.gold {
+  background: linear-gradient(90deg, transparent, var(--gold-glow), transparent);
+  opacity: .45;
+}
+
+/* Header */
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 24px 32px; border-bottom: 1px solid var(--line);
+  background: var(--bg); position: sticky; top: 0; z-index: 10;
+}
+.brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; letter-spacing: .26em; font-weight: 500;
+}
+.brand::before {
+  content: ""; display: inline-block;
+  width: 24px; height: 1px; background: var(--gold);
+  vertical-align: middle; margin-right: 14px; transform: translateY(-2px);
+}
+.header-right { display: flex; gap: 12px; align-items: center; }
+.icon-btn {
+  background: transparent; border: 1px solid var(--line);
+  width: 36px; height: 36px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-soft); transition: all .2s;
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--ink); }
+
+main { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
+
+/* Buttons */
+.btn {
+  font: 500 12px/1 'Inter', sans-serif;
+  letter-spacing: .18em; text-transform: uppercase;
+  background: var(--ink); color: var(--surface);
+  border: 1px solid var(--ink); padding: 16px 28px;
+  cursor: pointer; transition: background .25s, color .25s, opacity .25s;
+}
+.btn:hover { background: var(--navy); border-color: var(--navy); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--ink); color: var(--surface); }
+.btn.gold { background: var(--gold); border-color: var(--gold); }
+.btn.gold:hover { background: var(--gold-deep); border-color: var(--gold-deep); }
+.btn.full { width: 100%; }
+
+/* Inputs */
+input, select {
+  width: 100%; padding: 14px 0;
+  border: none; border-bottom: 1px solid var(--line);
+  font: 400 16px/1.4 'Inter', sans-serif; color: var(--ink);
+  background: transparent; outline: none;
+  transition: border-color .25s;
+}
+input:focus, select:focus { border-bottom-color: var(--gold); }
+.field { margin-bottom: 24px; text-align: left; }
+.field-label {
+  display: block; font-size: 11px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-soft); margin-bottom: 4px;
+}
+
+/* Onboarding */
+.onb-step { padding: 32px 0; text-align: center; }
+.onb-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 40px; font-weight: 400; line-height: 1.1;
+  margin: 16px 0 12px;
+}
+.onb-sub { color: var(--ink-soft); margin-bottom: 40px; max-width: 420px; margin-inline: auto; }
+.onb-progress {
+  display: flex; gap: 6px; justify-content: center; margin-bottom: 48px;
+}
+.onb-progress span {
+  width: 28px; height: 1px; background: var(--line);
+}
+.onb-progress span.active { background: var(--gold); }
+
+.option-grid { display: grid; gap: 10px; max-width: 480px; margin: 0 auto; }
+.option {
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: 22px 26px; text-align: left; cursor: pointer;
+  transition: border-color .2s, background .2s;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.option:hover { border-color: var(--ink-mute); }
+.option.selected { border-color: var(--gold); background: var(--surface); }
+.option-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; }
+.option-desc { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.option-mark { color: var(--gold); font-size: 16px; opacity: 0; transition: opacity .2s; }
+.option.selected .option-mark { opacity: 1; }
+
+.toggle-row { display: flex; gap: 0; border: 1px solid var(--line); }
+.toggle-row button {
+  flex: 1; background: transparent; border: none;
+  padding: 14px; font: 500 12px/1 'Inter'; letter-spacing: .14em;
+  text-transform: uppercase; cursor: pointer; color: var(--ink-soft);
+  transition: all .2s;
+}
+.toggle-row button.active { background: var(--ink); color: var(--surface); }
+
+.onb-nav { display: flex; gap: 12px; margin-top: 40px; justify-content: center; }
+
+/* Dashboard */
+.hero { text-align: center; padding: 24px 0 32px; }
+
+/* Editorial Hero — Charcoal-Espresso curtain under the header.
+   Bleeds to main's edges so it reads as a magazine spread, not a card. */
+.hero-block {
+  background: var(--charcoal);
+  color: #EDE5D8;
+  padding: clamp(56px, 9vw, 112px) clamp(28px, 5vw, 64px);
+  margin: -56px -24px var(--space-3);
+  text-align: left;
+  position: relative;
+}
+.hero-block .hero-eyebrow { color: var(--gold-glow); margin-bottom: var(--space-2); }
+.hero-block .hero-display { color: #F5EFE3; max-width: 18ch; }
+.hero-block .hero-sub {
+  color: rgba(237, 229, 216, 0.7);
+  font-size: var(--fs-body); line-height: 1.65;
+  margin: var(--space-2) 0 0; max-width: 42ch;
+}
+.hero-block .hero-cta {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.hero-block .btn {
+  background: var(--gold); border-color: var(--gold); color: var(--charcoal);
+}
+.hero-block .btn:hover {
+  background: var(--gold-glow); border-color: var(--gold-glow);
+}
+.hero-block .btn.ghost {
+  background: transparent; border-color: rgba(201, 169, 97, .42); color: #EDE5D8;
+}
+.hero-block .btn.ghost:hover {
+  background: rgba(201, 169, 97, .08); border-color: var(--gold-glow);
+}
+@media (min-width: 720px) {
+  .hero-block .hero-cta { gap: 16px; }
+}
+.ring-wrap { position: relative; width: 232px; height: 232px; margin: 0 auto 24px; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ring-fg {
+  fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-linecap: round;
+  transition: stroke-dashoffset .9s cubic-bezier(.2,.7,.2,1);
+}
+.ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.ring-num {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 56px; line-height: 1; font-weight: 400;
+}
+.ring-cap { color: var(--ink-soft); font-size: 12px; margin-top: 4px; letter-spacing: .12em; }
+.hero-target { color: var(--ink-soft); font-size: 13px; }
+.hero-target b { color: var(--ink); font-weight: 500; }
+
+/* Macros */
+.macros {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+  padding: 28px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.macro { text-align: left; }
+.macro-head { display: flex; justify-content: space-between; align-items: baseline; }
+.macro-name { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.macro-vals { font-family: 'Cormorant Garamond', serif; font-size: 18px; }
+.macro-vals .target { color: var(--ink-mute); font-size: 14px; }
+.macro-bar { height: 1px; background: var(--line); margin-top: 10px; position: relative; overflow: hidden; }
+.macro-bar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--gold); transition: width .6s ease;
+}
+
+/* Action cards */
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 32px; }
+.action {
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: 28px 24px; text-align: left; cursor: pointer;
+  transition: border-color .2s, transform .2s;
+}
+.action:hover { border-color: var(--gold); }
+.action h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 22px; margin: 6px 0 6px; }
+.action p { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+/* Section header */
+.section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: 56px 0 16px;
+}
+.section-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; }
+
+/* Log */
+.log-empty { color: var(--ink-soft); font-style: italic; padding: 16px 0; }
+.log-item {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 24px; align-items: center;
+  padding: 18px 0; border-bottom: 1px solid var(--line);
+}
+.log-item:last-child { border-bottom: none; }
+.log-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; }
+.log-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.log-cal { font-family: 'Cormorant Garamond', serif; font-size: 18px; }
+.log-del {
+  background: transparent; border: none; color: var(--ink-mute); cursor: pointer;
+  font-size: 18px; padding: 4px 8px; transition: color .2s;
+}
+.log-del:hover { color: var(--danger); }
+
+/* Aufklappbare Mahlzeit */
+.log-meal { border-bottom: 1px solid var(--line); }
+.log-meal:last-child { border-bottom: none; }
+.log-meal > summary {
+  list-style: none; cursor: pointer; padding: 18px 0;
+  transition: background .15s;
+}
+.log-meal > summary::-webkit-details-marker { display: none; }
+.log-meal > summary > div {
+  display: grid; grid-template-columns: 1fr auto 12px auto;
+  gap: 18px; align-items: center;
+}
+.log-meal > summary:hover .log-name { color: var(--gold-deep); }
+.log-chev {
+  width: 7px; height: 7px;
+  border-right: 1px solid var(--ink-mute);
+  border-bottom: 1px solid var(--ink-mute);
+  transform: rotate(-45deg);
+  transition: transform .3s ease;
+}
+.log-meal[open] .log-chev { transform: rotate(45deg); }
+.log-items {
+  padding: 4px 0 20px 18px;
+  border-left: 1px solid var(--line);
+  margin: 0 0 0 4px;
+}
+.log-subitem {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 16px; padding: 10px 0;
+}
+.log-subitem + .log-subitem { border-top: 1px solid var(--line); }
+.log-subname { font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--ink-soft); }
+.log-subcal { font-family: 'Cormorant Garamond', serif; font-size: 15px; color: var(--ink-soft); }
+
+/* The Ledger — daily caloric ledger, modeled on a private bank's transaction book */
+.ledger {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  margin-top: var(--space-2);
+}
+.ledger-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.ledger-date {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.ledger-budget {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-budget b { color: var(--ink); font-weight: 400; }
+
+.ledger-cols {
+  display: grid;
+  grid-template-columns: 56px 1fr auto 72px;
+  gap: var(--space-2);
+  padding: 12px var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-micro);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.ledger-cols span:nth-child(3),
+.ledger-cols span:nth-child(4) { text-align: right; }
+
+.ledger-empty {
+  padding: var(--space-4) var(--space-3);
+  text-align: center;
+  color: var(--ink-soft);
+  font-style: italic;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+}
+
+.ledger-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto 72px;
+  gap: var(--space-2);
+  padding: 16px var(--space-3);
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  position: relative;
+  transition: background .15s;
+}
+.ledger-row:last-of-type { border-bottom: none; }
+.ledger-row:hover { background: var(--surface); }
+.ledger-row:hover .ledger-del { opacity: 1; }
+.ledger-row[data-expandable="true"] { cursor: pointer; }
+.ledger-row[data-expandable="true"]:hover .ledger-name { color: var(--gold-deep); }
+
+.ledger-time {
+  font-family: 'Inter', sans-serif;
+  font-size: var(--fs-micro);
+  letter-spacing: .14em;
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+  color: var(--ink);
+  line-height: 1.2;
+  transition: color .2s;
+}
+.ledger-meta {
+  font-size: var(--fs-meta);
+  color: var(--ink-soft);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.ledger-debit {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger-balance {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h3);
+  color: var(--ink-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger-del {
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-mute);
+  width: 24px; height: 24px;
+  cursor: pointer;
+  font-size: 14px; line-height: 1;
+  opacity: 0;
+  transition: opacity .2s, color .2s, border-color .2s;
+}
+.ledger-del:hover { color: var(--danger); border-color: var(--danger); }
+
+.ledger-foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  padding: 18px var(--space-3) 22px;
+  border-top: 1px solid var(--ink);
+  background: var(--surface);
+  align-items: baseline;
+}
+.ledger-foot-label {
+  font-size: var(--fs-micro);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink);
+  font-weight: 500;
+}
+.ledger-foot-balance {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-h2);
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ledger-foot-status {
+  grid-column: 1 / -1;
+  text-align: right;
+  font-size: var(--fs-micro);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.ledger-foot-status.over { color: var(--danger); }
+.ledger-foot-status.within { color: var(--positive); }
+
+.ledger-children {
+  display: none;
+  padding: 4px var(--space-3) 18px 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
+}
+.ledger-children.open { display: block; }
+.ledger-child {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  padding: 9px 0;
+  border-bottom: 1px dotted var(--line);
+}
+.ledger-child:last-child { border-bottom: none; }
+.ledger-child-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-body);
+  color: var(--ink-soft);
+}
+.ledger-child-meta {
+  font-size: var(--fs-meta);
+  color: var(--ink-mute);
+  margin-top: 1px;
+}
+.ledger-child-cal {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-meta);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 540px) {
+  .ledger-cols, .ledger-row { grid-template-columns: 44px 1fr auto 60px; padding-inline: 18px; }
+  .ledger-head, .ledger-foot { padding-inline: 18px; }
+  .ledger-children { padding-left: 44px; padding-right: 18px; }
+}
+
+/* Tag list */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line); padding: 7px 12px;
+  font-size: 13px; background: var(--surface-2);
+}
+.tag .x {
+  cursor: pointer; color: var(--ink-mute); font-size: 14px;
+  display: inline-flex; transition: color .2s;
+}
+.tag .x:hover { color: var(--ink); }
+.tag-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed var(--line); padding: 7px 12px;
+  font-size: 13px; background: transparent; cursor: pointer; color: var(--ink-soft);
+  font-family: inherit;
+}
+.tag-add:hover { color: var(--ink); border-color: var(--ink-mute); }
+
+/* Detected food list (editable) */
+.detected { margin-top: 24px; }
+.detected-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px;
+  align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.detected-row input {
+  padding: 6px 0; font-size: 14px;
+}
+.detected-row .col-cal {
+  font-family: 'Cormorant Garamond', serif; text-align: right;
+}
+
+/* Recipe */
+.recipe {
+  background: var(--surface-2); border: 1px solid var(--line);
+  margin-top: 24px;
+}
+.recipe-head { padding: 40px 40px 28px; text-align: center; border-bottom: 1px solid var(--line); }
+.recipe-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; margin: 12px 0 8px; }
+.recipe-sub { color: var(--ink-soft); font-style: italic; max-width: 420px; margin: 0 auto; }
+.recipe-meta { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.recipe-meta-cell { padding: 22px 12px; text-align: center; border-right: 1px solid var(--line); }
+.recipe-meta-cell:last-child { border-right: none; }
+.recipe-meta-val { font-family: 'Cormorant Garamond', serif; font-size: 22px; }
+.recipe-meta-cap { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+.recipe-body { padding: 36px 40px; }
+.recipe-block + .recipe-block { margin-top: 32px; }
+.recipe-block h4 {
+  font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 500; margin: 0 0 12px;
+}
+.recipe-ingr { list-style: none; padding: 0; margin: 0; }
+.recipe-ingr li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.recipe-ingr li:last-child { border-bottom: none; }
+.recipe-steps { list-style: none; counter-reset: step; padding: 0; margin: 0; }
+.recipe-steps li {
+  counter-increment: step; padding: 14px 0 14px 56px;
+  position: relative; border-bottom: 1px solid var(--line); line-height: 1.6;
+}
+.recipe-steps li:last-child { border-bottom: none; }
+.recipe-steps li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute; left: 0; top: 14px;
+  font-family: 'Cormorant Garamond', serif; color: var(--gold); font-size: 18px;
+}
+.recipe-foot { padding: 24px 40px 32px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: flex-end; }
+
+/* Confidence pill */
+.pill {
+  display: inline-block; padding: 5px 12px; font-size: 11px;
+  letter-spacing: .14em; text-transform: uppercase;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft);
+}
+.pill.high { color: var(--gold-deep); border-color: var(--gold); }
+.pill.low { color: var(--danger); border-color: var(--danger); opacity: .6; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  background: var(--ink); color: var(--surface);
+  padding: 14px 22px; font-size: 13px; letter-spacing: .04em;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1); z-index: 999;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Loader */
+.loader {
+  display: inline-block; width: 12px; height: 12px;
+  border: 1px solid var(--line); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 1s linear infinite;
+  vertical-align: -1px; margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skeleton-card {
+  background: var(--surface-2); border: 1px solid var(--line);
+  padding: 64px 32px; text-align: center; color: var(--ink-soft);
+}
+
+.hidden { display: none !important; }
+
+/* Reset-Link (Footer) — leise, klein, kein Drama */
+.reset-foot { text-align: center; margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
+.reset-link {
+  background: transparent; border: none; cursor: pointer;
+  font: 400 11px/1 'Inter', sans-serif; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-mute);
+  padding: 8px 12px; transition: color .2s;
+}
+.reset-link:hover { color: var(--danger); }
+
+/* Responsive */
+@media (max-width: 540px) {
+  header { padding: 18px 20px; }
+  main { padding: 32px 18px 80px; }
+  .actions { grid-template-columns: 1fr; }
+  .recipe-head, .recipe-body, .recipe-foot { padding-inline: 24px; }
+  .recipe-meta-cell { padding: 16px 8px; }
+  .recipe-meta-val { font-size: 18px; }
+  .onb-title { font-size: 32px; }
+  .ring-wrap { width: 200px; height: 200px; }
+  .ring-num { font-size: 48px; }
+
+  /* Charcoal-Hero passt sich Mobile-Padding (32px top, 18px sides) an */
+  .hero-block {
+    margin: -32px -18px var(--space-3);
+    padding: 56px 24px 56px;
+  }
+  .hero-block .hero-cta { flex-direction: column; align-items: stretch; }
+  .hero-block .hero-cta .btn { width: 100%; text-align: center; }
+
+  /* Onboarding-Optionen: kompakter padding */
+  .option { padding: 18px 20px; }
+  .option-title { font-size: 18px; }
+  .onb-nav { flex-wrap: wrap; }
+  .onb-nav .btn { flex: 1; min-width: 140px; text-align: center; }
+
+  /* Macros stacken */
+  .macros { grid-template-columns: 1fr; gap: 18px; padding: 20px 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">LUMIÈRE</div>
+  <div class="header-right">
+    <button class="icon-btn" id="home-btn" title="Übersicht" aria-label="Übersicht">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+    </button>
+    <button class="icon-btn" id="settings-btn" title="Profil" aria-label="Profil">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<input type="file" id="hidden-file" accept="image/*" capture="environment" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+// ── State ───────────────────────────────────────────────────────────
+const STORAGE_KEY = "lumiere_v1";
+const today = () => new Date().toISOString().slice(0, 10);
+const newId = () => Math.random().toString(36).slice(2, 10);
+
+const defaultState = () => ({
+  profile: null,        // BMR data (set in main onboarding — required)
+  targets: null,        // BMR-derived calorie targets
+  taste: null,          // { cuisines: string[], goal: string } — set after onboarding
+  log: {},
+  fridge: [],
+  favorites: [],        // saved recipes (Phase 2)
+});
+
+let state = (() => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState(); }
+  catch { return defaultState(); }
+})();
+
+const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+// ── DOM helpers ─────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const app = $("app");
+const toastEl = $("toast");
+const fileInput = $("hidden-file");
+
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+));
+
+let toastTimer;
+function toast(msg, ms = 2400) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
+}
+
+function pickFile(handler) {
+  fileInput.value = "";
+  fileInput.onchange = (e) => {
+    const f = e.target.files[0];
+    if (f) handler(f);
+  };
+  fileInput.click();
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `Fehler ${res.status}`);
+  return body;
+}
+
+// ── Aggregation ────────────────────────────────────────────────────
+function todayTotals() {
+  const entries = state.log[today()] || [];
+  return entries.reduce((a, e) => ({
+    calories: a.calories + e.calories,
+    protein: a.protein + e.protein_g,
+    carbs: a.carbs + e.carbs_g,
+    fat: a.fat + e.fat_g,
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+}
+
+// ── Router ─────────────────────────────────────────────────────────
+function render() {
+  // Profile (Ziel + Stats + Aktivität) first, then taste preferences.
+  if (!state.profile) return renderOnboarding(0);
+  if (!state.taste) return renderTaste(0);
+  renderDashboard();
+}
+
+$("home-btn").addEventListener("click", render);
+$("settings-btn").addEventListener("click", () => renderOnboarding(0));
+
+// ── Mini-Onboarding (Geschmack) ────────────────────────────────────
+const CUISINES = [
+  ["italian",       "Italienisch",      "Pasta, Risotto, Olivenöl."],
+  ["mediterranean", "Mediterran",       "Fisch, Gemüse, Kräuter."],
+  ["french",        "Französisch",      "Klassisch, Butter, Saucen."],
+  ["spanish",       "Spanisch",         "Tapas, Paella, Olivenöl."],
+  ["greek",         "Griechisch",       "Feta, Olivenöl, frisch."],
+  ["nordic",        "Nordisch",         "Klar, saisonal, Fisch."],
+  ["german",        "Deutsch",          "Herzhaft, deftig, vertraut."],
+  ["american",      "Amerikanisch",     "BBQ, Burger, Comfort Food."],
+  ["mexican",       "Mexikanisch",      "Würzig, frisch, Hülsenfrüchte."],
+  ["peruvian",      "Peruanisch",       "Ceviche, Aji, Andenfrüchte."],
+  ["middle_eastern","Nahöstlich",       "Hummus, Falafel, Tahini."],
+  ["levantine",     "Levantinisch",     "Mezze, Sumach, Granatapfel."],
+  ["indian",        "Indisch",          "Gewürze, Linsen, Curry."],
+  ["asian",         "Asiatisch (allg.)","Wok, Reis, Aromen."],
+  ["japanese",      "Japanisch",        "Reduziert, Umami, Reis."],
+  ["korean",        "Koreanisch",       "Kimchi, BBQ, Bibimbap."],
+  ["thai",          "Thailändisch",     "Süß-scharf, Kokos, Limette."],
+  ["vietnamese",    "Vietnamesisch",    "Pho, Kräuter, Reisnudeln."],
+  ["chinese",       "Chinesisch",       "Wok, Sojasoße, regional."],
+];
+
+const TASTE_GOALS = [
+  ["high_protein", "Proteinreich",  "Sättigend, muskelfreundlich."],
+  ["quick",        "Schnell",       "Unter 20 Minuten am Herd."],
+  ["healthy",      "Gesund",        "Ausgewogen, frisch, ehrlich."],
+  ["light",        "Leicht",        "Wenig schwer, gut bekömmlich."],
+];
+
+const tasteDraft = { cuisines: [], goal: null };
+
+function renderTaste(step) {
+  app.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "onb-step";
+  wrap.innerHTML = `
+    <div class="onb-progress">
+      ${[0, 1].map(i => `<span class="${i <= step ? "active" : ""}"></span>`).join("")}
+    </div>
+  `;
+  if (step === 0) wrap.appendChild(renderCuisineStep());
+  if (step === 1) wrap.appendChild(renderTasteGoalStep());
+  app.appendChild(wrap);
+}
+
+function renderCuisineStep() {
+  const node = document.createElement("div");
+  node.innerHTML = `
+    <div class="eyebrow">Geschmack — 01</div>
+    <h1 class="onb-title">Was kommt dir auf den Teller?</h1>
+    <p class="onb-sub">Wähle alle Küchen, denen du gerne begegnest. Du kannst mehrere markieren.</p>
+    <div class="option-grid">
+      ${CUISINES.map(([k, t, d]) => `
+        <button class="option ${tasteDraft.cuisines.includes(k) ? "selected" : ""}" data-cuisine="${k}">
+          <div>
+            <div class="option-title">${t}</div>
+            <div class="option-desc">${d}</div>
+          </div>
+          <div class="option-mark">●</div>
+        </button>
+      `).join("")}
+    </div>
+    <div class="onb-nav">
+      <button class="btn" id="taste-next-0" ${tasteDraft.cuisines.length ? "" : "disabled"}>Weiter</button>
+    </div>
+  `;
+  node.querySelectorAll("[data-cuisine]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.cuisine;
+    const i = tasteDraft.cuisines.indexOf(k);
+    if (i >= 0) tasteDraft.cuisines.splice(i, 1);
+    else tasteDraft.cuisines.push(k);
+    renderTaste(0);
+  }));
+  node.querySelector("#taste-next-0").addEventListener("click", () => renderTaste(1));
+  return node;
+}
+
+function renderTasteGoalStep() {
+  const node = document.createElement("div");
+  node.innerHTML = `
+    <div class="eyebrow">Geschmack — 02</div>
+    <h1 class="onb-title">Worauf liegt der Fokus?</h1>
+    <p class="onb-sub">Eine Richtung. Du kannst sie später jederzeit anpassen.</p>
+    <div class="option-grid">
+      ${TASTE_GOALS.map(([k, t, d]) => `
+        <button class="option ${tasteDraft.goal === k ? "selected" : ""}" data-tgoal="${k}">
+          <div>
+            <div class="option-title">${t}</div>
+            <div class="option-desc">${d}</div>
+          </div>
+          <div class="option-mark">●</div>
+        </button>
+      `).join("")}
+    </div>
+    <div class="onb-nav">
+      <button class="btn ghost" id="taste-back-1">Zurück</button>
+      <button class="btn" id="taste-next-1" ${tasteDraft.goal ? "" : "disabled"}>Fertig</button>
+    </div>
+  `;
+  node.querySelectorAll("[data-tgoal]").forEach(b => b.addEventListener("click", () => {
+    tasteDraft.goal = b.dataset.tgoal;
+    renderTaste(1);
+  }));
+  node.querySelector("#taste-back-1").addEventListener("click", () => renderTaste(0));
+  node.querySelector("#taste-next-1").addEventListener("click", () => {
+    state.taste = { cuisines: [...tasteDraft.cuisines], goal: tasteDraft.goal };
+    persist();
+    toast("Geschmacksprofil gespeichert");
+    renderDashboard();
+  });
+  return node;
+}
+
+// ── Onboarding ─────────────────────────────────────────────────────
+const onbDraft = { goal: null, sex: null, age: 30, weight_kg: 75, height_cm: 178, activity: null };
+
+function renderOnboarding(step) {
+  app.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "onb-step";
+  wrap.innerHTML = `
+    <div class="onb-progress">
+      ${[0, 1, 2].map(i => `<span class="${i <= step ? "active" : ""}"></span>`).join("")}
+    </div>
+  `;
+  if (step === 0) wrap.appendChild(stepGoal());
+  if (step === 1) wrap.appendChild(stepStats());
+  if (step === 2) wrap.appendChild(stepActivity());
+  app.appendChild(wrap);
+}
+
+function stepGoal() {
+  const goals = [
+    ["lose", "Definieren", "Kaloriendefizit, Fokus auf Protein."],
+    ["maintain", "Halten", "Ausgewogen, Erhaltungskalorien."],
+    ["gain", "Aufbauen", "Leichter Überschuss, hoher Proteinanteil."],
+  ];
+  const node = document.createElement("div");
+  node.innerHTML = `
+    <div class="eyebrow">Schritt 01 — Ziel</div>
+    <h1 class="onb-title">Was möchtest du erreichen?</h1>
+    <p class="onb-sub">Wir kalibrieren deine Tageswerte basierend auf deinem Ziel.</p>
+    <div class="option-grid">
+      ${goals.map(([k, t, d]) => `
+        <button class="option ${onbDraft.goal === k ? "selected" : ""}" data-goal="${k}">
+          <div>
+            <div class="option-title">${t}</div>
+            <div class="option-desc">${d}</div>
+          </div>
+          <div class="option-mark">●</div>
+        </button>
+      `).join("")}
+    </div>
+    <div class="onb-nav">
+      <button class="btn" id="next-1" ${onbDraft.goal ? "" : "disabled"}>Weiter</button>
+    </div>
+  `;
+  node.querySelectorAll(".option").forEach(o => o.addEventListener("click", () => {
+    onbDraft.goal = o.dataset.goal;
+    renderOnboarding(0);
+  }));
+  node.querySelector("#next-1").addEventListener("click", () => renderOnboarding(1));
+  return node;
+}
+
+function stepStats() {
+  const node = document.createElement("div");
+  node.innerHTML = `
+    <div class="eyebrow">Schritt 02 — Profil</div>
+    <h1 class="onb-title">Über dich</h1>
+    <p class="onb-sub">Diese Werte bestimmen deinen Grundumsatz.</p>
+    <div style="max-width:420px;margin:0 auto;">
+      <div class="field">
+        <span class="field-label">Geschlecht</span>
+        <div class="toggle-row">
+          <button data-sex="m" class="${onbDraft.sex === "m" ? "active" : ""}">Männlich</button>
+          <button data-sex="f" class="${onbDraft.sex === "f" ? "active" : ""}">Weiblich</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="age">Alter</label>
+        <input id="age" type="number" min="14" max="100" value="${onbDraft.age}">
+      </div>
+      <div class="field">
+        <label class="field-label" for="weight">Gewicht (kg)</label>
+        <input id="weight" type="number" min="30" max="300" step="0.1" value="${onbDraft.weight_kg}">
+      </div>
+      <div class="field">
+        <label class="field-label" for="height">Größe (cm)</label>
+        <input id="height" type="number" min="120" max="230" value="${onbDraft.height_cm}">
+      </div>
+    </div>
+    <div class="onb-nav">
+      <button class="btn ghost" id="back-1">Zurück</button>
+      <button class="btn" id="next-2">Weiter</button>
+    </div>
+  `;
+  node.querySelectorAll("[data-sex]").forEach(b => b.addEventListener("click", () => {
+    onbDraft.sex = b.dataset.sex;
+    renderOnboarding(1);
+  }));
+  node.querySelector("#back-1").addEventListener("click", () => renderOnboarding(0));
+  node.querySelector("#next-2").addEventListener("click", () => {
+    onbDraft.age = +node.querySelector("#age").value;
+    onbDraft.weight_kg = +node.querySelector("#weight").value;
+    onbDraft.height_cm = +node.querySelector("#height").value;
+    if (!onbDraft.sex) return toast("Bitte Geschlecht wählen");
+    renderOnboarding(2);
+  });
+  return node;
+}
+
+function stepActivity() {
+  const levels = [
+    ["sedentary", "Sitzend", "Büro, kaum Bewegung."],
+    ["light", "Leicht aktiv", "1–3× Sport pro Woche."],
+    ["moderate", "Moderat aktiv", "3–5× Sport pro Woche."],
+    ["active", "Sehr aktiv", "6–7× Sport pro Woche."],
+    ["very_active", "Athlet", "Tägliches intensives Training."],
+  ];
+  const node = document.createElement("div");
+  node.innerHTML = `
+    <div class="eyebrow">Schritt 03 — Aktivität</div>
+    <h1 class="onb-title">Wie aktiv bist du?</h1>
+    <p class="onb-sub">Schätze deinen typischen Wochenrhythmus.</p>
+    <div class="option-grid">
+      ${levels.map(([k, t, d]) => `
+        <button class="option ${onbDraft.activity === k ? "selected" : ""}" data-activity="${k}">
+          <div>
+            <div class="option-title">${t}</div>
+            <div class="option-desc">${d}</div>
+          </div>
+          <div class="option-mark">●</div>
+        </button>
+      `).join("")}
+    </div>
+    <div class="onb-nav">
+      <button class="btn ghost" id="back-2">Zurück</button>
+      <button class="btn gold" id="finish" ${onbDraft.activity ? "" : "disabled"}>Profil speichern</button>
+    </div>
+  `;
+  node.querySelectorAll("[data-activity]").forEach(b => b.addEventListener("click", () => {
+    onbDraft.activity = b.dataset.activity;
+    renderOnboarding(2);
+  }));
+  node.querySelector("#back-2").addEventListener("click", () => renderOnboarding(1));
+  node.querySelector("#finish").addEventListener("click", finishOnboarding);
+  return node;
+}
+
+async function finishOnboarding() {
+  const profile = { ...onbDraft };
+  if (!profile.goal || !profile.sex || !profile.activity) return;
+  try {
+    const targets = await api("/api/profile/targets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    state.profile = profile;
+    state.targets = targets;
+    persist();
+    toast("Profil gespeichert");
+    if (!state.taste) renderTaste(0);
+    else renderDashboard();
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────
+function ringSvg(progress) {
+  const r = 108, c = 2 * Math.PI * r;
+  const off = c * (1 - Math.min(progress, 1));
+  return `
+    <svg width="232" height="232" viewBox="0 0 232 232">
+      <circle class="ring-bg" cx="116" cy="116" r="${r}"/>
+      <circle class="ring-fg" cx="116" cy="116" r="${r}"
+              stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
+    </svg>
+  `;
+}
+
+function macroBlock(name, current, target) {
+  const pct = target > 0 ? Math.min(current / target, 1) * 100 : 0;
+  return `
+    <div class="macro">
+      <div class="macro-head">
+        <span class="macro-name">${name}</span>
+        <span class="macro-vals">${Math.round(current)}<span class="target"> / ${target}g</span></span>
+      </div>
+      <div class="macro-bar"><div class="macro-bar-fill" style="width:${pct}%"></div></div>
+    </div>
+  `;
+}
+
+function renderDashboard() {
+  const t = todayTotals();
+  const tgt = state.targets;
+  const entries = state.log[today()] || [];
+
+  const remaining = Math.max(tgt.calories - t.calories, 0);
+  const progress = t.calories / tgt.calories;
+
+  app.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Lumière</div>
+      <h1 class="hero-display">Was kommt heute auf den Tisch?</h1>
+      <p class="hero-sub">Scanne ein Gericht oder deinen Kühlschrank — wir kuratieren den Rest.</p>
+      <div class="hero-cta">
+        <button class="btn" id="hero-scan">Mahlzeit scannen</button>
+        <button class="btn ghost" id="hero-fridge">Aus dem Kühlschrank</button>
+      </div>
+    </section>
+
+    <section class="hero">
+      <div class="ring-wrap">
+        ${ringSvg(progress)}
+        <div class="ring-center">
+          <div class="ring-num">${remaining}</div>
+          <div class="ring-cap">VERBLEIBEND</div>
+        </div>
+      </div>
+      <div class="hero-target">
+        <b>${t.calories}</b> von <b>${tgt.calories}</b> kcal heute
+      </div>
+    </section>
+
+    <div class="macros">
+      ${macroBlock("Protein", t.protein, tgt.protein_g)}
+      ${macroBlock("Kohlenhydrate", t.carbs, tgt.carbs_g)}
+      ${macroBlock("Fett", t.fat, tgt.fat_g)}
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Tagebuch</div>
+      <div class="eyebrow">${entries.length} ${entries.length === 1 ? "Eintrag" : "Einträge"}</div>
+    </div>
+    ${renderLedger(entries, tgt.calories)}
+
+    <div class="reset-foot">
+      <button class="reset-link" id="reset-app">App zurücksetzen</button>
+    </div>
+  `;
+
+  $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
+  $("hero-fridge").addEventListener("click", () => renderFridge());
+  $("reset-app").addEventListener("click", () => {
+    if (!confirm("Profil, Tagebuch und alle Daten löschen? Das lässt sich nicht rückgängig machen.")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  // Lösch-Buttons im Ledger
+  document.querySelectorAll(".ledger-del").forEach(b => b.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    deleteEntry(b.dataset.id);
+  }));
+
+  // Aufklappbare Mahlzeit-Zeilen (zeigen Komponenten)
+  document.querySelectorAll('.ledger-row[data-expandable="true"]').forEach(row => {
+    const toggle = () => {
+      const expanded = row.getAttribute("aria-expanded") === "true";
+      row.setAttribute("aria-expanded", String(!expanded));
+      const children = document.querySelector(`[data-children-of="${row.dataset.id}"]`);
+      if (children) children.classList.toggle("open", !expanded);
+    };
+    row.addEventListener("click", (ev) => {
+      if (ev.target.closest(".ledger-del")) return;
+      toggle();
+    });
+    row.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        toggle();
+      }
+    });
+  });
+}
+
+// ── The Ledger ─────────────────────────────────────────────────────
+// Caloric ledger modeled on a private bank's transaction book.
+// Each entry is a debit; running balance shows kcal remaining vs. the
+// day's budget. The footer is the day's closing balance.
+
+function formatLedgerTime(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function ledgerRow(entry, balanceAfter) {
+  const meta = `${escapeHtml(entry.portion)} · ${Math.round(entry.protein_g)}P / ${Math.round(entry.carbs_g)}K / ${Math.round(entry.fat_g)}F`;
+  const expandable = entry.items && entry.items.length;
+  const time = formatLedgerTime(entry.timestamp);
+  const expandAttrs = expandable
+    ? ` data-expandable="true" aria-expanded="false" role="button" tabindex="0"`
+    : "";
+
+  const head = `
+    <div class="ledger-row" data-id="${entry.id}"${expandAttrs}>
+      <div class="ledger-time">${time}</div>
+      <div>
+        <div class="ledger-name">${escapeHtml(entry.name)}</div>
+        <div class="ledger-meta">${meta}</div>
+      </div>
+      <div class="ledger-debit">−${entry.calories}</div>
+      <div class="ledger-balance">${balanceAfter}</div>
+      <button class="ledger-del" data-id="${entry.id}" aria-label="Eintrag löschen">×</button>
+    </div>
+  `;
+
+  if (!expandable) return head;
+
+  return head + `
+    <div class="ledger-children" data-children-of="${entry.id}">
+      ${entry.items.map(it => `
+        <div class="ledger-child">
+          <div>
+            <div class="ledger-child-name">${escapeHtml(it.name)}</div>
+            <div class="ledger-child-meta">${escapeHtml(it.portion)}</div>
+          </div>
+          <div class="ledger-child-cal">${it.calories} kcal</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderLedger(entries, target) {
+  const sorted = [...entries].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  const dateLabel = new Date().toLocaleDateString("de-DE", {
+    day: "2-digit", month: "long", year: "numeric"
+  });
+
+  let balance = target;
+  const rowsHtml = sorted.length
+    ? sorted.map(e => {
+        balance -= e.calories;
+        return ledgerRow(e, balance);
+      }).join("")
+    : `<div class="ledger-empty">Noch keine Einträge — der Tag ist ein leeres Blatt.</div>`;
+
+  const status = balance < 0
+    ? { cls: "over", text: `${Math.abs(balance)} kcal über Budget` }
+    : balance < target * 0.05
+      ? { cls: "within", text: "Budget ausgeschöpft" }
+      : { cls: "", text: `${balance} kcal verfügbar` };
+
+  return `
+    <section class="ledger" aria-label="Tagebuch">
+      <header class="ledger-head">
+        <div class="ledger-date">${dateLabel}</div>
+        <div class="ledger-budget">Budget <b>${target}</b> kcal</div>
+      </header>
+      <div class="ledger-cols">
+        <span>Zeit</span>
+        <span>Eintrag</span>
+        <span>Verbrauch</span>
+        <span>Saldo</span>
+      </div>
+      ${rowsHtml}
+      ${sorted.length ? `
+        <footer class="ledger-foot">
+          <div class="ledger-foot-label">Saldo</div>
+          <div class="ledger-foot-balance">${balance}</div>
+          <div class="ledger-foot-status ${status.cls}">${status.text}</div>
+        </footer>
+      ` : ""}
+    </section>
+  `;
+}
+
+function deleteEntry(id) {
+  const d = today();
+  state.log[d] = (state.log[d] || []).filter(e => e.id !== id);
+  persist();
+  renderDashboard();
+}
+
+// ── Food scan ──────────────────────────────────────────────────────
+async function handleFoodScan(file) {
+  renderLoading("Mahlzeit wird analysiert");
+  try {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await fetch("/api/scan/food", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Scan fehlgeschlagen");
+    renderFoodReview(data);
+  } catch (e) {
+    toast(e.message);
+    renderDashboard();
+  }
+}
+
+function renderFoodReview(scan) {
+  const items = scan.items.map(i => ({ ...i }));
+  // Default-Name: kalorienreichste Komponente — meist das Hauptgericht
+  const defaultName = items.length
+    ? items.reduce((a, b) => (b.calories > a.calories ? b : a)).name
+    : "Mahlzeit";
+  let mealName = defaultName;
+
+  const totals = () => items.reduce((s, i) => ({
+    calories: s.calories + (+i.calories || 0),
+    protein_g: s.protein_g + (+i.protein_g || 0),
+    carbs_g: s.carbs_g + (+i.carbs_g || 0),
+    fat_g: s.fat_g + (+i.fat_g || 0),
+  }), { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+
+  app.innerHTML = `
+    <div class="eyebrow">Scan-Ergebnis</div>
+    <h1 class="onb-title" style="margin-top:8px;">Erkannt</h1>
+    <p class="onb-sub" style="margin-bottom:24px;">
+      <span class="pill ${scan.confidence}">Konfidenz: ${scan.confidence}</span>
+    </p>
+    <div class="field" style="max-width:480px;margin:0 auto 32px;text-align:left;">
+      <label class="field-label" for="meal-name">Mahlzeit</label>
+      <input id="meal-name" value="${escapeHtml(mealName)}" placeholder="z.B. Mittagessen">
+    </div>
+    <div class="eyebrow" style="text-align:left;margin-bottom:4px;">Komponenten</div>
+    <div class="detected" id="rows"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;border-top:1px solid var(--line);margin-top:8px;">
+      <span class="eyebrow">Gesamt</span>
+      <span class="serif" style="font-size:24px;" id="total">${totals().calories} kcal</span>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:24px;justify-content:flex-end;">
+      <button class="btn ghost" id="cancel">Verwerfen</button>
+      <button class="btn gold" id="save">In Tagebuch übernehmen</button>
+    </div>
+  `;
+
+  $("meal-name").addEventListener("input", e => { mealName = e.target.value; });
+
+  const rowsEl = $("rows");
+  function paint() {
+    rowsEl.innerHTML = items.map((i, idx) => `
+      <div class="detected-row">
+        <input data-idx="${idx}" data-k="name" value="${escapeHtml(i.name)}">
+        <input data-idx="${idx}" data-k="portion" value="${escapeHtml(i.portion)}">
+        <input data-idx="${idx}" data-k="calories" type="number" value="${i.calories}" class="col-cal">
+        <button class="log-del" data-rm="${idx}" aria-label="Komponente entfernen">×</button>
+      </div>
+    `).join("");
+    rowsEl.querySelectorAll("input").forEach(inp => inp.addEventListener("input", e => {
+      const idx = +e.target.dataset.idx, k = e.target.dataset.k;
+      items[idx][k] = k === "calories" ? +e.target.value : e.target.value;
+      $("total").textContent = `${totals().calories} kcal`;
+    }));
+    rowsEl.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
+      items.splice(+b.dataset.rm, 1);
+      paint();
+      $("total").textContent = `${totals().calories} kcal`;
+    }));
+  }
+  paint();
+
+  $("cancel").addEventListener("click", renderDashboard);
+  $("save").addEventListener("click", () => {
+    if (!items.length) { toast("Keine Komponenten zum Speichern"); return; }
+    const t = totals();
+    const d = today();
+    state.log[d] = state.log[d] || [];
+    state.log[d].push({
+      id: newId(),
+      timestamp: Date.now(),
+      source: "scan",
+      name: (mealName || "").trim() || "Mahlzeit",
+      portion: `${items.length} ${items.length === 1 ? "Komponente" : "Komponenten"}`,
+      calories: Math.round(t.calories),
+      protein_g: Math.round(t.protein_g * 10) / 10,
+      carbs_g: Math.round(t.carbs_g * 10) / 10,
+      fat_g: Math.round(t.fat_g * 10) / 10,
+      items: items.map(i => ({
+        name: i.name,
+        portion: i.portion,
+        calories: +i.calories || 0,
+        protein_g: +i.protein_g || 0,
+        carbs_g: +i.carbs_g || 0,
+        fat_g: +i.fat_g || 0,
+      })),
+    });
+    persist();
+    toast("Mahlzeit erfasst");
+    renderDashboard();
+  });
+}
+
+// ── Fridge & recipe ────────────────────────────────────────────────
+function renderFridge() {
+  app.innerHTML = `
+    <div class="eyebrow">Sous-Chef</div>
+    <h1 class="onb-title" style="margin-top:8px;">Was hast du da?</h1>
+    <p class="onb-sub">Scanne deinen Kühlschrank oder ergänze Zutaten manuell.</p>
+
+    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;">
+      <button class="btn" id="scan-fridge">Kühlschrank scannen</button>
+      <button class="btn ghost" id="add-manual">Zutat hinzufügen</button>
+    </div>
+
+    <div id="fridge-list"></div>
+
+    <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;">
+      <button class="btn ghost" id="cancel-fridge">Zurück</button>
+      <button class="btn gold" id="make-recipe" ${state.fridge.length ? "" : "disabled"}>Rezept kreieren</button>
+    </div>
+
+    <div id="recipe-slot"></div>
+  `;
+
+  $("scan-fridge").addEventListener("click", () => pickFile(handleFridgeScan));
+  $("add-manual").addEventListener("click", () => {
+    const name = prompt("Zutat hinzufügen:");
+    if (name && name.trim()) {
+      state.fridge.push(name.trim());
+      persist();
+      paintFridge();
+    }
+  });
+  $("cancel-fridge").addEventListener("click", renderDashboard);
+  $("make-recipe").addEventListener("click", makeRecipe);
+
+  paintFridge();
+}
+
+function paintFridge() {
+  const list = $("fridge-list");
+  if (!state.fridge.length) {
+    list.innerHTML = `<div class="log-empty" style="text-align:center;">Noch keine Zutaten.</div>`;
+  } else {
+    list.innerHTML = `
+      <div class="tags">
+        ${state.fridge.map((ing, i) => `
+          <span class="tag">${escapeHtml(ing)}<span class="x" data-rm="${i}" aria-label="Entfernen">×</span></span>
+        `).join("")}
+      </div>
+    `;
+    list.querySelectorAll("[data-rm]").forEach(x => x.addEventListener("click", () => {
+      state.fridge.splice(+x.dataset.rm, 1);
+      persist();
+      paintFridge();
+      const btn = $("make-recipe");
+      if (btn) btn.disabled = state.fridge.length === 0;
+    }));
+  }
+  const btn = $("make-recipe");
+  if (btn) btn.disabled = state.fridge.length === 0;
+}
+
+async function handleFridgeScan(file) {
+  const slot = $("fridge-list");
+  slot.innerHTML = `<div class="log-empty" style="text-align:center;"><span class="loader"></span>Inhalt wird erkannt</div>`;
+  try {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await fetch("/api/scan/fridge", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Scan fehlgeschlagen");
+    const names = data.items.map(i => i.name);
+    state.fridge = [...new Set([...state.fridge, ...names])];
+    persist();
+    paintFridge();
+    toast(`${names.length} Zutaten erkannt`);
+  } catch (e) {
+    toast(e.message);
+    paintFridge();
+  }
+}
+
+async function makeRecipe() {
+  const slot = $("recipe-slot");
+  slot.innerHTML = `<div class="skeleton-card"><span class="loader"></span>Rezept wird komponiert</div>`;
+  try {
+    const t = todayTotals();
+    const remaining = Math.max(state.targets.calories - t.calories, 300);
+    const recipe = await api("/api/recipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ingredients: state.fridge,
+        targets: state.targets,
+        remaining_calories: remaining,
+      }),
+    });
+    renderRecipe(recipe);
+  } catch (e) {
+    slot.innerHTML = "";
+    toast(e.message);
+  }
+}
+
+function renderRecipe(r) {
+  $("recipe-slot").innerHTML = `
+    <div class="recipe">
+      <div class="recipe-head">
+        <div class="eyebrow">Rezept</div>
+        <h2>${escapeHtml(r.title)}</h2>
+        <div class="recipe-sub">${escapeHtml(r.summary)}</div>
+      </div>
+      <div class="recipe-meta">
+        <div class="recipe-meta-cell">
+          <div class="recipe-meta-val">${r.duration_min}</div>
+          <div class="recipe-meta-cap">Minuten</div>
+        </div>
+        <div class="recipe-meta-cell">
+          <div class="recipe-meta-val">${r.calories_per_serving}</div>
+          <div class="recipe-meta-cap">kcal / Portion</div>
+        </div>
+        <div class="recipe-meta-cell">
+          <div class="recipe-meta-val">${r.protein_g}g</div>
+          <div class="recipe-meta-cap">Protein</div>
+        </div>
+        <div class="recipe-meta-cell">
+          <div class="recipe-meta-val">${r.servings}</div>
+          <div class="recipe-meta-cap">Portionen</div>
+        </div>
+      </div>
+      <div class="recipe-body">
+        <div class="recipe-block">
+          <h4>Zutaten</h4>
+          <ul class="recipe-ingr">
+            ${r.ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join("")}
+          </ul>
+        </div>
+        <div class="recipe-block">
+          <h4>Zubereitung</h4>
+          <ol class="recipe-steps">
+            ${r.steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
+          </ol>
+        </div>
+      </div>
+      <div class="recipe-foot">
+        <button class="btn ghost" id="recipe-back">Schließen</button>
+        <button class="btn gold" id="recipe-log">Eine Portion erfassen</button>
+      </div>
+    </div>
+  `;
+  $("recipe-back").addEventListener("click", () => $("recipe-slot").innerHTML = "");
+  $("recipe-log").addEventListener("click", () => {
+    const d = today();
+    state.log[d] = state.log[d] || [];
+    state.log[d].push({
+      id: newId(),
+      timestamp: Date.now(),
+      source: "recipe",
+      name: r.title,
+      portion: "1 Portion",
+      calories: r.calories_per_serving,
+      protein_g: r.protein_g,
+      carbs_g: r.carbs_g,
+      fat_g: r.fat_g,
+    });
+    persist();
+    toast("Rezept als Mahlzeit erfasst");
+    renderDashboard();
+  });
+}
+
+// ── Loading screen ─────────────────────────────────────────────────
+function renderLoading(text) {
+  app.innerHTML = `<div class="skeleton-card" style="margin-top:48px;"><span class="loader"></span>${escapeHtml(text)}</div>`;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
