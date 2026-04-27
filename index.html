@@ -574,6 +574,11 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   background: var(--surface-2); border: 1px solid var(--line);
   margin-top: 24px;
 }
+.recipe-img {
+  width: 100%; height: 220px; object-fit: cover; display: block;
+  background: var(--surface-2);
+}
+@media (max-width: 540px) { .recipe-img { height: 170px; } }
 .recipe-head { padding: 40px 40px 28px; text-align: center; border-bottom: 1px solid var(--line); }
 .recipe-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; margin: 12px 0 8px; }
 .recipe-sub { color: var(--ink-soft); font-style: italic; max-width: 420px; margin: 0 auto; }
@@ -776,11 +781,15 @@ const defaultState = () => ({
   log: {},
   fridge: [],
   favorites: [],        // saved recipes (Phase 2)
+  restrictions: { allergies: [], noGos: [] },
 });
 
 let state = (() => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState(); }
-  catch { return defaultState(); }
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState();
+    if (!s.restrictions) s.restrictions = { allergies: [], noGos: [] };
+    return s;
+  } catch { return defaultState(); }
 })();
 
 const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1551,6 +1560,7 @@ async function makeRecipe() {
         ingredients: state.fridge,
         targets: state.targets,
         remaining_calories: remaining,
+        restrictions: state.restrictions,
       }),
     });
     renderRecipe(recipe);
@@ -1561,8 +1571,14 @@ async function makeRecipe() {
 }
 
 function renderRecipe(r) {
+  const imgQuery = encodeURIComponent(r.title + ',food,gericht');
   $("recipe-slot").innerHTML = `
     <div class="recipe">
+      <img class="recipe-img"
+           src="https://source.unsplash.com/800x400/?${imgQuery}"
+           alt="${escapeHtml(r.title)}"
+           loading="lazy"
+           onerror="this.style.display='none'">
       <div class="recipe-head">
         <div class="eyebrow">Rezept</div>
         <h2>${escapeHtml(r.title)}</h2>
@@ -1761,6 +1777,36 @@ function renderSettings() {
       <button class="btn ghost" id="settings-edit-profile">Profil anpassen</button>
     </div>
 
+    <hr class="hairline gold">
+
+    <div style="margin:40px 0 56px;">
+      <div class="eyebrow" style="margin-bottom:20px;">Unverträglichkeiten & No-Gos</div>
+
+      <div style="margin-bottom:32px;">
+        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">Allergien / Unverträglichkeiten</div>
+        <div class="tags" style="min-height:28px;">
+          ${(state.restrictions.allergies).map((a, i) => `<span class="tag">${escapeHtml(a)}<span class="x" data-rm-allergy="${i}" aria-label="Entfernen">×</span></span>`).join("") || `<span style="font-size:13px;color:var(--ink-mute);">Keine eingetragen</span>`}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <input type="text" id="settings-allergy-input" placeholder="z.B. Gluten, Laktose, Nüsse"
+            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
+          <button class="btn ghost" id="settings-allergy-add" style="padding:0 20px;flex-shrink:0;">+</button>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">Persönliche No-Gos</div>
+        <div class="tags" style="min-height:28px;">
+          ${(state.restrictions.noGos).map((n, i) => `<span class="tag">${escapeHtml(n)}<span class="x" data-rm-nogo="${i}" aria-label="Entfernen">×</span></span>`).join("") || `<span style="font-size:13px;color:var(--ink-mute);">Keine eingetragen</span>`}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <input type="text" id="settings-nogo-input" placeholder="z.B. Koriander, Fenchel, Rosinen"
+            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
+          <button class="btn ghost" id="settings-nogo-add" style="padding:0 20px;flex-shrink:0;">+</button>
+        </div>
+      </div>
+    </div>
+
     <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
       <button class="btn ghost" id="settings-back">Dashboard</button>
     </div>
@@ -1777,6 +1823,42 @@ function renderSettings() {
 
   wrap.querySelector("#settings-edit-profile").addEventListener("click", () => renderOnboarding(0));
   wrap.querySelector("#settings-back").addEventListener("click", render);
+
+  // ── Restrictions: Allergien ────────────────────────────────────────
+  const allergyInput = wrap.querySelector("#settings-allergy-input");
+  wrap.querySelector("#settings-allergy-add").addEventListener("click", () => {
+    const val = allergyInput.value.trim();
+    if (!val) return;
+    state.restrictions.allergies.push(val);
+    persist();
+    renderSettings();
+  });
+  allergyInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") wrap.querySelector("#settings-allergy-add").click();
+  });
+  wrap.querySelectorAll("[data-rm-allergy]").forEach(x => x.addEventListener("click", () => {
+    state.restrictions.allergies.splice(+x.dataset.rmAllergy, 1);
+    persist();
+    renderSettings();
+  }));
+
+  // ── Restrictions: No-Gos ──────────────────────────────────────────
+  const nogoInput = wrap.querySelector("#settings-nogo-input");
+  wrap.querySelector("#settings-nogo-add").addEventListener("click", () => {
+    const val = nogoInput.value.trim();
+    if (!val) return;
+    state.restrictions.noGos.push(val);
+    persist();
+    renderSettings();
+  });
+  nogoInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") wrap.querySelector("#settings-nogo-add").click();
+  });
+  wrap.querySelectorAll("[data-rm-nogo]").forEach(x => x.addEventListener("click", () => {
+    state.restrictions.noGos.splice(+x.dataset.rmNogo, 1);
+    persist();
+    renderSettings();
+  }));
 
   app.innerHTML = "";
   app.appendChild(wrap);

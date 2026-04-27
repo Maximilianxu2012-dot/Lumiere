@@ -82,10 +82,16 @@ class Recipe(BaseModel):
     steps: list[str]
 
 
+class Restrictions(BaseModel):
+    allergies: list[str] = []
+    noGos: list[str] = []
+
+
 class RecipeRequest(BaseModel):
     ingredients: list[str]
     targets: Targets | None = None
     remaining_calories: int | None = None
+    restrictions: Restrictions | None = None
 
 
 # ── Macro logic ────────────────────────────────────────────────────
@@ -198,6 +204,13 @@ async def generate_recipe(req: RecipeRequest) -> Recipe:
         )
     if req.targets:
         constraints.append(f"Hoher Proteinanteil bevorzugt (Tagesziel {req.targets.protein_g} g).")
+    if req.restrictions:
+        avoid = req.restrictions.allergies + req.restrictions.noGos
+        if avoid:
+            constraints.append(
+                f"ABSOLUTES VERBOT — niemals verwenden: {', '.join(avoid)}. "
+                "Das gilt auch für versteckte Spuren. Keine Ausnahmen."
+            )
 
     prompt = (
         f"Verfügbare Zutaten mit Mengen: {', '.join(req.ingredients)}.\n\n"
