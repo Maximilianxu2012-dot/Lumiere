@@ -87,11 +87,17 @@ class Restrictions(BaseModel):
     noGos: list[str] = []
 
 
+class TastePrefs(BaseModel):
+    cuisines: list[str] = []
+    goals: list[str] = []
+
+
 class RecipeRequest(BaseModel):
-    ingredients: list[str]
+    ingredients: list[str] = []
     targets: Targets | None = None
     remaining_calories: int | None = None
     restrictions: Restrictions | None = None
+    taste: TastePrefs | None = None
 
 
 class ChatMessage(BaseModel):
@@ -234,10 +240,29 @@ async def profile_targets(profile: Profile) -> Targets:
     return compute_targets(profile)
 
 
+_CUISINE_LABELS: dict[str, str] = {
+    "italian": "Italienisch", "mediterranean": "Mediterran", "french": "Französisch",
+    "spanish": "Spanisch", "greek": "Griechisch", "nordic": "Nordisch",
+    "german": "Deutsch", "american": "Amerikanisch", "mexican": "Mexikanisch",
+    "peruvian": "Peruanisch", "middle_eastern": "Naher Osten", "levantine": "Levantinisch",
+    "indian": "Indisch", "asian": "Asiatisch", "japanese": "Japanisch",
+    "korean": "Koreanisch", "thai": "Thailändisch", "vietnamese": "Vietnamesisch",
+    "chinese": "Chinesisch",
+}
+_GOAL_LABELS: dict[str, str] = {
+    "high_protein": "proteinreich und sättigend",
+    "quick":        "schnell zuzubereiten (unter 20 Minuten)",
+    "healthy":      "ausgewogen und frisch",
+    "light":        "leicht und bekömmlich",
+}
+
+
 @app.post("/api/recipe", response_model=Recipe)
 async def generate_recipe(req: RecipeRequest) -> Recipe:
-    if not req.ingredients:
-        raise HTTPException(400, "Keine Zutaten angegeben")
+    inspiration_mode = not req.ingredients
+
+    if inspiration_mode and not req.taste:
+        raise HTTPException(400, "Keine Zutaten oder Geschmackspräferenzen angegeben")
 
     constraints: list[str] = []
     if req.remaining_calories is not None:
@@ -253,17 +278,35 @@ async def generate_recipe(req: RecipeRequest) -> Recipe:
                 f"ABSOLUTES VERBOT — niemals verwenden: {', '.join(avoid)}. "
                 "Das gilt auch für versteckte Spuren. Keine Ausnahmen."
             )
+    if req.taste:
+        if req.taste.cuisines:
+            labels = [_CUISINE_LABELS.get(c, c) for c in req.taste.cuisines[:4]]
+            constraints.append(f"Bevorzugter Küchenstil: {', '.join(labels)}.")
+        if req.taste.goals:
+            goal_texts = [_GOAL_LABELS[g] for g in req.taste.goals if g in _GOAL_LABELS]
+            if goal_texts:
+                constraints.append(f"Fokus: {', '.join(goal_texts)}.")
+
+    if inspiration_mode:
+        ingredient_block = (
+            "Keine spezifischen Zutaten vorgegeben — kreiere ein freies, inspiriertes Rezept "
+            "passend zum Geschmacksprofil. Verwende alltagstaugliche, frische Zutaten."
+        )
+    else:
+        ingredient_block = (
+            f"Verfügbare Zutaten mit Mengen: {', '.join(req.ingredients)}.\n\n"
+            "WICHTIG — Mengen-Disziplin:\n"
+            "- Halte dich strikt an die verfügbaren Mengen. Du darfst weniger verwenden, NIEMALS mehr.\n"
+            "- Wenn jemand z.B. '2 Eier' hat, kann das Rezept 1 oder 2 Eier verlangen — niemals 5 oder 20.\n"
+            "- Reichen die Mengen nur für eine kleine Portion, schlage entsprechend skaliert vor "
+            "(z.B. 'Frühstück für 1 Person') statt eine größere Portion zu erfinden.\n"
+            "- Falls eine Zutat als 'Konservendose, Inhalt unklar' o.ä. gelistet ist, ignoriere sie.\n"
+            "- Wähle eine sinnvolle Auswahl der Zutaten — nicht alles muss verwendet werden, "
+            "aber rechne nichts hinzu, was nicht in der Liste steht (außer Grundwürze: Salz, Pfeffer, Öl)."
+        )
 
     prompt = (
-        f"Verfügbare Zutaten mit Mengen: {', '.join(req.ingredients)}.\n\n"
-        "WICHTIG — Mengen-Disziplin:\n"
-        "- Halte dich strikt an die verfügbaren Mengen. Du darfst weniger verwenden, NIEMALS mehr.\n"
-        "- Wenn jemand z.B. '2 Eier' hat, kann das Rezept 1 oder 2 Eier verlangen — niemals 5 oder 20.\n"
-        "- Reichen die Mengen nur für eine kleine Portion, schlage entsprechend skaliert vor "
-        "(z.B. 'Frühstück für 1 Person') statt eine größere Portion zu erfinden.\n"
-        "- Falls eine Zutat als 'Konservendose, Inhalt unklar' o.ä. gelistet ist, ignoriere sie.\n"
-        "- Wähle eine sinnvolle Auswahl der Zutaten — nicht alles muss verwendet werden, "
-        "aber rechne nichts hinzu, was nicht in der Liste steht (außer Grundwürze: Salz, Pfeffer, Öl).\n\n"
+        f"{ingredient_block}\n\n"
         f"{chr(10).join(constraints)}\n\n"
         "Stil: reduziert, hochwertig, alltagstauglich. Klare Schritte, präzise Mengen "
         "in metrischen Einheiten. Keine Floskeln. Antworte auf Deutsch."

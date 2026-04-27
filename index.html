@@ -811,19 +811,21 @@ const today = () => new Date().toISOString().slice(0, 10);
 const newId = () => Math.random().toString(36).slice(2, 10);
 
 const defaultState = () => ({
-  profile: null,        // BMR data (set in main onboarding — required)
-  targets: null,        // BMR-derived calorie targets
-  taste: null,          // { cuisines: string[], goal: string } — set after onboarding
+  profile: null,
+  targets: null,
+  taste: null,
   log: {},
   fridge: [],
-  favorites: [],        // saved recipes (Phase 2)
+  favorites: [],
   restrictions: { allergies: [], noGos: [] },
+  lastBriefingDate: null,
 });
 
 let state = (() => {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState();
-    if (!s.restrictions) s.restrictions = { allergies: [], noGos: [] };
+    if (!s.restrictions)      s.restrictions      = { allergies: [], noGos: [] };
+    if (!s.hasOwnProperty("lastBriefingDate")) s.lastBriefingDate = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -1257,6 +1259,7 @@ function renderDashboard() {
   $("hero-fridge").addEventListener("click", () => renderFridge());
   $("hero-chat").addEventListener("click", renderChat);
   if ($("hero-favorites")) $("hero-favorites").addEventListener("click", renderFavorites);
+  fetchDailyBriefing();
   $("reset-app").addEventListener("click", () => {
     if (!confirm("Profil, Tagebuch und alle Daten löschen? Das lässt sich nicht rückgängig machen.")) return;
     localStorage.removeItem(STORAGE_KEY);
@@ -1509,9 +1512,10 @@ function renderFridge() {
     <h1 class="onb-title" style="margin-top:8px;">Was hast du da?</h1>
     <p class="onb-sub">Scanne deinen Kühlschrank oder ergänze Zutaten manuell.</p>
 
-    <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;">
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">
       <button class="btn" id="scan-fridge">Kühlschrank scannen</button>
       <button class="btn ghost" id="add-manual">Zutat hinzufügen</button>
+      <button class="btn ghost" id="inspire-me">Inspiration</button>
     </div>
 
     <div id="fridge-list"></div>
@@ -1544,6 +1548,7 @@ function renderFridge() {
     $("recipe-slot").innerHTML = "";
   });
   $("make-recipe").addEventListener("click", makeRecipe);
+  $("inspire-me").addEventListener("click", () => makeInspiredRecipe(renderFridge, "← Sous-Chef"));
 
   paintFridge();
 }
@@ -1607,6 +1612,7 @@ async function makeRecipe() {
         targets: state.targets,
         remaining_calories: remaining,
         restrictions: state.restrictions,
+        taste: state.taste,
       }),
     });
     renderRecipe(recipe);
@@ -1924,6 +1930,58 @@ function renderSettings() {
   app.appendChild(wrap);
 }
 
+// ── Inspiration ────────────────────────────────────────────────────
+async function makeInspiredRecipe(backFn, backLabel) {
+  backFn    = backFn    || renderDashboard;
+  backLabel = backLabel || "← Dashboard";
+  renderLoading("Inspiration wird generiert…");
+  try {
+    const recipe = await api("/api/recipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ingredients: [],
+        targets: state.targets,
+        taste: state.taste,
+      }),
+    });
+    renderFavRecipe({ ...recipe, id: newId(), savedAt: null }, backFn, backLabel);
+  } catch (e) {
+    toast(e.message);
+    backFn();
+  }
+}
+
+// ── Daily Briefing ─────────────────────────────────────────────────
+async function fetchDailyBriefing() {
+  if (!state.targets || state.lastBriefingDate === today()) return;
+  state.lastBriefingDate = today();
+  persist();
+
+  const yDate  = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yCals  = (state.log[yDate] || []).reduce((s, e) => s + (e.calories || 0), 0);
+  const msg    = yCals > 0
+    ? `Tages-Briefing. Gestern: ${Math.round(yCals)} kcal (Ziel ${state.targets.calories} kcal). Heute: Ziel ${state.targets.calories} kcal. Kurze Einschätzung + Empfehlung, max. 3 Sätze.`
+    : `Tages-Briefing. Heute: Ziel ${state.targets.calories} kcal, ${state.targets.protein_g} g Protein. Motiviere kurz, max. 2 Sätze.`;
+
+  try {
+    const data = await api("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: msg }],
+        mode: ARCHITECT.getMode(),
+        context: {
+          calories_today: 0,
+          calories_target: state.targets.calories,
+          protein_target: state.targets.protein_g,
+        },
+      }),
+    });
+    showArchitectBriefing({ triggered: true, type: "daily_briefing", severity: "info", message: data.reply });
+  } catch { /* lautlos ignorieren */ }
+}
+
 // ── Favorites ─────────────────────────────────────────────────────
 function renderFavorites() {
   if (!state.favorites.length) {
@@ -1931,12 +1989,14 @@ function renderFavorites() {
       <section class="hero-block">
         <div class="hero-eyebrow">Lumière</div>
         <h1 class="hero-display">Meine Rezepte</h1>
-        <p class="hero-sub">Noch keine gespeicherten Rezepte. Kreiere ein Rezept und tippe auf ☆ Merken.</p>
+        <p class="hero-sub">Noch keine gespeicherten Rezepte.</p>
+        <div class="hero-cta" style="margin-top:20px;">
+          <button class="btn gold" id="fav-inspire">Lass dich inspirieren</button>
+          <button class="btn ghost" id="fav-back">Dashboard</button>
+        </div>
       </section>
-      <div style="text-align:center;margin-top:24px;">
-        <button class="btn ghost" id="fav-back">Dashboard</button>
-      </div>
     `;
+    $("fav-inspire").addEventListener("click", () => makeInspiredRecipe(renderFavorites, "← Meine Rezepte"));
     $("fav-back").addEventListener("click", renderDashboard);
     return;
   }
@@ -1989,7 +2049,9 @@ function renderFavorites() {
   });
 }
 
-function renderFavRecipe(r) {
+function renderFavRecipe(r, backFn, backLabel) {
+  backFn    = backFn    || renderFavorites;
+  backLabel = backLabel || "← Meine Rezepte";
   const imgQuery = encodeURIComponent(r.title + ',food,gericht');
   const isSaved = state.favorites.some(f => f.id === r.id);
   app.innerHTML = `
@@ -2022,20 +2084,20 @@ function renderFavRecipe(r) {
         </div>
       </div>
       <div class="recipe-foot">
-        <button class="btn ghost" id="fav-recipe-back">← Meine Rezepte</button>
+        <button class="btn ghost" id="fav-recipe-back">${escapeHtml(backLabel)}</button>
         <button class="btn ghost" id="fav-recipe-toggle">${isSaved ? "★ Entfernen" : "☆ Merken"}</button>
         <button class="btn gold" id="fav-recipe-log">Eine Portion erfassen</button>
       </div>
     </div>
   `;
-  $("fav-recipe-back").addEventListener("click", renderFavorites);
+  $("fav-recipe-back").addEventListener("click", backFn);
   $("fav-recipe-toggle").addEventListener("click", () => {
     const idx = state.favorites.findIndex(f => f.id === r.id);
     if (idx >= 0) {
       state.favorites.splice(idx, 1);
       persist();
       toast("Aus Favoriten entfernt");
-      renderFavorites();
+      backFn();
     } else {
       state.favorites.unshift({ ...r, savedAt: Date.now() });
       persist();
