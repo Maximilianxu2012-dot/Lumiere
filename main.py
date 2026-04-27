@@ -163,9 +163,15 @@ async def scan_food(image: UploadFile = File(...)) -> FoodScan:
 async def scan_fridge(image: UploadFile = File(...)) -> FridgeScan:
     data = await image.read()
     prompt = (
-        "Erkenne alle sichtbaren Lebensmittel und Zutaten in diesem Kühlschrank- oder "
-        "Vorratsbild. Schätze Mengen großzügig (eher mehr als weniger). Kategorisiere "
-        "jedes Item exakt nach dem Schema. Antworte auf Deutsch."
+        "Erkenne nur die Lebensmittel und Zutaten, die im Bild EINDEUTIG sichtbar sind. "
+        "Sei sehr konservativ: lieber etwas weglassen als raten. "
+        "WICHTIG bei Verpackungen: Wenn du eine Konservendose, Tüte, geschlossene Verpackung "
+        "oder ein nicht eindeutig erkennbares Etikett siehst, schreibe nur was du WIRKLICH "
+        "sehen kannst (z.B. 'Konservendose, Inhalt unklar') — erfinde NIEMALS den vermuteten "
+        "Inhalt. Nur klar erkennbare Lebensmittel benennen. "
+        "Schätze Mengen so genau wie möglich anhand der sichtbaren Anzahl/Größe "
+        "(z.B. '4 Stück', '1 Bund', '500 g'). Kategorisiere jedes Item nach dem Schema. "
+        "Antworte auf Deutsch."
     )
     return await generate_structured([prompt, image_part(image, data)], FridgeScan)
 
@@ -189,8 +195,15 @@ async def generate_recipe(req: RecipeRequest) -> Recipe:
         constraints.append(f"Hoher Proteinanteil bevorzugt (Tagesziel {req.targets.protein_g} g).")
 
     prompt = (
-        f"Verfügbare Zutaten: {', '.join(req.ingredients)}.\n"
-        f"Wähle eine sinnvolle Auswahl davon — nicht alles muss verwendet werden.\n"
+        f"Verfügbare Zutaten mit Mengen: {', '.join(req.ingredients)}.\n\n"
+        "WICHTIG — Mengen-Disziplin:\n"
+        "- Halte dich strikt an die verfügbaren Mengen. Du darfst weniger verwenden, NIEMALS mehr.\n"
+        "- Wenn jemand z.B. '2 Eier' hat, kann das Rezept 1 oder 2 Eier verlangen — niemals 5 oder 20.\n"
+        "- Reichen die Mengen nur für eine kleine Portion, schlage entsprechend skaliert vor "
+        "(z.B. 'Frühstück für 1 Person') statt eine größere Portion zu erfinden.\n"
+        "- Falls eine Zutat als 'Konservendose, Inhalt unklar' o.ä. gelistet ist, ignoriere sie.\n"
+        "- Wähle eine sinnvolle Auswahl der Zutaten — nicht alles muss verwendet werden, "
+        "aber rechne nichts hinzu, was nicht in der Liste steht (außer Grundwürze: Salz, Pfeffer, Öl).\n\n"
         f"{chr(10).join(constraints)}\n\n"
         "Stil: reduziert, hochwertig, alltagstauglich. Klare Schritte, präzise Mengen "
         "in metrischen Einheiten. Keine Floskeln. Antworte auf Deutsch."

@@ -808,7 +808,7 @@ const TASTE_GOALS = [
   ["light",        "Leicht",        "Wenig schwer, gut bekömmlich."],
 ];
 
-const tasteDraft = { cuisines: [], goal: null };
+const tasteDraft = { cuisines: [], goals: [] };
 
 function renderTaste(step) {
   app.innerHTML = "";
@@ -861,10 +861,10 @@ function renderTasteGoalStep() {
   node.innerHTML = `
     <div class="eyebrow">Geschmack — 02</div>
     <h1 class="onb-title">Worauf liegt der Fokus?</h1>
-    <p class="onb-sub">Eine Richtung. Du kannst sie später jederzeit anpassen.</p>
+    <p class="onb-sub">Wähle so viele Richtungen, wie zu dir passen. Du kannst sie später jederzeit anpassen.</p>
     <div class="option-grid">
       ${TASTE_GOALS.map(([k, t, d]) => `
-        <button class="option ${tasteDraft.goal === k ? "selected" : ""}" data-tgoal="${k}">
+        <button class="option ${tasteDraft.goals.includes(k) ? "selected" : ""}" data-tgoal="${k}">
           <div>
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
@@ -875,16 +875,19 @@ function renderTasteGoalStep() {
     </div>
     <div class="onb-nav">
       <button class="btn ghost" id="taste-back-1">Zurück</button>
-      <button class="btn" id="taste-next-1" ${tasteDraft.goal ? "" : "disabled"}>Fertig</button>
+      <button class="btn" id="taste-next-1" ${tasteDraft.goals.length ? "" : "disabled"}>Fertig</button>
     </div>
   `;
   node.querySelectorAll("[data-tgoal]").forEach(b => b.addEventListener("click", () => {
-    tasteDraft.goal = b.dataset.tgoal;
+    const k = b.dataset.tgoal;
+    const i = tasteDraft.goals.indexOf(k);
+    if (i >= 0) tasteDraft.goals.splice(i, 1);
+    else tasteDraft.goals.push(k);
     renderTaste(1);
   }));
   node.querySelector("#taste-back-1").addEventListener("click", () => renderTaste(0));
   node.querySelector("#taste-next-1").addEventListener("click", () => {
-    state.taste = { cuisines: [...tasteDraft.cuisines], goal: tasteDraft.goal };
+    state.taste = { cuisines: [...tasteDraft.cuisines], goals: [...tasteDraft.goals] };
     persist();
     toast("Geschmacksprofil gespeichert");
     renderDashboard();
@@ -1383,8 +1386,9 @@ function renderFridge() {
 
     <div id="fridge-list"></div>
 
-    <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;">
+    <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn ghost" id="cancel-fridge">Zurück</button>
+      <button class="btn ghost" id="clear-fridge" ${state.fridge.length ? "" : "disabled"}>Korb leeren</button>
       <button class="btn gold" id="make-recipe" ${state.fridge.length ? "" : "disabled"}>Rezept kreieren</button>
     </div>
 
@@ -1393,7 +1397,7 @@ function renderFridge() {
 
   $("scan-fridge").addEventListener("click", () => pickFile(handleFridgeScan));
   $("add-manual").addEventListener("click", () => {
-    const name = prompt("Zutat hinzufügen:");
+    const name = prompt("Zutat mit Menge hinzufügen (z.B. „4 Äpfel"):");
     if (name && name.trim()) {
       state.fridge.push(name.trim());
       persist();
@@ -1401,6 +1405,14 @@ function renderFridge() {
     }
   });
   $("cancel-fridge").addEventListener("click", renderDashboard);
+  $("clear-fridge").addEventListener("click", () => {
+    if (!state.fridge.length) return;
+    if (!confirm("Alle Zutaten im Korb entfernen?")) return;
+    state.fridge = [];
+    persist();
+    paintFridge();
+    $("recipe-slot").innerHTML = "";
+  });
   $("make-recipe").addEventListener("click", makeRecipe);
 
   paintFridge();
@@ -1439,11 +1451,12 @@ async function handleFridgeScan(file) {
     const res = await fetch("/api/scan/fridge", { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Scan fehlgeschlagen");
-    const names = data.items.map(i => i.name);
-    state.fridge = [...new Set([...state.fridge, ...names])];
+    // Menge + Name zusammenführen, damit das Modell beim Rezept Mengen respektiert
+    const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
+    state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
     paintFridge();
-    toast(`${names.length} Zutaten erkannt`);
+    toast(`${items.length} Zutaten erkannt`);
   } catch (e) {
     toast(e.message);
     paintFridge();
@@ -1533,8 +1546,9 @@ function renderRecipe(r) {
       carbs_g: r.carbs_g,
       fat_g: r.fat_g,
     });
+    state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
-    toast("Rezept als Mahlzeit erfasst");
+    toast("Rezept erfasst — Korb geleert");
     renderDashboard();
   });
 }
