@@ -1397,7 +1397,7 @@ function renderFridge() {
 
   $("scan-fridge").addEventListener("click", () => pickFile(handleFridgeScan));
   $("add-manual").addEventListener("click", () => {
-    const name = prompt("Zutat mit Menge hinzufügen (z.B. „4 Äpfel"):");
+    const name = prompt("Zutat mit Menge hinzufügen (z.B. 4 Äpfel):");
     if (name && name.trim()) {
       state.fridge.push(name.trim());
       persist();
