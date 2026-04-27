@@ -147,6 +147,11 @@ async def index() -> FileResponse:
     return FileResponse(ROOT / "index.html")
 
 
+@app.get("/architectConfig.js")
+async def architect_config() -> FileResponse:
+    return FileResponse(ROOT / "architectConfig.js", media_type="application/javascript")
+
+
 @app.post("/api/scan/food", response_model=FoodScan)
 async def scan_food(image: UploadFile = File(...)) -> FoodScan:
     data = await image.read()

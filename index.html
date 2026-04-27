@@ -637,6 +637,58 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   padding: 64px 32px; text-align: center; color: var(--ink-soft);
 }
 
+/* ── Architect Briefing Panel ────────────────────────────────────── */
+.arch-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 100;
+  transform: translateY(100%);
+  transition: transform .45s cubic-bezier(.2,.7,.2,1);
+}
+.arch-panel.show { transform: translateY(0); }
+
+.arch-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 32px 32px;
+  background: var(--charcoal);
+  border-top: 2px solid var(--gold-glow);
+}
+.arch-panel[data-severity="critical"] .arch-inner { border-top-color: #8B3030; }
+.arch-panel[data-severity="info"]     .arch-inner { border-top-color: var(--navy); }
+
+.arch-eyebrow {
+  font-size: 10px;
+  letter-spacing: .32em;
+  text-transform: uppercase;
+  color: var(--gold-glow);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.arch-panel[data-severity="critical"] .arch-eyebrow { color: #C46060; }
+.arch-panel[data-severity="info"]     .arch-eyebrow { color: #7A9CBF; }
+
+.arch-message {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.55;
+  color: #EDE5D8;
+  margin-bottom: 22px;
+}
+.arch-foot { display: flex; justify-content: flex-end; }
+.arch-panel .btn.ghost {
+  background: transparent;
+  border-color: rgba(201, 169, 97, .38);
+  color: #EDE5D8;
+}
+.arch-panel .btn.ghost:hover {
+  background: rgba(201, 169, 97, .08);
+  border-color: var(--gold-glow);
+}
+@media (max-width: 540px) {
+  .arch-inner { padding: 22px 18px 26px; }
+}
+
 .hidden { display: none !important; }
 
 /* Reset-Link (Footer) — leise, klein, kein Drama */
@@ -698,6 +750,17 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 <input type="file" id="hidden-file" accept="image/*" capture="environment" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<div id="arch-panel" class="arch-panel" role="alertdialog" aria-label="Architect Briefing">
+  <div class="arch-inner">
+    <div class="arch-eyebrow" id="arch-eyebrow">ARCHITECT</div>
+    <div class="arch-message" id="arch-message"></div>
+    <div class="arch-foot">
+      <button class="btn ghost" id="arch-dismiss">Verstanden</button>
+    </div>
+  </div>
+</div>
+
+<script src="architectConfig.js"></script>
 <script>
 "use strict";
 
@@ -740,6 +803,16 @@ function toast(msg, ms = 2400) {
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
 }
 
+function showArchitectBriefing(result) {
+  const panel = $("arch-panel");
+  if (!panel || !result || !result.triggered) return;
+  $("arch-eyebrow").textContent = `ARCHITECT — ${ARCHITECT.getModeLabel().toUpperCase()}`;
+  $("arch-message").textContent = result.message;
+  panel.dataset.severity = result.severity;
+  panel.dataset.mode = ARCHITECT.getMode();
+  panel.classList.add("show");
+}
+
 function pickFile(handler) {
   fileInput.value = "";
   fileInput.onchange = (e) => {
@@ -776,7 +849,7 @@ function render() {
 }
 
 $("home-btn").addEventListener("click", render);
-$("settings-btn").addEventListener("click", () => renderOnboarding(0));
+$("settings-btn").addEventListener("click", renderSettings);
 
 // ── Mini-Onboarding (Geschmack) ────────────────────────────────────
 const CUISINES = [
@@ -1367,8 +1440,10 @@ function renderFoodReview(scan) {
       })),
     });
     persist();
+    const _archFood = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
     toast("Mahlzeit erfasst");
     renderDashboard();
+    showArchitectBriefing(_archFood);
   });
 }
 
@@ -1548,8 +1623,10 @@ function renderRecipe(r) {
     });
     state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
+    const _archRecipe = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
     toast("Rezept erfasst — Korb geleert");
     renderDashboard();
+    showArchitectBriefing(_archRecipe);
   });
 }
 
@@ -1558,7 +1635,157 @@ function renderLoading(text) {
   app.innerHTML = `<div class="skeleton-card" style="margin-top:48px;"><span class="loader"></span>${escapeHtml(text)}</div>`;
 }
 
+// ── Settings ──────────────────────────────────────────────────────
+function renderSettings() {
+  const modes = [
+    {
+      key:   ARCHITECT.MODES.ELITE_BUTLER,
+      label: "Elite Butler",
+      desc:  "Analytisch, loyal, distanziert präzise. Maximale Seriosität.",
+      meta:  "Standard — empfohlen",
+    },
+    {
+      key:   ARCHITECT.MODES.PERFORMANCE_COACH,
+      label: "Performance Coach",
+      desc:  "Direkte Sprache, harte Metriken, kein Spielraum für Ausreden.",
+      meta:  "Für intensive Phasen",
+    },
+    {
+      key:   ARCHITECT.MODES.STRATEGIC_BUDDY,
+      label: "Strategic Buddy",
+      desc:  "Auf Augenhöhe, intelligent, klar — ohne übertriebene Formalität.",
+      meta:  "Alltag & Maintenance",
+    },
+  ];
+
+  const goalLabel     = { lose: "Definieren", maintain: "Halten", gain: "Aufbauen" };
+  const activityLabel = {
+    sedentary: "Sitzend", light: "Leicht aktiv", moderate: "Moderat aktiv",
+    active: "Sehr aktiv", very_active: "Athlet",
+  };
+
+  const p   = state.profile;
+  const tgt = state.targets;
+
+  const profileStats = p && tgt ? `
+    <div class="macros" style="margin-bottom:28px;">
+      <div class="macro">
+        <div class="macro-head">
+          <span class="macro-name">Kalorien</span>
+          <span class="macro-vals">${tgt.calories}<span class="target"> kcal</span></span>
+        </div>
+      </div>
+      <div class="macro">
+        <div class="macro-head">
+          <span class="macro-name">Protein</span>
+          <span class="macro-vals">${tgt.protein_g}<span class="target"> g</span></span>
+        </div>
+      </div>
+      <div class="macro">
+        <div class="macro-head">
+          <span class="macro-name">Ziel</span>
+          <span class="macro-vals" style="font-size:16px;">${goalLabel[p.goal]}</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--ink-mute);letter-spacing:.08em;margin:0 0 24px;">
+      ${p.weight_kg} kg &nbsp;·&nbsp; ${p.height_cm} cm &nbsp;·&nbsp; ${p.age} J.
+      &nbsp;·&nbsp; ${activityLabel[p.activity] || p.activity}
+    </p>
+  ` : `<p style="color:var(--ink-soft);font-size:13px;margin:0 0 24px;">Kein Profil hinterlegt.</p>`;
+
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+
+    <section class="hero-block">
+      <div class="hero-eyebrow">Performance Intelligence Core</div>
+      <h1 class="hero-display" style="font-size:clamp(32px,4vw,52px);max-width:none;">
+        Architect
+      </h1>
+      <p class="hero-sub" style="max-width:52ch;">
+        Kalibrieren Sie den Kommunikationsmodus. Die Analyse-Logik und Schwellenwerte
+        bleiben identisch — nur Tonalität und Sprache passen sich an.
+      </p>
+    </section>
+
+    <div style="margin-bottom:56px;">
+      <div class="eyebrow" style="margin-bottom:4px;">Kommunikationsmodus</div>
+      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 24px;letter-spacing:.04em;">
+        Aktiv: <strong style="color:var(--ink);">${ARCHITECT.getModeLabel()}</strong>
+      </p>
+
+      <div style="border:1px solid var(--line);">
+        ${modes.map((m, i) => {
+          const active = ARCHITECT.getMode() === m.key;
+          return `
+            <button
+              data-arch-mode="${m.key}"
+              style="
+                width:100%; text-align:left; background:${active ? "var(--surface)" : "var(--surface-2)"};
+                border:none; border-bottom:${i < modes.length - 1 ? "1px solid var(--line)" : "none"};
+                padding:22px 28px; cursor:pointer; display:grid;
+                grid-template-columns:1fr auto; gap:16px; align-items:center;
+                transition:background .2s;
+              "
+            >
+              <div>
+                <div style="
+                  font-family:'Cormorant Garamond',serif; font-size:20px;
+                  color:${active ? "var(--ink)" : "var(--ink-soft)"};
+                  margin-bottom:4px; transition:color .2s;
+                ">${m.label}</div>
+                <div style="font-size:12px;color:var(--ink-mute);line-height:1.5;">${m.desc}</div>
+                <div style="
+                  font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+                  color:${active ? "var(--gold-deep)" : "var(--ink-mute)"};
+                  margin-top:6px;
+                ">${m.meta}</div>
+              </div>
+              <div style="
+                width:8px; height:8px; border-radius:50%;
+                background:${active ? "var(--gold)" : "transparent"};
+                border:1px solid ${active ? "var(--gold)" : "var(--ink-mute)"};
+                flex-shrink:0; transition:all .2s;
+              "></div>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    </div>
+
+    <hr class="hairline gold">
+
+    <div style="margin:40px 0 56px;">
+      <div class="eyebrow" style="margin-bottom:20px;">Tagesparameter</div>
+      ${profileStats}
+      <button class="btn ghost" id="settings-edit-profile">Profil anpassen</button>
+    </div>
+
+    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+      <button class="btn ghost" id="settings-back">Dashboard</button>
+    </div>
+
+  `;
+
+  wrap.querySelectorAll("[data-arch-mode]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ARCHITECT.setMode(btn.dataset.archMode);
+      toast(`Modus: ${ARCHITECT.getModeLabel()}`);
+      renderSettings();
+    });
+  });
+
+  wrap.querySelector("#settings-edit-profile").addEventListener("click", () => renderOnboarding(0));
+  wrap.querySelector("#settings-back").addEventListener("click", render);
+
+  app.innerHTML = "";
+  app.appendChild(wrap);
+}
+
 // ── Boot ───────────────────────────────────────────────────────────
+$("arch-dismiss").addEventListener("click", () => {
+  $("arch-panel").classList.remove("show");
+});
 render();
 </script>
 </body>
