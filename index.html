@@ -607,7 +607,43 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   position: absolute; left: 0; top: 14px;
   font-family: 'Cormorant Garamond', serif; color: var(--gold); font-size: 18px;
 }
-.recipe-foot { padding: 24px 40px 32px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: flex-end; }
+.recipe-foot { padding: 24px 40px 32px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* ── Favorites ───────────────────────────────────────────────────── */
+.fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 14px; margin-top: 16px; }
+.fav-card {
+  background: var(--surface-2); border: 1px solid var(--line);
+  cursor: pointer; position: relative; transition: border-color .2s;
+}
+.fav-card:hover { border-color: var(--gold); }
+.fav-card-img { width:100%; height:130px; object-fit:cover; display:block; background:var(--surface-2); }
+.fav-card-body { padding: 16px 18px 18px; }
+.fav-card-title { font-family:'Cormorant Garamond',serif; font-size:19px; margin-bottom:5px; }
+.fav-card-meta { font-size:11.5px; color:var(--ink-mute); letter-spacing:.05em; }
+.fav-del {
+  position:absolute; top:7px; right:7px;
+  width:26px; height:26px;
+  background:rgba(26,22,20,.7); border:none; border-radius:50%;
+  color:#EDE5D8; font-size:15px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; line-height:1;
+}
+.fav-del:hover { background:rgba(139,48,48,.85); }
+@media (max-width: 540px) { .fav-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
+
+/* ── Butler Chat ─────────────────────────────────────────────────── */
+.chat-layout { display:flex; flex-direction:column; min-height:calc(100vh - 200px); }
+.chat-msgs { flex:1; overflow-y:auto; padding:4px 0 20px; display:flex; flex-direction:column; gap:10px; }
+.chat-bubble {
+  max-width:85%; padding:13px 17px; line-height:1.6; font-size:15px; word-break:break-word;
+}
+.chat-bubble.user { align-self:flex-end; background:var(--gold); color:#1A1614; }
+.chat-bubble.bot  { align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); }
+.chat-input-row { display:flex; gap:8px; padding-top:14px; border-top:1px solid var(--line); margin-top:8px; }
+.chat-input {
+  flex:1; background:transparent; border:0; border-bottom:1px solid var(--line);
+  padding:10px 0; font-size:15px; color:var(--ink); outline:none;
+  resize:none; min-height:44px; max-height:110px; overflow-y:auto; font-family:inherit;
+}
 
 /* Confidence pill */
 .pill {
@@ -1176,6 +1212,7 @@ function renderDashboard() {
       <div class="hero-cta">
         <button class="btn" id="hero-scan">Mahlzeit scannen</button>
         <button class="btn ghost" id="hero-fridge">Aus dem Kühlschrank</button>
+        <button class="btn ghost" id="hero-chat">Butler fragen</button>
       </div>
     </section>
 
@@ -1198,6 +1235,13 @@ function renderDashboard() {
       ${macroBlock("Fett", t.fat, tgt.fat_g)}
     </div>
 
+    ${state.favorites.length ? `
+    <div class="section-head" id="hero-favorites" style="cursor:pointer;">
+      <div class="section-title">Meine Rezepte</div>
+      <div class="eyebrow">${state.favorites.length} gespeichert →</div>
+    </div>
+    ` : ""}
+
     <div class="section-head">
       <div class="section-title">Tagebuch</div>
       <div class="eyebrow">${entries.length} ${entries.length === 1 ? "Eintrag" : "Einträge"}</div>
@@ -1211,6 +1255,8 @@ function renderDashboard() {
 
   $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
   $("hero-fridge").addEventListener("click", () => renderFridge());
+  $("hero-chat").addEventListener("click", renderChat);
+  if ($("hero-favorites")) $("hero-favorites").addEventListener("click", renderFavorites);
   $("reset-app").addEventListener("click", () => {
     if (!confirm("Profil, Tagebuch und alle Daten löschen? Das lässt sich nicht rückgängig machen.")) return;
     localStorage.removeItem(STORAGE_KEY);
@@ -1618,11 +1664,25 @@ function renderRecipe(r) {
       </div>
       <div class="recipe-foot">
         <button class="btn ghost" id="recipe-back">Schließen</button>
+        <button class="btn ghost" id="recipe-save">${state.favorites.some(f => f.title === r.title) ? "★ Gespeichert" : "☆ Merken"}</button>
         <button class="btn gold" id="recipe-log">Eine Portion erfassen</button>
       </div>
     </div>
   `;
   $("recipe-back").addEventListener("click", () => $("recipe-slot").innerHTML = "");
+  $("recipe-save").addEventListener("click", () => {
+    const idx = state.favorites.findIndex(f => f.title === r.title);
+    if (idx >= 0) {
+      state.favorites.splice(idx, 1);
+      $("recipe-save").textContent = "☆ Merken";
+      toast("Aus Favoriten entfernt");
+    } else {
+      state.favorites.unshift({ ...r, id: newId(), savedAt: Date.now() });
+      $("recipe-save").textContent = "★ Gespeichert";
+      toast("Rezept gespeichert");
+    }
+    persist();
+  });
   $("recipe-log").addEventListener("click", () => {
     const d = today();
     state.log[d] = state.log[d] || [];
@@ -1862,6 +1922,237 @@ function renderSettings() {
 
   app.innerHTML = "";
   app.appendChild(wrap);
+}
+
+// ── Favorites ─────────────────────────────────────────────────────
+function renderFavorites() {
+  if (!state.favorites.length) {
+    app.innerHTML = `
+      <section class="hero-block">
+        <div class="hero-eyebrow">Lumière</div>
+        <h1 class="hero-display">Meine Rezepte</h1>
+        <p class="hero-sub">Noch keine gespeicherten Rezepte. Kreiere ein Rezept und tippe auf ☆ Merken.</p>
+      </section>
+      <div style="text-align:center;margin-top:24px;">
+        <button class="btn ghost" id="fav-back">Dashboard</button>
+      </div>
+    `;
+    $("fav-back").addEventListener("click", renderDashboard);
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Lumière</div>
+      <h1 class="hero-display">Meine Rezepte</h1>
+    </section>
+
+    <div class="fav-grid">
+      ${state.favorites.map(fav => {
+        const q = encodeURIComponent(fav.title + ',food,gericht');
+        return `
+          <div class="fav-card" data-fav-id="${escapeHtml(fav.id)}">
+            <img class="fav-card-img" src="https://source.unsplash.com/400x280/?${q}"
+                 alt="${escapeHtml(fav.title)}" loading="lazy" onerror="this.style.display='none'">
+            <div class="fav-card-body">
+              <div class="fav-card-title">${escapeHtml(fav.title)}</div>
+              <div class="fav-card-meta">${fav.duration_min} Min · ${fav.calories_per_serving} kcal · ${fav.protein_g}g P</div>
+            </div>
+            <button class="fav-del" data-del-id="${escapeHtml(fav.id)}" aria-label="Entfernen">×</button>
+          </div>
+        `;
+      }).join("")}
+    </div>
+
+    <div style="text-align:center;margin-top:32px;padding-bottom:16px;">
+      <button class="btn ghost" id="fav-back">Dashboard</button>
+    </div>
+  `;
+
+  $("fav-back").addEventListener("click", renderDashboard);
+
+  document.querySelectorAll(".fav-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".fav-del")) return;
+      const fav = state.favorites.find(f => f.id === card.dataset.favId);
+      if (fav) renderFavRecipe(fav);
+    });
+  });
+
+  document.querySelectorAll(".fav-del").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.favorites = state.favorites.filter(f => f.id !== btn.dataset.delId);
+      persist();
+      renderFavorites();
+    });
+  });
+}
+
+function renderFavRecipe(r) {
+  const imgQuery = encodeURIComponent(r.title + ',food,gericht');
+  const isSaved = state.favorites.some(f => f.id === r.id);
+  app.innerHTML = `
+    <div class="recipe" style="margin-top:0;">
+      <img class="recipe-img" src="https://source.unsplash.com/800x400/?${imgQuery}"
+           alt="${escapeHtml(r.title)}" loading="lazy" onerror="this.style.display='none'">
+      <div class="recipe-head">
+        <div class="eyebrow">Rezept</div>
+        <h2>${escapeHtml(r.title)}</h2>
+        <div class="recipe-sub">${escapeHtml(r.summary)}</div>
+      </div>
+      <div class="recipe-meta">
+        <div class="recipe-meta-cell"><div class="recipe-meta-val">${r.duration_min}</div><div class="recipe-meta-cap">Minuten</div></div>
+        <div class="recipe-meta-cell"><div class="recipe-meta-val">${r.calories_per_serving}</div><div class="recipe-meta-cap">kcal / Portion</div></div>
+        <div class="recipe-meta-cell"><div class="recipe-meta-val">${r.protein_g}g</div><div class="recipe-meta-cap">Protein</div></div>
+        <div class="recipe-meta-cell"><div class="recipe-meta-val">${r.servings}</div><div class="recipe-meta-cap">Portionen</div></div>
+      </div>
+      <div class="recipe-body">
+        <div class="recipe-block">
+          <h4>Zutaten</h4>
+          <ul class="recipe-ingr">
+            ${r.ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join("")}
+          </ul>
+        </div>
+        <div class="recipe-block">
+          <h4>Zubereitung</h4>
+          <ol class="recipe-steps">
+            ${r.steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
+          </ol>
+        </div>
+      </div>
+      <div class="recipe-foot">
+        <button class="btn ghost" id="fav-recipe-back">← Meine Rezepte</button>
+        <button class="btn ghost" id="fav-recipe-toggle">${isSaved ? "★ Entfernen" : "☆ Merken"}</button>
+        <button class="btn gold" id="fav-recipe-log">Eine Portion erfassen</button>
+      </div>
+    </div>
+  `;
+  $("fav-recipe-back").addEventListener("click", renderFavorites);
+  $("fav-recipe-toggle").addEventListener("click", () => {
+    const idx = state.favorites.findIndex(f => f.id === r.id);
+    if (idx >= 0) {
+      state.favorites.splice(idx, 1);
+      persist();
+      toast("Aus Favoriten entfernt");
+      renderFavorites();
+    } else {
+      state.favorites.unshift({ ...r, savedAt: Date.now() });
+      persist();
+      toast("Rezept gespeichert");
+      $("fav-recipe-toggle").textContent = "★ Entfernen";
+    }
+  });
+  $("fav-recipe-log").addEventListener("click", () => {
+    const d = today();
+    state.log[d] = state.log[d] || [];
+    state.log[d].push({
+      id: newId(), timestamp: Date.now(), source: "recipe",
+      name: r.title, portion: "1 Portion",
+      calories: r.calories_per_serving, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
+    });
+    persist();
+    const arch = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
+    toast("Mahlzeit erfasst");
+    renderDashboard();
+    showArchitectBriefing(arch);
+  });
+}
+
+// ── Butler Chat ────────────────────────────────────────────────────
+function renderChat() {
+  const welcome = {
+    ELITE_BUTLER:      "Guten Tag, Chairman. Ich analysiere Ihren Tagesstand und stehe für Anfragen bereit.",
+    PERFORMANCE_COACH: "Los geht's. Was ist heute dein Ziel? Ich bin direkt.",
+    STRATEGIC_BUDDY:   "Hey — was beschäftigt dich gerade? Essen, Makros, Entscheidungen?",
+  }[ARCHITECT.getMode()] || "Bereit für Ihre Anfrage.";
+
+  app.innerHTML = `
+    <section class="hero-block" style="padding-bottom:20px;">
+      <div class="hero-eyebrow">Performance Intelligence Core</div>
+      <h1 class="hero-display" style="font-size:clamp(26px,3.5vw,42px);">Architect</h1>
+      <p class="hero-sub" style="font-size:12px;letter-spacing:.1em;margin:0;">${escapeHtml(ARCHITECT.getModeLabel())}</p>
+    </section>
+
+    <div class="chat-layout">
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-bubble bot">${escapeHtml(welcome)}</div>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" class="chat-input" placeholder="Nachricht eingeben…" rows="1"></textarea>
+        <button class="btn gold" id="chat-send" style="padding:0 20px;flex-shrink:0;align-self:flex-end;">Senden</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn ghost" id="chat-back" style="font-size:13px;padding:0 16px;height:36px;">Dashboard</button>
+    </div>
+  `;
+
+  const msgs    = $("chat-msgs");
+  const input   = $("chat-input");
+  const sendBtn = $("chat-send");
+  const history = [];
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text || sendBtn.disabled) return;
+    input.value = "";
+    input.style.height = "44px";
+
+    const userBubble = document.createElement("div");
+    userBubble.className = "chat-bubble user";
+    userBubble.textContent = text;
+    msgs.appendChild(userBubble);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    history.push({ role: "user", content: text });
+
+    const loadBubble = document.createElement("div");
+    loadBubble.className = "chat-bubble bot";
+    loadBubble.innerHTML = `<span class="loader"></span>`;
+    msgs.appendChild(loadBubble);
+    msgs.scrollTop = msgs.scrollHeight;
+    sendBtn.disabled = true;
+
+    try {
+      const t = todayTotals();
+      const data = await api("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: history,
+          mode: ARCHITECT.getMode(),
+          context: {
+            calories_today:  t.calories,
+            protein_today:   t.protein,
+            carbs_today:     t.carbs,
+            fat_today:       t.fat,
+            calories_target: state.targets?.calories ?? null,
+            protein_target:  state.targets?.protein_g ?? null,
+          },
+        }),
+      });
+      const reply = data.reply || "—";
+      loadBubble.textContent = reply;
+      history.push({ role: "assistant", content: reply });
+    } catch (e) {
+      loadBubble.textContent = `Fehler: ${e.message}`;
+    } finally {
+      sendBtn.disabled = false;
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  input.addEventListener("input", () => {
+    input.style.height = "44px";
+    input.style.height = Math.min(input.scrollHeight, 110) + "px";
+  });
+  $("chat-back").addEventListener("click", renderDashboard);
 }
 
 // ── Boot ───────────────────────────────────────────────────────────

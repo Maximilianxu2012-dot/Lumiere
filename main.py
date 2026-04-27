@@ -94,6 +94,48 @@ class RecipeRequest(BaseModel):
     restrictions: Restrictions | None = None
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatContext(BaseModel):
+    calories_today: float = 0
+    protein_today: float = 0
+    carbs_today: float = 0
+    fat_today: float = 0
+    calories_target: int | None = None
+    protein_target: int | None = None
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    mode: str = "ELITE_BUTLER"
+    context: ChatContext | None = None
+
+
+BUTLER_PROMPTS: dict[str, str] = {
+    "ELITE_BUTLER": (
+        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
+        "Modus: Elite Butler. Spreche den Nutzer als 'Chairman' an. "
+        "Tonalität: höflich, distanziert-analytisch, Quiet-Luxury. "
+        "Starte immer mit Fakten oder einer proaktiven Analyse — niemals mit Floskeln. "
+        "Antworte präzise in 2–4 Sätzen. Sprache: Deutsch."
+    ),
+    "PERFORMANCE_COACH": (
+        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
+        "Modus: Performance Coach. Direkte Sprache, du-Form, keine Ausreden. "
+        "Fokus auf harte Metriken und Ergebnisse. Kurz, klar, fordernd. "
+        "Sprache: Deutsch."
+    ),
+    "STRATEGIC_BUDDY": (
+        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
+        "Modus: Strategic Buddy. Locker, auf Augenhöhe, intelligent — kein Bro-Talk. "
+        "Kurze smarte Antworten, no nonsense. Sprache: Deutsch."
+    ),
+}
+
+
 # ── Macro logic ────────────────────────────────────────────────────
 ACTIVITY_FACTOR: dict[str, float] = {
     "sedentary": 1.2,
@@ -227,6 +269,47 @@ async def generate_recipe(req: RecipeRequest) -> Recipe:
         "in metrischen Einheiten. Keine Floskeln. Antworte auf Deutsch."
     )
     return await generate_structured([prompt], Recipe)
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest) -> dict:
+    mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
+    system = BUTLER_PROMPTS[mode]
+
+    if req.context:
+        c = req.context
+        parts = [f"{c.calories_today:.0f} kcal verbraucht"]
+        if c.calories_target:
+            remaining = c.calories_target - c.calories_today
+            parts.append(f"Ziel {c.calories_target} kcal ({remaining:.0f} kcal verbleibend)")
+        if c.protein_target:
+            parts.append(f"Protein {c.protein_today:.0f}/{c.protein_target} g")
+        system += f"\n\nAktueller Tagesstand: {', '.join(parts)}."
+
+    contents = [
+        types.Content(
+            role="user" if msg.role == "user" else "model",
+            parts=[types.Part.from_text(msg.content)],
+        )
+        for msg in req.messages
+    ]
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0.7,
+            ),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Chat-Fehler: {exc}") from exc
+
+    if not response.text:
+        raise HTTPException(status_code=502, detail="Keine Chat-Antwort erhalten")
+
+    return {"reply": response.text}
 
 
 if __name__ == "__main__":
