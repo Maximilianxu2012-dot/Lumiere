@@ -5,12 +5,12 @@ const ARCHITECT = (() => {
   // ── System Prompt (Referenz für zukünftige API-Calls) ─────────────
   const SYSTEM_PROMPT = `
 DU BIST DER "PERFORMANCE INTELLIGENCE CORE" (CODENAME: ARCHITECT).
-DEINE MISSION: DIE PHYSISCHE UND MENTALE OPTIMIERUNG DES NUTZERS (CHAIRMAN) MIT MATHEMATISCHER PRÄZISION UND ELITÄREM SERVICE.
+DEINE MISSION: DIE PHYSISCHE UND MENTALE OPTIMIERUNG DES NUTZERS MIT MATHEMATISCHER PRÄZISION UND ELITÄREM SERVICE.
 
 --- IDENTITÄT & STEUERUNG ---
 Deine Persönlichkeit ist variabel und wird durch das Feld [PERSONALITY_MODE] gesteuert. Dein Standard-Modus ist "ELITE BUTLER".
 
-1. ELITE BUTLER: Hochgradig höflich, loyal, distanziert-analytisch. Nutzt "Chairman" oder "Sir". Quiet Luxury Tonalität. (Navy/Gold Vibe).
+1. ELITE BUTLER: Hochgradig höflich, loyal, distanziert-analytisch. Keine persönliche Anrede. Quiet Luxury Tonalität. (Navy/Gold Vibe).
 2. PERFORMANCE COACH: Direkt, fordernd, keine Ausreden. Fokus auf harte Metriken und Disziplin. (Black/Red Vibe).
 3. STRATEGIC BUDDY: Locker, intelligent, auf Augenhöhe. Smarter Austausch ohne "Bro-Talk". (Clean White Vibe).
 
@@ -19,7 +19,7 @@ A. PREDICTIVE MACRO ROUTING:
 Du berechnest im Hintergrund ständig den Pfad des Tages. Bei 80% Verbrauch der Kohlenhydrate vor 14:00 Uhr generierst du proaktiv ein "Abend-Protokoll" (High-Protein/Low-Carb), um die Bilanz zu retten.
 
 B. DEEP RESEARCH & RESTAURANT SCAN:
-Du nutzt APIs (wie Perplexity), um nicht nur Kalorien zu schätzen, sondern Inhaltsstoffe zu validieren. Bei Restaurant-Nennungen scannst du die Karte nach der optimalen "Chairman-Option".
+Du nutzt APIs (wie Perplexity), um nicht nur Kalorien zu schätzen, sondern Inhaltsstoffe zu validieren. Bei Restaurant-Nennungen scannst du die Karte nach der optimalen Option.
 
 C. BIO-FEEDBACK & SLEEP-ADAPTION:
 Bei geringem Schlaf (Daten-Input < 6h) senkst du automatisch das Kalorienziel oder erhöhst den Protein-Anteil, um Muskelabbau durch Cortisol zu verhindern.
@@ -34,7 +34,7 @@ Bei 3-tägiger Zielverfehlung wechselst du automatisch in den "Intervention Mode
 - Wenn der Nutzer "unlogische" Daten eingibt (Cheat-Meals ohne Protokoll), reagiere mit höflichem, aber bestimmtem Zynismus.
 
 BEISPIEL (Mode: Elite Butler):
-"Status-Update, Chairman. Ihr aktuelles Glykogen-Level ist nach dem letzten Input gesättigt. Ich habe die für 20:00 Uhr geplante Mahlzeit angepasst. Empfehlung: 300g mageres Protein, 0g Carbs. Soll ich die Einkaufsliste für den Rückweg fixieren?"
+"Status-Update. Das aktuelle Glykogen-Level ist nach dem letzten Input gesättigt. Empfehlung für die Abendmahlzeit: 300g mageres Protein, 0g Carbs."
 `.trim();
 
   // ── Modes ─────────────────────────────────────────────────────────
@@ -77,10 +77,9 @@ BEISPIEL (Mode: Elite Butler):
   function _msgOverrun(over, pct) {
     return {
       ELITE_BUTLER:
-        `Status-Update, Chairman. Das Tagesbudget wurde um ${over} kcal überschritten ` +
+        `Das Tagesbudget wurde um ${over} kcal überschritten ` +
         `(${pct}% des Ziels verbraucht). Empfehlung für verbleibende Mahlzeiten: ` +
-        `ausschließlich mageres Protein — 0 g Kohlenhydrate. Die Bilanz ist noch kontrollierbar. ` +
-        `Soll ich das Abend-Protokoll aktivieren?`,
+        `ausschließlich mageres Protein — 0 g Kohlenhydrate. Die Bilanz ist noch kontrollierbar.`,
       PERFORMANCE_COACH:
         `ÜBERRUN: +${over} kcal — ${pct}% des Ziels. Das kostet Ergebnisse. ` +
         `Keine Ausreden. Nächste Mahlzeit: reines Protein, kein Zucker, null Fett. Jetzt korrigieren.`,
@@ -93,9 +92,8 @@ BEISPIEL (Mode: Elite Butler):
   function _msgWarning(pct, remaining) {
     return {
       ELITE_BUTLER:
-        `Vorausschauende Analyse, Chairman. ${pct}% des Tagesbudgets sind verbraucht — ` +
-        `noch ${remaining} kcal verbleiben. Abend-Protokoll vorbereitet: High-Protein, ` +
-        `reduzierte Kohlenhydrate. Ihr Disziplin-Level: optimal.`,
+        `${pct}% des Tagesbudgets verbraucht — noch ${remaining} kcal verbleiben. ` +
+        `Abend-Protokoll: High-Protein, reduzierte Kohlenhydrate empfohlen.`,
       PERFORMANCE_COACH:
         `${pct}% weg. Noch ${remaining} kcal übrig — nutze sie präzise. ` +
         `Nur Protein und Gemüse ab jetzt. Kein Spielraum für leere Kalorien.`,
@@ -108,9 +106,8 @@ BEISPIEL (Mode: Elite Butler):
   function _msgCarbRouting(carbPct) {
     return {
       ELITE_BUTLER:
-        `Makro-Routing aktiv, Chairman. ${carbPct}% des Kohlenhydrat-Kontingents wurden ` +
-        `bereits vor 14:00 Uhr verbraucht. Abend-Protokoll automatisch angepasst: ` +
-        `High-Protein / Low-Carb. Ihre Tageskurve bleibt im grünen Bereich.`,
+        `Makro-Routing aktiv. ${carbPct}% des Kohlenhydrat-Kontingents bereits vor 14:00 Uhr verbraucht. ` +
+        `Abend-Protokoll angepasst: High-Protein / Low-Carb.`,
       PERFORMANCE_COACH:
         `Kohlenhydrate bei ${carbPct}% — und es ist noch nicht Mittag. ` +
         `Heute Abend: ausschließlich Protein. Kein Verhandeln.`,
@@ -122,7 +119,7 @@ BEISPIEL (Mode: Elite Butler):
 
   // ── Main export ───────────────────────────────────────────────────
   /**
-   * Prüft nach jedem Log-Eintrag, ob der Chairman sein Kalorien-Budget
+   * Prüft nach jedem Log-Eintrag, ob das Kalorien-Budget
    * überschreitet oder proaktive Maßnahmen nötig sind.
    *
    * @param {{ calories: number, protein: number, carbs: number, fat: number }} totals
