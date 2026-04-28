@@ -556,17 +556,55 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .tag-add:hover { color: var(--ink); border-color: var(--ink-mute); }
 
-/* Detected food list (editable) */
-.detected { margin-top: 24px; }
-.detected-row {
-  display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px;
-  align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line);
+/* ── Scan items (elegant card list) ─────────────────────────────── */
+.scan-list { margin-top: 16px; }
+.scan-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--line); gap: 12px;
 }
-.detected-row input {
-  padding: 6px 0; font-size: 14px;
+.scan-item-info { flex: 1; min-width: 0; }
+.scan-item-name {
+  font-family: 'Cormorant Garamond', serif; font-size: 18px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.detected-row .col-cal {
-  font-family: 'Cormorant Garamond', serif; text-align: right;
+.scan-item-portion { font-size: 12px; color: var(--ink-mute); margin-top: 2px; letter-spacing:.04em; }
+.scan-item-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.scan-item-kcal {
+  font-family: 'Cormorant Garamond', serif; font-size: 17px; color: var(--gold-deep);
+  white-space: nowrap;
+}
+.scan-item-del {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-mute); font-size: 18px; line-height: 1; padding: 0 4px;
+}
+.scan-item-del:hover { color: var(--danger); }
+
+/* Follow-up / refine box */
+.refine-box {
+  margin-top: 20px; padding: 18px 20px;
+  border: 1px solid var(--line); background: var(--surface);
+}
+.refine-box.alert {
+  border-color: var(--gold); background: rgba(201,169,97,.05);
+}
+.refine-box-label {
+  font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5;
+}
+.refine-box.alert .refine-box-label { color: var(--gold-deep); font-weight: 500; }
+.refine-row { display: flex; gap: 8px; }
+.refine-input {
+  flex: 1; background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  padding: 9px 0; font-size: 14px; color: var(--ink); outline: none; font-family: inherit;
+}
+
+/* Inline add in fridge */
+.fridge-add-row {
+  display: flex; gap: 8px; margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.fridge-add-input {
+  flex: 1; background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  padding: 9px 0; font-size: 14px; color: var(--ink); outline: none; font-family: inherit;
 }
 
 /* Recipe */
@@ -1425,23 +1463,41 @@ function renderFoodReview(scan) {
     fat_g: s.fat_g + (+i.fat_g || 0),
   }), { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
 
+  const confidenceLabel = { low: "Unsicher", medium: "Wahrscheinlich", high: "Sicher" }[scan.confidence] || scan.confidence;
+  const isLow = scan.confidence === "low";
+
   app.innerHTML = `
     <div class="eyebrow">Scan-Ergebnis</div>
-    <h1 class="onb-title" style="margin-top:8px;">Erkannt</h1>
-    <p class="onb-sub" style="margin-bottom:24px;">
-      <span class="pill ${scan.confidence}">Konfidenz: ${scan.confidence}</span>
-    </p>
-    <div class="field" style="max-width:480px;margin:0 auto 32px;text-align:left;">
-      <label class="field-label" for="meal-name">Mahlzeit</label>
-      <input id="meal-name" value="${escapeHtml(mealName)}" placeholder="z.B. Mittagessen">
+    <div style="display:flex;align-items:center;gap:12px;margin:10px 0 24px;">
+      <input id="meal-name" value="${escapeHtml(mealName)}"
+        placeholder="Mahlzeit benennen…"
+        style="flex:1;font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;
+               border:0;border-bottom:1px solid var(--line);padding:4px 0;background:transparent;
+               color:var(--ink);outline:none;">
+      <span class="pill ${scan.confidence}" style="flex-shrink:0;">${confidenceLabel}</span>
     </div>
-    <div class="eyebrow" style="text-align:left;margin-bottom:4px;">Komponenten</div>
-    <div class="detected" id="rows"></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;border-top:1px solid var(--line);margin-top:8px;">
+
+    <div class="scan-list" id="scan-list"></div>
+
+    <div class="refine-box ${isLow ? "alert" : ""}" id="refine-box">
+      <div class="refine-box-label">
+        ${isLow
+          ? "Ich bin mir nicht sicher was das ist — beschreib es kurz und ich passe die Werte an."
+          : "Etwas stimmt nicht? Beschreib es kurz — ich korrigiere es für dich."}
+      </div>
+      <div class="refine-row">
+        <input type="text" id="refine-input" class="refine-input"
+          placeholder="${isLow ? "z.B. eingepackter Chicken Burrito mit Reis und Soße" : "z.B. das war eigentlich eine Pizza Margherita"}">
+        <button class="btn ghost" id="refine-btn" style="flex-shrink:0;padding:0 18px;">Anpassen</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;
+                padding:20px 0;border-top:1px solid var(--line);margin-top:16px;">
       <span class="eyebrow">Gesamt</span>
-      <span class="serif" style="font-size:24px;" id="total">${totals().calories} kcal</span>
+      <span style="font-family:'Cormorant Garamond',serif;font-size:26px;" id="total">${totals().calories} kcal</span>
     </div>
-    <div style="display:flex;gap:12px;margin-top:24px;justify-content:flex-end;">
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn ghost" id="cancel">Verwerfen</button>
       <button class="btn gold" id="save">In Tagebuch übernehmen</button>
     </div>
@@ -1449,28 +1505,51 @@ function renderFoodReview(scan) {
 
   $("meal-name").addEventListener("input", e => { mealName = e.target.value; });
 
-  const rowsEl = $("rows");
+  const listEl = $("scan-list");
   function paint() {
-    rowsEl.innerHTML = items.map((i, idx) => `
-      <div class="detected-row">
-        <input data-idx="${idx}" data-k="name" value="${escapeHtml(i.name)}">
-        <input data-idx="${idx}" data-k="portion" value="${escapeHtml(i.portion)}">
-        <input data-idx="${idx}" data-k="calories" type="number" value="${i.calories}" class="col-cal">
-        <button class="log-del" data-rm="${idx}" aria-label="Komponente entfernen">×</button>
+    listEl.innerHTML = items.map((item, idx) => `
+      <div class="scan-item">
+        <div class="scan-item-info">
+          <div class="scan-item-name">${escapeHtml(item.name)}</div>
+          <div class="scan-item-portion">${escapeHtml(item.portion)}</div>
+        </div>
+        <div class="scan-item-right">
+          <span class="scan-item-kcal">${item.calories} kcal</span>
+          <button class="scan-item-del" data-rm="${idx}" aria-label="Entfernen">×</button>
+        </div>
       </div>
     `).join("");
-    rowsEl.querySelectorAll("input").forEach(inp => inp.addEventListener("input", e => {
-      const idx = +e.target.dataset.idx, k = e.target.dataset.k;
-      items[idx][k] = k === "calories" ? +e.target.value : e.target.value;
-      $("total").textContent = `${totals().calories} kcal`;
-    }));
-    rowsEl.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
+    listEl.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
       items.splice(+b.dataset.rm, 1);
       paint();
       $("total").textContent = `${totals().calories} kcal`;
     }));
   }
   paint();
+
+  // Refine via natural language
+  $("refine-btn").addEventListener("click", async () => {
+    const desc = $("refine-input").value.trim();
+    if (!desc) return;
+    const btn = $("refine-btn");
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const refined = await api("/api/scan/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ original_items: items, description: desc }),
+      });
+      renderFoodReview({ items: refined.items, confidence: refined.confidence });
+    } catch (e) {
+      toast(e.message);
+      btn.disabled = false;
+      btn.textContent = "Anpassen";
+    }
+  });
+  $("refine-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("refine-btn").click();
+  });
 
   $("cancel").addEventListener("click", renderDashboard);
   $("save").addEventListener("click", () => {
@@ -1531,12 +1610,27 @@ function renderFridge() {
 
   $("scan-fridge").addEventListener("click", () => pickFile(handleFridgeScan));
   $("add-manual").addEventListener("click", () => {
-    const name = prompt("Zutat mit Menge hinzufügen (z.B. 4 Äpfel):");
-    if (name && name.trim()) {
-      state.fridge.push(name.trim());
+    const list = $("fridge-list");
+    if (list.querySelector(".fridge-add-row")) return; // already open
+    const addRow = document.createElement("div");
+    addRow.className = "fridge-add-row";
+    addRow.innerHTML = `
+      <input type="text" class="fridge-add-input" id="fridge-manual-input"
+        placeholder="z.B. 4 Äpfel, 200g Reis, 2 Eier…" autocomplete="off">
+      <button class="btn ghost" id="fridge-manual-add" style="flex-shrink:0;padding:0 18px;">+</button>
+    `;
+    list.appendChild(addRow);
+    const inp = addRow.querySelector("#fridge-manual-input");
+    inp.focus();
+    const doAdd = () => {
+      const val = inp.value.trim();
+      if (!val) return;
+      val.split(",").map(v => v.trim()).filter(Boolean).forEach(v => state.fridge.push(v));
       persist();
       paintFridge();
-    }
+    };
+    addRow.querySelector("#fridge-manual-add").addEventListener("click", doAdd);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") doAdd(); });
   });
   $("cancel-fridge").addEventListener("click", renderDashboard);
   $("clear-fridge").addEventListener("click", () => {

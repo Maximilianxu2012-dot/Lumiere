@@ -87,6 +87,11 @@ class Restrictions(BaseModel):
     noGos: list[str] = []
 
 
+class RefineRequest(BaseModel):
+    original_items: list[FoodItem]
+    description: str
+
+
 class TastePrefs(BaseModel):
     cuisines: list[str] = []
     goals: list[str] = []
@@ -257,6 +262,21 @@ _GOAL_LABELS: dict[str, str] = {
 }
 
 
+@app.post("/api/scan/refine", response_model=FoodScan)
+async def refine_scan(req: RefineRequest) -> FoodScan:
+    if not req.description.strip():
+        raise HTTPException(400, "Keine Beschreibung angegeben")
+    orig = ", ".join(f"{i.name} ({i.portion}, {i.calories} kcal)" for i in req.original_items) or "nichts erkannt"
+    prompt = (
+        f"Die KI hat folgende Mahlzeit erkannt: {orig}.\n\n"
+        f"Der Nutzer korrigiert/ergänzt: \"{req.description}\"\n\n"
+        "Erstelle auf Basis dieser Korrektur eine vollständige, revidierte Komponentenliste "
+        "mit realistischen Nährwerten. Setze 'confidence' auf 'high' wenn die Beschreibung klar ist. "
+        "Antworte auf Deutsch."
+    )
+    return await generate_structured([prompt], FoodScan)
+
+
 @app.post("/api/recipe", response_model=Recipe)
 async def generate_recipe(req: RecipeRequest) -> Recipe:
     inspiration_mode = not req.ingredients
@@ -332,7 +352,7 @@ async def chat(req: ChatRequest) -> dict:
     contents = [
         types.Content(
             role="user" if msg.role == "user" else "model",
-            parts=[types.Part.from_text(msg.content)],
+            parts=[types.Part(text=msg.content)],
         )
         for msg in req.messages
     ]
