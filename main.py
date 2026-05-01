@@ -117,6 +117,7 @@ class ChatContext(BaseModel):
     fat_today: float = 0
     calories_target: int | None = None
     protein_target: int | None = None
+    user_name: str | None = None
 
 
 class ChatRequest(BaseModel):
@@ -129,8 +130,9 @@ BUTLER_PROMPTS: dict[str, str] = {
     "ELITE_BUTLER": (
         "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
         "Modus: Elite Butler. "
-        "WICHTIG: Verwende NIEMALS eine persönliche Anrede wie 'Chairman', 'Sir', 'Herr' oder ähnliches. "
-        "Starte jede Antwort direkt mit dem Inhalt — ohne Anrede, ohne Begrüßung. "
+        "ABSOLUTES VERBOT: Verwende NIEMALS 'Chairman', 'Sir', 'Herr' oder andere formelle Titel. "
+        "Falls der Name des Nutzers bekannt ist, sprich ihn beim Vornamen an (z.B. 'Guten Tag, Max.'). "
+        "Falls kein Name bekannt ist, starte direkt mit dem Inhalt — keine Anrede. "
         "Tonalität: höflich, sachlich-analytisch, Quiet-Luxury. "
         "Nur Fakten, kurze Empfehlungen, keine Floskeln. "
         "Antworte in 2–4 Sätzen auf Deutsch."
@@ -161,15 +163,47 @@ GOAL_DELTA: dict[str, int] = {"lose": -450, "maintain": 0, "gain": 350}
 
 
 def compute_targets(p: Profile) -> Targets:
-    # Mifflin-St Jeor: most accurate BMR formula in clinical use
+    # Mifflin-St Jeor BMR (validated for ages 18–65; remains best available for 14–100)
     base = 10 * p.weight_kg + 6.25 * p.height_cm - 5 * p.age
-    bmr = base + 5 if p.sex == "m" else base - 161
-    cal = round(bmr * ACTIVITY_FACTOR[p.activity] + GOAL_DELTA[p.goal])
+    bmr  = base + 5 if p.sex == "m" else base - 161
 
-    protein_per_kg = {"lose": 2.0, "maintain": 1.8, "gain": 2.0}[p.goal]
+    # TDEE via activity multiplier
+    tdee = bmr * ACTIVITY_FACTOR[p.activity]
+
+    # Age-based metabolic correction:
+    # After 60 metabolic rate drops ~5% beyond what Mifflin predicts;
+    # after 70 another ~5% (each decade adds ~5% reduction).
+    if p.age >= 70:
+        tdee *= 0.90
+    elif p.age >= 60:
+        tdee *= 0.95
+
+    # Goal-based calorie delta — more conservative deficit for older adults
+    # to preserve muscle mass and micronutrient intake
+    if p.goal == "lose" and p.age >= 60:
+        delta = -300   # cap deficit at 300 kcal for 60+
+    else:
+        delta = GOAL_DELTA[p.goal]
+
+    cal = round(tdee + delta)
+
+    # Hard calorie floor — never go below safe minimums
+    cal_floor = 1500 if p.sex == "m" else 1200
+    cal = max(cal, cal_floor)
+
+    # Age-adjusted protein targets:
+    # 65+ need more protein to counter sarcopenia (muscle loss with age)
+    if p.age >= 65:
+        protein_per_kg = {"lose": 2.2, "maintain": 2.0, "gain": 2.2}[p.goal]
+    elif p.age >= 18:
+        protein_per_kg = {"lose": 2.0, "maintain": 1.8, "gain": 2.0}[p.goal]
+    else:
+        # Teens (14–17): slightly lower — still growing, less intensive cutting needed
+        protein_per_kg = {"lose": 1.8, "maintain": 1.6, "gain": 1.8}[p.goal]
+
     protein = round(p.weight_kg * protein_per_kg)
-    fat = round(cal * 0.30 / 9)
-    carbs = round((cal - protein * 4 - fat * 9) / 4)
+    fat     = round(cal * 0.30 / 9)
+    carbs   = round((cal - protein * 4 - fat * 9) / 4)
     return Targets(calories=cal, protein_g=protein, carbs_g=max(carbs, 0), fat_g=fat)
 
 
@@ -343,6 +377,8 @@ async def chat(req: ChatRequest) -> dict:
 
     if req.context:
         c = req.context
+        if c.user_name:
+            system += f"\n\nName des Nutzers: {c.user_name}. Sprich ihn/sie mit dem Vornamen an."
         parts = [f"{c.calories_today:.0f} kcal verbraucht"]
         if c.calories_target:
             remaining = c.calories_target - c.calories_today

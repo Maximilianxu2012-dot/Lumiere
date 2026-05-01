@@ -852,6 +852,7 @@ const defaultState = () => ({
   profile: null,
   targets: null,
   taste: null,
+  name: null,
   log: {},
   fridge: [],
   favorites: [],
@@ -862,8 +863,9 @@ const defaultState = () => ({
 let state = (() => {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState();
-    if (!s.restrictions)      s.restrictions      = { allergies: [], noGos: [] };
-    if (!s.hasOwnProperty("lastBriefingDate")) s.lastBriefingDate = null;
+    if (!s.restrictions)                       s.restrictions      = { allergies: [], noGos: [] };
+    if (!s.hasOwnProperty("lastBriefingDate")) s.lastBriefingDate  = null;
+    if (!s.hasOwnProperty("name"))             s.name              = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -927,14 +929,55 @@ function todayTotals() {
 
 // ── Router ─────────────────────────────────────────────────────────
 function render() {
-  // Profile (Ziel + Stats + Aktivität) first, then taste preferences.
   if (!state.profile) return renderOnboarding(0);
-  if (!state.taste) return renderTaste(0);
+  if (!state.name)    return renderNameStep();
+  if (!state.taste)   return renderTaste(0);
   renderDashboard();
 }
 
 $("home-btn").addEventListener("click", render);
 $("settings-btn").addEventListener("click", renderSettings);
+
+// ── Name-Schritt ───────────────────────────────────────────────────
+function renderNameStep() {
+  const draft = { name: state.name || "" };
+  app.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "onb-step";
+  wrap.innerHTML = `
+    <div class="eyebrow">Willkommen bei Lumière</div>
+    <h1 class="onb-title" style="margin-top:8px;">Wie heißt du?</h1>
+    <p class="onb-sub">Dein Vorname — damit dein Architect persönlich mit dir spricht.</p>
+    <div style="max-width:360px;margin:32px auto 0;">
+      <input id="name-input" type="text" placeholder="Vorname eingeben…"
+        maxlength="50" autocomplete="given-name"
+        value="${escapeHtml(draft.name)}"
+        style="width:100%;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;
+               border:0;border-bottom:2px solid var(--line);padding:10px 0;
+               background:transparent;color:var(--ink);outline:none;text-align:center;
+               transition:border-color .2s;">
+    </div>
+    <div class="onb-nav" style="justify-content:flex-end;margin-top:40px;">
+      <button class="btn gold" id="name-next" ${draft.name.trim() ? "" : "disabled"}>Weiter →</button>
+    </div>
+  `;
+  const inp  = wrap.querySelector("#name-input");
+  const btn  = wrap.querySelector("#name-next");
+  const sync = () => {
+    draft.name = inp.value.trim();
+    btn.disabled = !draft.name;
+    inp.style.borderBottomColor = draft.name ? "var(--gold)" : "var(--line)";
+  };
+  inp.addEventListener("input", sync);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter" && draft.name) btn.click(); });
+  btn.addEventListener("click", () => {
+    state.name = draft.name;
+    persist();
+    renderTaste(0);
+  });
+  app.appendChild(wrap);
+  setTimeout(() => inp.focus(), 50);
+}
 
 // ── Mini-Onboarding (Geschmack) ────────────────────────────────────
 const CUISINES = [
@@ -1143,10 +1186,16 @@ function stepStats() {
   }));
   node.querySelector("#back-1").addEventListener("click", () => renderOnboarding(0));
   node.querySelector("#next-2").addEventListener("click", () => {
-    onbDraft.age = +node.querySelector("#age").value;
-    onbDraft.weight_kg = +node.querySelector("#weight").value;
-    onbDraft.height_cm = +node.querySelector("#height").value;
-    if (!onbDraft.sex) return toast("Bitte Geschlecht wählen");
+    const age = +node.querySelector("#age").value;
+    const weight = +node.querySelector("#weight").value;
+    const height = +node.querySelector("#height").value;
+    if (!onbDraft.sex)          return toast("Bitte Geschlecht wählen");
+    if (age < 14 || age > 100)  return toast("Alter muss zwischen 14 und 100 liegen");
+    if (weight < 30 || weight > 300) return toast("Gewicht muss zwischen 30 und 300 kg liegen");
+    if (height < 120 || height > 230) return toast("Größe muss zwischen 120 und 230 cm liegen");
+    onbDraft.age = age;
+    onbDraft.weight_kg = weight;
+    onbDraft.height_cm = height;
     renderOnboarding(2);
   });
   return node;
@@ -1933,8 +1982,12 @@ function renderSettings() {
 
     <div style="margin:40px 0 56px;">
       <div class="eyebrow" style="margin-bottom:20px;">Tagesparameter</div>
+      ${state.name ? `<p style="font-family:'Cormorant Garamond',serif;font-size:22px;margin:0 0 16px;color:var(--ink);">Hallo, ${escapeHtml(state.name)}.</p>` : ""}
       ${profileStats}
-      <button class="btn ghost" id="settings-edit-profile">Profil anpassen</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn ghost" id="settings-edit-name">Name ändern</button>
+        <button class="btn ghost" id="settings-edit-profile">Profil anpassen</button>
+      </div>
     </div>
 
     <hr class="hairline gold">
@@ -1981,6 +2034,7 @@ function renderSettings() {
     });
   });
 
+  wrap.querySelector("#settings-edit-name").addEventListener("click", () => renderNameStep());
   wrap.querySelector("#settings-edit-profile").addEventListener("click", () => renderOnboarding(0));
   wrap.querySelector("#settings-back").addEventListener("click", render);
 
@@ -2066,9 +2120,10 @@ async function fetchDailyBriefing() {
         messages: [{ role: "user", content: msg }],
         mode: ARCHITECT.getMode(),
         context: {
-          calories_today: 0,
+          calories_today:  0,
           calories_target: state.targets.calories,
-          protein_target: state.targets.protein_g,
+          protein_target:  state.targets.protein_g,
+          user_name:       state.name || null,
         },
       }),
     });
@@ -2286,6 +2341,7 @@ function renderChat() {
             fat_today:       t.fat,
             calories_target: state.targets?.calories ?? null,
             protein_target:  state.targets?.protein_g ?? null,
+            user_name:       state.name || null,
           },
         }),
       });
