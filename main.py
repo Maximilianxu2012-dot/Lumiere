@@ -20,9 +20,9 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 
-SUPABASE_URL        = os.getenv("SUPABASE_URL", "")
-SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")  # legacy fallback
+SUPABASE_URL        = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "").strip()
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()  # legacy fallback
 
 MODEL = "gemini-2.5-flash"
 ROOT  = Path(__file__).parent
