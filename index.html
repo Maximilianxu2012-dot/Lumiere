@@ -929,8 +929,8 @@ function todayTotals() {
 
 // ── Router ─────────────────────────────────────────────────────────
 function render() {
-  if (!state.profile) return renderOnboarding(0);
   if (!state.name)    return renderNameStep();
+  if (!state.profile) return renderOnboarding(0);
   if (!state.taste)   return renderTaste(0);
   renderDashboard();
 }
@@ -973,7 +973,7 @@ function renderNameStep() {
   btn.addEventListener("click", () => {
     state.name = draft.name;
     persist();
-    renderTaste(0);
+    render();
   });
   app.appendChild(wrap);
   setTimeout(() => inp.focus(), 50);
