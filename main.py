@@ -1,25 +1,56 @@
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Any
 
+import httpx
+import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, Response
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-load_dotenv()  # liest die .env-Datei und macht GEMINI_API_KEY verfügbar
+load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 
+SUPABASE_URL        = os.getenv("SUPABASE_URL", "")
+SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
+
 MODEL = "gemini-2.5-flash"
-ROOT = Path(__file__).parent
+ROOT  = Path(__file__).parent
 
 client = genai.Client(api_key=API_KEY)
 app = FastAPI(title="Lumière")
+
+
+# ── Auth ─────────────────────────────────────────────────────────────
+def get_current_user(authorization: str = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        payload = jwt.decode(
+            token,
+            SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+        return {"id": payload["sub"], "email": payload.get("email", "")}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def _sb_headers(token: str) -> dict:
+    return {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
 
 # ── Schemas ─────────────────────────────────────────────────────────
@@ -247,8 +278,51 @@ async def architect_config() -> FileResponse:
     return FileResponse(ROOT / "architectConfig.js", media_type="application/javascript")
 
 
+@app.get("/supabaseConfig.js")
+async def supabase_config_js() -> Response:
+    js = (
+        f'const SUPABASE_URL="{SUPABASE_URL}";'
+        f'const SUPABASE_ANON_KEY="{SUPABASE_ANON_KEY}";'
+    )
+    return Response(js, media_type="application/javascript")
+
+
+# ── User state (cloud persistence) ──────────────────────────────────
+@app.get("/api/user/state")
+async def load_state(
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        r = await c.get(
+            f"{SUPABASE_URL}/rest/v1/user_state",
+            headers=_sb_headers(token),
+            params={"select": "state"},
+        )
+    rows = r.json() if r.status_code == 200 else []
+    return rows[0]["state"] if rows else {}
+
+
+@app.post("/api/user/state")
+async def save_state(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    token      = (authorization or "").removeprefix("Bearer ").strip()
+    state_data = await request.json()
+    async with httpx.AsyncClient() as c:
+        await c.post(
+            f"{SUPABASE_URL}/rest/v1/user_state",
+            headers={**_sb_headers(token), "Prefer": "resolution=merge-duplicates"},
+            json={"user_id": user["id"], "state": state_data},
+        )
+    return {"ok": True}
+
+
 @app.post("/api/scan/food", response_model=FoodScan)
-async def scan_food(image: UploadFile = File(...)) -> FoodScan:
+async def scan_food(image: UploadFile = File(...), _user: dict = Depends(get_current_user)) -> FoodScan:
     data = await image.read()
     prompt = (
         "Du bist Ernährungsexperte. Analysiere dieses Foto eines Gerichts. "
@@ -260,7 +334,7 @@ async def scan_food(image: UploadFile = File(...)) -> FoodScan:
 
 
 @app.post("/api/scan/fridge", response_model=FridgeScan)
-async def scan_fridge(image: UploadFile = File(...)) -> FridgeScan:
+async def scan_fridge(image: UploadFile = File(...), _user: dict = Depends(get_current_user)) -> FridgeScan:
     data = await image.read()
     prompt = (
         "Erkenne nur die Lebensmittel und Zutaten, die im Bild EINDEUTIG sichtbar sind. "
@@ -277,7 +351,7 @@ async def scan_fridge(image: UploadFile = File(...)) -> FridgeScan:
 
 
 @app.post("/api/profile/targets", response_model=Targets)
-async def profile_targets(profile: Profile) -> Targets:
+async def profile_targets(profile: Profile, _user: dict = Depends(get_current_user)) -> Targets:
     return compute_targets(profile)
 
 
@@ -299,7 +373,7 @@ _GOAL_LABELS: dict[str, str] = {
 
 
 @app.post("/api/scan/refine", response_model=FoodScan)
-async def refine_scan(req: RefineRequest) -> FoodScan:
+async def refine_scan(req: RefineRequest, _user: dict = Depends(get_current_user)) -> FoodScan:
     if not req.description.strip():
         raise HTTPException(400, "Keine Beschreibung angegeben")
     orig = ", ".join(f"{i.name} ({i.portion}, {i.calories} kcal)" for i in req.original_items) or "nichts erkannt"
@@ -314,7 +388,7 @@ async def refine_scan(req: RefineRequest) -> FoodScan:
 
 
 @app.post("/api/recipe", response_model=Recipe)
-async def generate_recipe(req: RecipeRequest) -> Recipe:
+async def generate_recipe(req: RecipeRequest, _user: dict = Depends(get_current_user)) -> Recipe:
     inspiration_mode = not req.ingredients
 
     if inspiration_mode and not req.taste:
@@ -371,7 +445,7 @@ async def generate_recipe(req: RecipeRequest) -> Recipe:
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest) -> dict:
+async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dict:
     mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
     system = BUTLER_PROMPTS[mode]
 

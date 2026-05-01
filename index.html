@@ -821,6 +821,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
     <button class="icon-btn" id="settings-btn" title="Profil" aria-label="Profil">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
     </button>
+    <button class="icon-btn" id="logout-btn" title="Abmelden" aria-label="Abmelden" style="display:none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
   </div>
 </header>
 
@@ -839,9 +842,24 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/supabaseConfig.js"></script>
 <script src="architectConfig.js"></script>
 <script>
 "use strict";
+
+// ── Supabase init ───────────────────────────────────────────────────
+const _sb      = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let   _session = null;  // aktuell eingeloggter User
+
+_sb.auth.onAuthStateChange((event, session) => {
+  _session = session;
+  if (event === "SIGNED_OUT") {
+    state = defaultState();
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    renderAuth();
+  }
+});
 
 // ── State ───────────────────────────────────────────────────────────
 const STORAGE_KEY = "lumiere_v1";
@@ -870,7 +888,38 @@ let state = (() => {
   } catch { return defaultState(); }
 })();
 
-const persist = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+let _syncTimer = null;
+const persist = () => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  if (_session) {
+    clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(_syncToCloud, 1500);
+  }
+};
+
+async function _syncToCloud() {
+  if (!_session) return;
+  try {
+    await api("/api/user/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    });
+  } catch { /* lautlos — localStorage bleibt als Fallback */ }
+}
+
+async function loadFromCloud() {
+  try {
+    const cloud = await api("/api/user/state");
+    if (cloud && Object.keys(cloud).length > 0) {
+      state = { ...defaultState(), ...cloud };
+      // Migrationen für neue Felder
+      if (!state.restrictions)                       state.restrictions     = { allergies: [], noGos: [] };
+      if (!state.hasOwnProperty("lastBriefingDate")) state.lastBriefingDate = null;
+      if (!state.hasOwnProperty("name"))             state.name             = null;
+    }
+  } catch { /* kein Cloud-State → defaultState bleibt */ }
+}
 
 // ── DOM helpers ─────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -910,7 +959,15 @@ function pickFile(handler) {
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, opts);
+  if (_session?.access_token) {
+    opts.headers = { ...opts.headers, "Authorization": `Bearer ${_session.access_token}` };
+  }
+  const res  = await fetch(path, opts);
+  if (res.status === 401) {
+    _session = null;
+    renderAuth();
+    throw new Error("Sitzung abgelaufen — bitte erneut anmelden.");
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.detail || `Fehler ${res.status}`);
   return body;
@@ -2367,11 +2424,110 @@ function renderChat() {
   $("chat-back").addEventListener("click", renderDashboard);
 }
 
+// ── Auth Screen ────────────────────────────────────────────────────
+function renderAuth() {
+  if ($("logout-btn")) $("logout-btn").style.display = "none";
+  app.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Lumière</div>
+      <h1 class="hero-display">Willkommen</h1>
+      <p class="hero-sub">Melde dich an, um deine Daten sicher zu speichern und von überall zu nutzen.</p>
+    </section>
+
+    <div style="max-width:380px;margin:32px auto 0;">
+      <div class="field">
+        <label class="field-label" for="auth-email">E-Mail</label>
+        <input type="email" id="auth-email" placeholder="deine@email.com" autocomplete="email">
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <label class="field-label" for="auth-pw">Passwort</label>
+        <input type="password" id="auth-pw" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
+      </div>
+      <div id="auth-err" style="color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;"></div>
+      <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+        <button class="btn gold" id="auth-login">Anmelden</button>
+        <button class="btn ghost" id="auth-signup">Neu registrieren</button>
+      </div>
+    </div>
+  `;
+
+  const errEl  = $("auth-err");
+  const emailEl = $("auth-email");
+  const pwEl    = $("auth-pw");
+
+  const doLogin = async () => {
+    const email = emailEl.value.trim();
+    const pw    = pwEl.value;
+    if (!email || !pw) { errEl.textContent = "Bitte E-Mail und Passwort eingeben."; return; }
+    errEl.textContent = "";
+    $("auth-login").disabled = true;
+    const { data, error } = await _sb.auth.signInWithPassword({ email, password: pw });
+    if (error) {
+      errEl.textContent = error.message;
+      $("auth-login").disabled = false;
+      return;
+    }
+    _session = data.session;
+    await loadFromCloud();
+    _showLogout();
+    render();
+  };
+
+  const doSignup = async () => {
+    const email = emailEl.value.trim();
+    const pw    = pwEl.value;
+    if (!email || !pw) { errEl.textContent = "Bitte E-Mail und Passwort eingeben."; return; }
+    if (pw.length < 6) { errEl.textContent = "Passwort muss mindestens 6 Zeichen haben."; return; }
+    errEl.textContent = "";
+    $("auth-signup").disabled = true;
+    const { data, error } = await _sb.auth.signUp({ email, password: pw });
+    if (error) {
+      errEl.textContent = error.message;
+      $("auth-signup").disabled = false;
+      return;
+    }
+    if (data.session) {
+      _session = data.session;
+      _showLogout();
+      render();
+    } else {
+      errEl.style.color = "var(--gold-deep)";
+      errEl.textContent = "Bestätigungs-E-Mail gesendet — bitte Posteingang prüfen.";
+      $("auth-signup").disabled = false;
+    }
+  };
+
+  $("auth-login").addEventListener("click", doLogin);
+  $("auth-signup").addEventListener("click", doSignup);
+  emailEl.addEventListener("keydown", e => { if (e.key === "Enter") pwEl.focus(); });
+  pwEl.addEventListener("keydown",    e => { if (e.key === "Enter") doLogin(); });
+}
+
+function _showLogout() {
+  const btn = $("logout-btn");
+  if (btn) btn.style.display = "";
+}
+
 // ── Boot ───────────────────────────────────────────────────────────
 $("arch-dismiss").addEventListener("click", () => {
   $("arch-panel").classList.remove("show");
 });
-render();
+
+async function boot() {
+  const { data: { session } } = await _sb.auth.getSession();
+  _session = session;
+  if (!session) { renderAuth(); return; }
+  _showLogout();
+  await loadFromCloud();
+  render();
+}
+
+$("logout-btn").addEventListener("click", async () => {
+  await _sb.auth.signOut();
+  // onAuthStateChange kümmert sich um den Rest
+});
+
+boot();
 </script>
 </body>
 </html>
