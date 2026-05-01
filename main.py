@@ -1,9 +1,12 @@
+import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal, Any
+from typing import Literal
 
 import httpx
 import jwt
+from jwt.algorithms import ECAlgorithm, RSAAlgorithm
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -19,13 +22,30 @@ if not API_KEY:
 
 SUPABASE_URL        = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")  # legacy fallback
 
 MODEL = "gemini-2.5-flash"
 ROOT  = Path(__file__).parent
 
 client = genai.Client(api_key=API_KEY)
-app = FastAPI(title="Lumière")
+
+# ── JWKS cache (Supabase ECC P-256 JWT verification) ─────────────────
+_jwks_keys: list = []
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _jwks_keys
+    if SUPABASE_URL:
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.get(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json")
+                if r.status_code == 200:
+                    _jwks_keys = r.json().get("keys", [])
+        except Exception as e:
+            print(f"JWKS load warning: {e}")
+    yield
+
+app = FastAPI(title="Lumière", lifespan=lifespan)
 
 
 # ── Auth ─────────────────────────────────────────────────────────────
@@ -33,16 +53,34 @@ def get_current_user(authorization: str = Header(None)) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = authorization.removeprefix("Bearer ").strip()
-    try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-        return {"id": payload["sub"], "email": payload.get("email", "")}
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    # Primary: JWKS-based (ECC P-256 or RSA — whatever Supabase uses)
+    if _jwks_keys:
+        try:
+            header   = jwt.get_unverified_header(token)
+            kid      = header.get("kid")
+            key_data = next((k for k in _jwks_keys if k.get("kid") == kid), _jwks_keys[0])
+            pub_key  = (ECAlgorithm if key_data.get("kty") == "EC" else RSAAlgorithm).from_jwk(
+                json.dumps(key_data)
+            )
+            alg     = "ES256" if key_data.get("kty") == "EC" else "RS256"
+            payload = jwt.decode(token, pub_key, algorithms=[alg], options={"verify_aud": False})
+            return {"id": payload["sub"], "email": payload.get("email", "")}
+        except Exception:
+            pass  # fall through to HS256 fallback
+
+    # Fallback: legacy HS256 shared secret
+    if SUPABASE_JWT_SECRET:
+        try:
+            payload = jwt.decode(
+                token, SUPABASE_JWT_SECRET, algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
+            return {"id": payload["sub"], "email": payload.get("email", "")}
+        except Exception:
+            pass
+
+    raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 def _sb_headers(token: str) -> dict:
