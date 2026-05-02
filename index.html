@@ -242,7 +242,13 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-nav { display: flex; gap: 12px; margin-top: 40px; justify-content: center; }
 
 /* Dashboard */
-.hero { text-align: center; padding: 24px 0 32px; }
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 0 40px;
+}
 
 /* Editorial Hero — Charcoal-Espresso curtain under the header.
    Bleeds to main's edges so it reads as a magazine spread, not a card. */
@@ -301,8 +307,19 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 @media (min-width: 720px) {
   .hero-block .hero-cta { gap: 18px; }
 }
-.ring-wrap { position: relative; width: 252px; height: 252px; margin: 0 auto 28px; }
-.ring-wrap svg { transform: rotate(-90deg); }
+.ring-wrap {
+  position: relative;
+  display: block;
+  width: 252px;
+  height: 252px;
+  margin: 0 auto 28px;
+  flex-shrink: 0;
+}
+.ring-wrap svg {
+  display: block;
+  transform: rotate(-90deg);
+  transform-origin: center center;
+}
 .ring-bg { fill: none; stroke: var(--line); stroke-width: 2.5; }
 .ring-fg {
   fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round;
