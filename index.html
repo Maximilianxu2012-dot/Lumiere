@@ -317,8 +317,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .ring-wrap svg {
   display: block;
-  transform: rotate(-90deg);
-  transform-origin: center center;
 }
 .ring-bg { fill: none; stroke: var(--line); stroke-width: 2.5; }
 .ring-fg {
@@ -1435,10 +1433,12 @@ function ringSvg(progress) {
   const outerR = 118;
   return `
     <svg width="252" height="252" viewBox="0 0 252 252">
-      <circle class="ring-outer" cx="126" cy="126" r="${outerR}"/>
-      <circle class="ring-bg"    cx="126" cy="126" r="${r}"/>
-      <circle class="ring-fg"    cx="126" cy="126" r="${r}" id="ring-progress"
-              stroke-dasharray="${c}" stroke-dashoffset="${c}"/>
+      <g transform="rotate(-90 126 126)">
+        <circle class="ring-outer" cx="126" cy="126" r="${outerR}"/>
+        <circle class="ring-bg"    cx="126" cy="126" r="${r}"/>
+        <circle class="ring-fg"    cx="126" cy="126" r="${r}" id="ring-progress"
+                stroke-dasharray="${c}" stroke-dashoffset="${c}"/>
+      </g>
     </svg>
   `;
 }
