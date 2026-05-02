@@ -1415,15 +1415,12 @@ async function finishOnboarding() {
 // ── Dashboard ──────────────────────────────────────────────────────
 function ringSvg(progress) {
   const r = 108, c = 2 * Math.PI * r;
-  const outerR = 118, outerC = 2 * Math.PI * outerR;
-  // Start at 0 — JS animates to actual value after paint
+  const outerR = 118;
   return `
     <svg width="252" height="252" viewBox="0 0 252 252">
-      <circle class="ring-outer" cx="126" cy="126" r="${outerR}"
-              stroke-dasharray="${outerC * 0.92} ${outerC * 0.08}"
-              stroke-dashoffset="${outerC * 0.04}"/>
-      <circle class="ring-bg"  cx="126" cy="126" r="${r}"/>
-      <circle class="ring-fg"  cx="126" cy="126" r="${r}" id="ring-progress"
+      <circle class="ring-outer" cx="126" cy="126" r="${outerR}"/>
+      <circle class="ring-bg"    cx="126" cy="126" r="${r}"/>
+      <circle class="ring-fg"    cx="126" cy="126" r="${r}" id="ring-progress"
               stroke-dasharray="${c}" stroke-dashoffset="${c}"/>
     </svg>
   `;
