@@ -487,10 +487,22 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
     mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
     system = BUTLER_PROMPTS[mode]
 
+    # Erstnachricht = nur 1 Message im Array (noch keine Antwort gegeben)
+    is_first = len(req.messages) == 1
+
     if req.context:
         c = req.context
         if c.user_name:
-            system += f"\n\nName des Nutzers: {c.user_name}. Sprich ihn/sie mit dem Vornamen an."
+            if is_first:
+                system += (
+                    f"\n\nName des Nutzers: {c.user_name}. "
+                    "Begrüße ihn/sie einmalig mit dem Vornamen zu Beginn dieses Gesprächs."
+                )
+            else:
+                system += (
+                    f"\n\nName des Nutzers: {c.user_name}. "
+                    "Das Gespräch läuft bereits — antworte OHNE Anrede oder Begrüßung, direkt zum Inhalt."
+                )
         parts = [f"{c.calories_today:.0f} kcal verbraucht"]
         if c.calories_target:
             remaining = c.calories_target - c.calories_today
@@ -498,6 +510,8 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
         if c.protein_target:
             parts.append(f"Protein {c.protein_today:.0f}/{c.protein_target} g")
         system += f"\n\nAktueller Tagesstand: {', '.join(parts)}."
+    elif not is_first:
+        system += "\n\nDas Gespräch läuft bereits — antworte OHNE Anrede oder Begrüßung, direkt zum Inhalt."
 
     contents = [
         types.Content(
