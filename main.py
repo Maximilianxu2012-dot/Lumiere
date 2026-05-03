@@ -195,6 +195,20 @@ class ChatRequest(BaseModel):
     context: ChatContext | None = None
 
 
+class ButlerCheckRequest(BaseModel):
+    calories_today: float = 0
+    protein_today: float = 0
+    carbs_today: float = 0
+    fat_today: float = 0
+    calories_target: int = 2000
+    protein_target: int = 150
+    carbs_target: int = 200
+    hour: int = 12
+    mode: str = "ELITE_BUTLER"
+    user_name: str | None = None
+    fired_today: list[str] = []
+
+
 BUTLER_PROMPTS: dict[str, str] = {
     "ELITE_BUTLER": (
         "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
@@ -537,6 +551,75 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
         raise HTTPException(status_code=502, detail="Keine Chat-Antwort erhalten")
 
     return {"reply": response.text}
+
+
+_BUTLER_SEVERITY: dict[str, str] = {
+    "calories_over":  "critical",
+    "calories_90":    "warning",
+    "protein_low":    "warning",
+    "carbs_routing":  "info",
+}
+
+_TRIGGER_DESC: dict[str, str] = {
+    "calories_over":  "Das Kalorienbudget wurde überschritten: {cal:.0f} von {target} kcal ({over:.0f} kcal über dem Ziel).",
+    "calories_90":    "90 % des Kalorienbudgets verbraucht: {cal:.0f} von {target} kcal — noch {rem:.0f} kcal übrig.",
+    "protein_low":    "Protein-Lücke: erst {prot:.0f} von {ptgt} g Protein, aber {cpct:.0f} % der Kalorien verbraucht.",
+    "carbs_routing":  "Kohlenhydrat-Routing: {carb:.0f} von {ctgt} g Kohlenhydrate bereits vor 14 Uhr verbraucht.",
+}
+
+
+@app.post("/api/butler/check")
+async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_current_user)) -> dict:
+    fired = set(req.fired_today)
+    cal, ptgt, ctgt = req.calories_today, req.protein_target, req.carbs_target
+    target = req.calories_target
+
+    # Trigger evaluation — priority order, each fires at most once per day
+    trigger: str | None = None
+    if "calories_over" not in fired and cal >= target:
+        trigger = "calories_over"
+    elif "calories_90" not in fired and cal >= target * 0.90:
+        trigger = "calories_90"
+    elif "protein_low" not in fired and cal >= target * 0.60 and req.protein_today < ptgt * 0.30:
+        trigger = "protein_low"
+    elif "carbs_routing" not in fired and req.hour < 14 and req.carbs_today >= ctgt * 0.80:
+        trigger = "carbs_routing"
+
+    if not trigger:
+        return {"triggered": False, "type": None, "message": None}
+
+    rem  = max(target - cal, 0)
+    over = max(cal - target, 0)
+    desc = _TRIGGER_DESC[trigger].format(
+        cal=cal, target=target, over=over, rem=rem,
+        prot=req.protein_today, ptgt=ptgt,
+        cpct=cal / target * 100 if target else 0,
+        carb=req.carbs_today, ctgt=ctgt,
+    )
+    mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
+    name_note = (
+        f"Nutzername: {req.user_name}. Sprich ihn/sie mit dem Vornamen an."
+        if req.user_name else "Keine persönliche Anrede."
+    )
+    prompt = (
+        f"{BUTLER_PROMPTS[mode]}\n\n"
+        f"{name_note}\n\n"
+        f"Situation: {desc}\n\n"
+        "Schreibe eine präzise Nachricht (max. 2 Sätze). "
+        "Nenne konkrete Zahlen. Keine Floskeln. Gib eine spezifische Empfehlung. Deutsch."
+    )
+    try:
+        r = client.models.generate_content(
+            model=MODEL,
+            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+            config=types.GenerateContentConfig(temperature=0.35),
+        )
+        msg = (r.text or "").strip()
+        if not msg:
+            return {"triggered": False, "type": None, "message": None}
+        return {"triggered": True, "type": trigger, "severity": _BUTLER_SEVERITY[trigger], "message": msg}
+    except Exception:
+        return {"triggered": False, "type": None, "message": None}
 
 
 if __name__ == "__main__":

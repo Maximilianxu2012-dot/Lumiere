@@ -860,6 +860,42 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   .arch-inner { padding: 22px 18px 26px; }
 }
 
+/* ── Butler Welcome Hint ─────────────────────────────────────────── */
+.butler-hint {
+  position: fixed; bottom: 24px; right: 24px; z-index: 500;
+  width: min(292px, calc(100vw - 32px));
+  background: var(--charcoal);
+  border-top: 2px solid var(--gold-glow);
+  padding: 18px 20px 16px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.45);
+  transform: translateY(calc(100% + 36px));
+  opacity: 0;
+  transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .4s ease;
+}
+.butler-hint.show { transform: translateY(0); opacity: 1; }
+.butler-hint-close {
+  position: absolute; top: 10px; right: 12px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(237,229,216,0.45); font-size: 20px; line-height: 1;
+  padding: 4px 6px; transition: color .2s;
+}
+.butler-hint-close:hover { color: #EDE5D8; }
+.butler-hint-eyebrow {
+  font-size: 9px; letter-spacing: .32em; text-transform: uppercase;
+  color: var(--gold-glow); font-weight: 500; margin-bottom: 10px;
+}
+.butler-hint-text {
+  font-size: 13px; color: rgba(237,229,216,0.78);
+  line-height: 1.65; margin: 0 0 14px; padding-right: 10px;
+}
+.butler-hint-link {
+  background: none; border: none; cursor: pointer; padding: 0;
+  font: 500 10px/1 'Inter', sans-serif; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--gold-glow);
+  transition: color .2s; font-family: inherit;
+}
+.butler-hint-link:hover { color: var(--gold); }
+
 .hidden { display: none !important; }
 
 /* ── Bottom Navigation (CSS-ready, nicht funktional verdrahtet) ──── */
@@ -989,14 +1025,18 @@ const defaultState = () => ({
   favorites: [],
   restrictions: { allergies: [], noGos: [] },
   lastBriefingDate: null,
+  architectWelcomeShown: false,
+  butlerFired: { date: null, types: [] },
 });
 
 let state = (() => {
   try {
     const s = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState();
-    if (!s.restrictions)                       s.restrictions      = { allergies: [], noGos: [] };
-    if (!s.hasOwnProperty("lastBriefingDate")) s.lastBriefingDate  = null;
-    if (!s.hasOwnProperty("name"))             s.name              = null;
+    if (!s.restrictions)                            s.restrictions           = { allergies: [], noGos: [] };
+    if (!s.hasOwnProperty("lastBriefingDate"))      s.lastBriefingDate       = null;
+    if (!s.hasOwnProperty("name"))                  s.name                   = null;
+    if (!s.hasOwnProperty("architectWelcomeShown")) s.architectWelcomeShown  = false;
+    if (!s.hasOwnProperty("butlerFired"))           s.butlerFired            = { date: null, types: [] };
     return s;
   } catch { return defaultState(); }
 })();
@@ -1527,6 +1567,9 @@ function renderDashboard() {
   if ($("hero-favorites")) $("hero-favorites").addEventListener("click", renderFavorites);
   fetchDailyBriefing();
 
+  // Welcome-Hint: einmalig nach erstem vollständigen Onboarding
+  if (!state.architectWelcomeShown) setTimeout(showWelcomeHint, 2500);
+
   // Ring-Animation: von 0 auf aktuellen Wert
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const ring = document.getElementById("ring-progress");
@@ -1812,10 +1855,9 @@ function renderFoodReview(scan) {
       })),
     });
     persist();
-    const _archFood = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
     toast("Mahlzeit erfasst");
     renderDashboard();
-    showArchitectBriefing(_archFood);
+    checkButler();
   });
 }
 
@@ -2032,10 +2074,9 @@ function renderRecipe(r) {
     });
     state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
-    const _archRecipe = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
     toast("Rezept erfasst — Korb geleert");
     renderDashboard();
-    showArchitectBriefing(_archRecipe);
+    checkButler();
   });
 }
 
@@ -2262,6 +2303,77 @@ function renderSettings() {
   app.appendChild(wrap);
 }
 
+// ── Butler Welcome Hint ────────────────────────────────────────────
+function showWelcomeHint() {
+  if (state.architectWelcomeShown) return;
+  if (document.getElementById("butler-hint")) return;
+
+  const hint = document.createElement("div");
+  hint.id        = "butler-hint";
+  hint.className = "butler-hint";
+  hint.innerHTML = `
+    <button class="butler-hint-close" id="hint-close" aria-label="Schließen">×</button>
+    <div class="butler-hint-eyebrow">ARCHITECT</div>
+    <p class="butler-hint-text">If you have allergies or foods you avoid, add them in Settings — I'll factor them into every recipe.</p>
+    <button class="butler-hint-link" id="hint-settings">Open Settings →</button>
+  `;
+  document.body.appendChild(hint);
+  requestAnimationFrame(() => requestAnimationFrame(() => hint.classList.add("show")));
+
+  const dismiss = () => {
+    hint.classList.remove("show");
+    hint.addEventListener("transitionend", () => hint.remove(), { once: true });
+    state.architectWelcomeShown = true;
+    persist();
+    clearTimeout(_hintTimer);
+  };
+
+  let _hintTimer = setTimeout(dismiss, 8000);
+  hint.querySelector("#hint-close").addEventListener("click", dismiss);
+  hint.querySelector("#hint-settings").addEventListener("click", () => {
+    dismiss();
+    renderSettings();
+  });
+}
+
+// ── Proactive Butler Check ─────────────────────────────────────────
+async function checkButler() {
+  if (!state.targets) return;
+
+  const d = today();
+  if (!state.butlerFired || state.butlerFired.date !== d) {
+    state.butlerFired = { date: d, types: [] };
+  }
+
+  const t    = todayTotals();
+  const hour = new Date().getHours();
+
+  try {
+    const result = await api("/api/butler/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        calories_today:  t.calories,
+        protein_today:   t.protein,
+        carbs_today:     t.carbs,
+        fat_today:       t.fat,
+        calories_target: state.targets.calories,
+        protein_target:  state.targets.protein_g,
+        carbs_target:    state.targets.carbs_g,
+        hour,
+        mode:       ARCHITECT.getMode(),
+        user_name:  state.name || null,
+        fired_today: state.butlerFired.types,
+      }),
+    });
+    if (result.triggered && result.message) {
+      state.butlerFired.types.push(result.type);
+      persist();
+      showArchitectBriefing(result);
+    }
+  } catch { /* lautlos */ }
+}
+
 // ── Inspiration ────────────────────────────────────────────────────
 async function makeInspiredRecipe(backFn, backLabel) {
   backFn    = backFn    || renderDashboard;
@@ -2447,10 +2559,9 @@ function renderFavRecipe(r, backFn, backLabel) {
       calories: r.calories_per_serving, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
     });
     persist();
-    const arch = ARCHITECT.checkCalorieOverrun(todayTotals(), state.targets);
     toast("Mahlzeit erfasst");
     renderDashboard();
-    showArchitectBriefing(arch);
+    checkButler();
   });
 }
 
