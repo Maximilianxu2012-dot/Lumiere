@@ -63,8 +63,18 @@ select, option {
   -webkit-appearance: none;
   appearance: none;
   color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
 }
 button { -webkit-appearance: none; }
+input, textarea {
+  -webkit-text-fill-color: var(--ink);
+  color: var(--ink);
+}
+input::placeholder, textarea::placeholder {
+  -webkit-text-fill-color: var(--ink-mute);
+  opacity: 1;
+}
+a { color: inherit; -webkit-text-fill-color: inherit; }
 html, body {
   margin: 0; padding: 0;
   background: var(--bg);
@@ -1402,7 +1412,7 @@ function renderCuisineStep() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">â—</div>
+          <div class="option-mark">✓</div>
         </button>
       `).join("")}
     </div>
@@ -1434,7 +1444,7 @@ function renderTasteGoalStep() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">â—</div>
+          <div class="option-mark">✓</div>
         </button>
       `).join("")}
     </div>
@@ -1496,7 +1506,7 @@ function stepGoal() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">â—</div>
+          <div class="option-mark">✓</div>
         </button>
       `).join("")}
     </div>
@@ -1585,7 +1595,7 @@ function stepActivity() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">â—</div>
+          <div class="option-mark">✓</div>
         </button>
       `).join("")}
     </div>
