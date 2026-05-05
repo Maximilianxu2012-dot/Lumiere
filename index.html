@@ -1,10 +1,14 @@
 <!DOCTYPE html>
+</html>
+</body>
+</html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5F1EA">
-<title>Lumière — Kalorien & Küche</title>
+<title>LumiÃ¨re â€” Kalorien & KÃ¼che</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -15,7 +19,7 @@
   --surface-2: #FFFFFF;
 
   --ink: #1F1A15;       /* warm near-black, passt zu Cream/Bronze */
-  --ink-soft: #6F665A;  /* warm-grau für sekundären Text */
+  --ink-soft: #6F665A;  /* warm-grau fÃ¼r sekundÃ¤ren Text */
   --ink-mute: #A8A39A;
 
   --gold: #B89968;
@@ -43,7 +47,7 @@
   --fs-h1: clamp(32px, 3vw + 22px, 48px);
   --fs-display: clamp(44px, 5vw + 28px, 72px);
 
-  /* Spacing — ~40% mehr Luft überall */
+  /* Spacing â€” ~40% mehr Luft Ã¼berall */
   --space-1: clamp(12px, 1.2vw, 16px);
   --space-2: clamp(24px, 2.5vw, 36px);
   --space-3: clamp(40px, 4.5vw, 64px);
@@ -59,11 +63,11 @@ html, body {
   font: 400 var(--fs-body)/1.8 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Subtle paper noise — almost invisible, just felt */
+  /* Subtle paper noise â€” almost invisible, just felt */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
 }
 
-/* ── Animations ─────────────────────────────────────────────────── */
+/* â”€â”€ Animations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(28px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -91,7 +95,7 @@ html, body {
   color: var(--ink-soft); font-weight: 500;
 }
 
-/* ── Editorial surfaces — Charcoal sections (Aman/Four-Seasons mood) ──
+/* â”€â”€ Editorial surfaces â€” Charcoal sections (Aman/Four-Seasons mood) â”€â”€
    Use .surface-dark on a section to flip it into the dark, cinematic
    register. Inherited text stays light; eyebrows pick up gold-glow. */
 .surface-dark {
@@ -103,7 +107,7 @@ html, body {
 .surface-dark a { color: var(--gold-glow); }
 .surface-dark .hairline { background: var(--line-dark); }
 
-/* Editorial Hero — for the largest typographic moments. Italic by intent;
+/* Editorial Hero â€” for the largest typographic moments. Italic by intent;
    restraint comes from line-height and tracking, not size alone. */
 .hero-display {
   font-family: 'Cormorant Garamond', serif;
@@ -123,7 +127,7 @@ html, body {
   color: var(--gold-glow);
 }
 
-/* Bronze hairline divider — sparse, never decorative */
+/* Bronze hairline divider â€” sparse, never decorative */
 .hairline {
   border: 0;
   height: 1px;
@@ -161,7 +165,7 @@ header {
 
 main { max-width: 720px; margin: 0 auto; padding: 56px 28px 120px; }
 
-/* Buttons — 300ms, elegant */
+/* Buttons â€” 300ms, elegant */
 .btn {
   font: 500 11px/1 'Inter', sans-serif;
   letter-spacing: .22em; text-transform: uppercase;
@@ -250,7 +254,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   padding: 32px 0 40px;
 }
 
-/* Editorial Hero — Charcoal-Espresso curtain under the header.
+/* Editorial Hero â€” Charcoal-Espresso curtain under the header.
    Bleeds to main's edges so it reads as a magazine spread, not a card. */
 .hero-block {
   background: var(--charcoal);
@@ -260,10 +264,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   text-align: left;
   position: relative;
   overflow: hidden;
-  /* Vignette — cinematic edge darkening */
+  /* Vignette â€” cinematic edge darkening */
   box-shadow: inset 0 0 160px rgba(0,0,0,0.22), inset 120px 0 200px rgba(0,0,0,0.1);
 }
-/* Gold atmosphere glow — right side, soft radial */
+/* Gold atmosphere glow â€” right side, soft radial */
 .hero-block::after {
   content: "";
   position: absolute;
@@ -432,7 +436,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .log-subname { font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--ink-soft); }
 .log-subcal { font-family: 'Cormorant Garamond', serif; font-size: 15px; color: var(--ink-soft); }
 
-/* The Ledger — daily caloric ledger, modeled on a private bank's transaction book */
+/* The Ledger â€” daily caloric ledger, modeled on a private bank's transaction book */
 .ledger {
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -642,7 +646,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .tag-add:hover { color: var(--ink); border-color: var(--ink-mute); }
 
-/* ── Scan items (elegant card list) ─────────────────────────────── */
+/* â”€â”€ Scan items (elegant card list) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .scan-list { margin-top: 16px; }
 .scan-item {
   display: flex; align-items: center; justify-content: space-between;
@@ -733,7 +737,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .recipe-foot { padding: 24px 40px 32px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
 
-/* ── Favorites ───────────────────────────────────────────────────── */
+/* â”€â”€ Favorites â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 14px; margin-top: 16px; }
 .fav-card {
   background: var(--surface-2); border: 1px solid var(--line);
@@ -760,7 +764,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .fav-del:hover { background:rgba(139,48,48,.85); }
 @media (max-width: 540px) { .fav-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
 
-/* ── Butler Chat ─────────────────────────────────────────────────── */
+/* â”€â”€ Butler Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .chat-layout { display:flex; flex-direction:column; min-height:calc(100vh - 200px); }
 .chat-msgs { flex:1; overflow-y:auto; padding:4px 0 20px; display:flex; flex-direction:column; gap:10px; }
 .chat-bubble {
@@ -808,7 +812,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   padding: 64px 32px; text-align: center; color: var(--ink-soft);
 }
 
-/* ── Architect Briefing Panel ────────────────────────────────────── */
+/* â”€â”€ Architect Briefing Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .arch-panel {
   position: fixed;
   bottom: 0; left: 0; right: 0;
@@ -860,7 +864,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   .arch-inner { padding: 22px 18px 26px; }
 }
 
-/* ── Butler Welcome Hint ─────────────────────────────────────────── */
+/* â”€â”€ Butler Welcome Hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .butler-hint {
   position: fixed; bottom: 24px; right: 24px; z-index: 500;
   width: min(292px, calc(100vw - 32px));
@@ -898,7 +902,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 
 .hidden { display: none !important; }
 
-/* ── Bottom Navigation (CSS-ready, nicht funktional verdrahtet) ──── */
+/* â”€â”€ Bottom Navigation (CSS-ready, nicht funktional verdrahtet) â”€â”€â”€â”€ */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
   background: var(--charcoal);
@@ -906,7 +910,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   display: flex;
   height: 62px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: none; /* Aktivierung im nächsten Schritt */
+  display: none; /* Aktivierung im nÃ¤chsten Schritt */
 }
 .bottom-nav-item {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -919,7 +923,109 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .bottom-nav-item.active { color: var(--gold-glow); }
 .bottom-nav-item svg { width: 19px; height: 19px; stroke-width: 1.5; }
 
-/* Reset-Link (Footer) — leise, klein, kein Drama */
+/* â”€â”€ Disclaimer Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.disclaimer-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(26,22,20,0.88);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.disclaimer-card {
+  background: var(--surface-2);
+  max-width: 460px; width: 100%;
+  padding: clamp(36px, 7vw, 56px) clamp(28px, 6vw, 48px);
+  text-align: center;
+  box-shadow: var(--shadow-deep);
+}
+.disclaimer-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px; font-weight: 400;
+  margin: 0 0 16px;
+}
+.disclaimer-text {
+  color: var(--ink-soft);
+  font-size: 14px; line-height: 1.85;
+  margin: 0 0 36px;
+}
+
+/* â”€â”€ Profile Slide-up Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.profile-panel {
+  position: fixed; inset: 0; z-index: 800;
+  display: flex; align-items: flex-end;
+  background: rgba(26,22,20,0.72);
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+.profile-panel.open { opacity: 1; pointer-events: all; }
+.profile-panel-inner {
+  background: var(--charcoal);
+  color: #EDE5D8;
+  width: 100%; max-width: 720px; margin: 0 auto;
+  border-top: 1px solid rgba(201,169,97,0.28);
+  padding: 28px 28px 48px;
+  transform: translateY(100%);
+  transition: transform .42s cubic-bezier(.2,.7,.2,1);
+  position: relative;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.profile-panel.open .profile-panel-inner { transform: translateY(0); }
+.profile-panel-close {
+  position: absolute; top: 20px; right: 24px;
+  background: transparent; border: none;
+  color: rgba(237,229,216,.45); font-size: 22px; line-height: 1;
+  cursor: pointer; padding: 4px 8px;
+  transition: color .2s;
+}
+.profile-panel-close:hover { color: #EDE5D8; }
+.profile-panel-eyebrow {
+  font-size: 10px; letter-spacing: .36em; text-transform: uppercase;
+  color: var(--gold-glow); margin-bottom: 28px; opacity: .85;
+}
+.panel-menu { margin-bottom: 32px; }
+.panel-row {
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%; background: transparent; border: none;
+  border-bottom: 1px solid rgba(201,169,97,0.1);
+  padding: 18px 0; cursor: pointer; color: #EDE5D8;
+  text-align: left; transition: opacity .2s;
+}
+.panel-row:hover { opacity: .65; }
+.panel-row-label { font-size: 16px; font-weight: 400; }
+.panel-row-value {
+  font-size: 12px; color: rgba(201,169,97,0.7);
+  letter-spacing: .06em;
+}
+.panel-row-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold-glow); flex-shrink: 0;
+}
+.panel-row-chevron { color: rgba(201,169,97,0.45); font-size: 20px; line-height: 1; }
+.panel-imprint-text {
+  font-size: 13px; color: rgba(237,229,216,.55);
+  line-height: 1.75; padding: 12px 0 8px;
+  border-bottom: 1px solid rgba(201,169,97,0.1);
+}
+.panel-foot {
+  display: flex; flex-direction: column; gap: 10px;
+  padding-top: 24px; border-top: 1px solid rgba(201,169,97,0.12);
+}
+.panel-signout {
+  background: transparent; border: 1px solid rgba(201,169,97,0.22);
+  color: rgba(237,229,216,.6); padding: 14px; cursor: pointer;
+  font: 500 11px/1 'Inter', sans-serif; letter-spacing: .22em;
+  text-transform: uppercase; transition: all .2s;
+}
+.panel-signout:hover { border-color: var(--gold-glow); color: #EDE5D8; }
+.panel-danger {
+  background: transparent; border: none;
+  color: rgba(180,80,80,.75); padding: 14px 0; cursor: pointer;
+  font: 400 11px/1 'Inter', sans-serif; letter-spacing: .18em;
+  text-transform: uppercase; text-align: center; transition: color .2s;
+}
+.panel-danger:hover { color: #c05050; }
+
+/* Reset-Link (Footer) â€” leise, klein, kein Drama */
 .reset-foot { text-align: center; margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
 .reset-link {
   background: transparent; border: none; cursor: pointer;
@@ -962,16 +1068,13 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 </head>
 <body>
 <header>
-  <div class="brand">LUMIÈRE</div>
+  <div class="brand">LUMIÃˆRE</div>
   <div class="header-right">
-    <button class="icon-btn" id="home-btn" title="Übersicht" aria-label="Übersicht">
+    <button class="icon-btn" id="home-btn" title="Dashboard" aria-label="Dashboard">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
     </button>
-    <button class="icon-btn" id="settings-btn" title="Profil" aria-label="Profil">
+    <button class="icon-btn" id="settings-btn" title="Profile" aria-label="Profile">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
-    </button>
-    <button class="icon-btn" id="logout-btn" title="Abmelden" aria-label="Abmelden" style="display:none;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
   </div>
 </header>
@@ -986,7 +1089,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
     <div class="arch-eyebrow" id="arch-eyebrow">ARCHITECT</div>
     <div class="arch-message" id="arch-message"></div>
     <div class="arch-foot">
-      <button class="btn ghost" id="arch-dismiss">Verstanden</button>
+      <button class="btn ghost" id="arch-dismiss">Dismiss</button>
     </div>
   </div>
 </div>
@@ -997,7 +1100,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 <script>
 "use strict";
 
-// ── Supabase init ───────────────────────────────────────────────────
+// â”€â”€ Supabase init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _sb      = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let   _session = null;  // aktuell eingeloggter User
 
@@ -1010,7 +1113,7 @@ _sb.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// ── State ───────────────────────────────────────────────────────────
+// â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const STORAGE_KEY = "lumiere_v1";
 const today = () => new Date().toISOString().slice(0, 10);
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -1027,6 +1130,9 @@ const defaultState = () => ({
   lastBriefingDate: null,
   architectWelcomeShown: false,
   butlerFired: { date: null, types: [] },
+  disclaimerAccepted: false,
+  healthContext: null,
+  customCalorieGoal: null,
 });
 
 let state = (() => {
@@ -1037,6 +1143,9 @@ let state = (() => {
     if (!s.hasOwnProperty("name"))                  s.name                   = null;
     if (!s.hasOwnProperty("architectWelcomeShown")) s.architectWelcomeShown  = false;
     if (!s.hasOwnProperty("butlerFired"))           s.butlerFired            = { date: null, types: [] };
+    if (!s.hasOwnProperty("disclaimerAccepted"))    s.disclaimerAccepted     = false;
+    if (!s.hasOwnProperty("healthContext"))         s.healthContext           = null;
+    if (!s.hasOwnProperty("customCalorieGoal"))     s.customCalorieGoal      = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -1058,7 +1167,7 @@ async function _syncToCloud() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state),
     });
-  } catch { /* lautlos — localStorage bleibt als Fallback */ }
+  } catch { /* lautlos â€” localStorage bleibt als Fallback */ }
 }
 
 async function loadFromCloud() {
@@ -1066,15 +1175,18 @@ async function loadFromCloud() {
     const cloud = await api("/api/user/state");
     if (cloud && Object.keys(cloud).length > 0) {
       state = { ...defaultState(), ...cloud };
-      // Migrationen für neue Felder
+      // Migrationen fÃ¼r neue Felder
       if (!state.restrictions)                       state.restrictions     = { allergies: [], noGos: [] };
       if (!state.hasOwnProperty("lastBriefingDate")) state.lastBriefingDate = null;
       if (!state.hasOwnProperty("name"))             state.name             = null;
+      if (!state.hasOwnProperty("disclaimerAccepted")) state.disclaimerAccepted = false;
+      if (!state.hasOwnProperty("healthContext"))      state.healthContext      = null;
+      if (!state.hasOwnProperty("customCalorieGoal"))  state.customCalorieGoal  = null;
     }
-  } catch { /* kein Cloud-State → defaultState bleibt */ }
+  } catch { /* kein Cloud-State â†’ defaultState bleibt */ }
 }
 
-// ── DOM helpers ─────────────────────────────────────────────────────
+// â”€â”€ DOM helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const $ = (id) => document.getElementById(id);
 const app = $("app");
 const toastEl = $("toast");
@@ -1095,7 +1207,7 @@ function toast(msg, ms = 2400) {
 function showArchitectBriefing(result) {
   const panel = $("arch-panel");
   if (!panel || !result || !result.triggered) return;
-  $("arch-eyebrow").textContent = `ARCHITECT — ${ARCHITECT.getModeLabel().toUpperCase()}`;
+  $("arch-eyebrow").textContent = `ARCHITECT â€” ${ARCHITECT.getModeLabel().toUpperCase()}`;
   $("arch-message").textContent = result.message;
   panel.dataset.severity = result.severity;
   panel.dataset.mode = ARCHITECT.getMode();
@@ -1119,14 +1231,14 @@ async function api(path, opts = {}) {
   if (res.status === 401) {
     _session = null;
     renderAuth();
-    throw new Error("Sitzung abgelaufen — bitte erneut anmelden.");
+    throw new Error("Sitzung abgelaufen â€” bitte erneut anmelden.");
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.detail || `Fehler ${res.status}`);
   return body;
 }
 
-// ── Aggregation ────────────────────────────────────────────────────
+// â”€â”€ Aggregation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function todayTotals() {
   const entries = state.log[today()] || [];
   return entries.reduce((a, e) => ({
@@ -1137,8 +1249,41 @@ function todayTotals() {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 }
 
-// ── Router ─────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function effectiveCalTarget() {
+  if (state.customCalorieGoal) return state.customCalorieGoal;
+  return state.targets ? state.targets.calories : 2000;
+}
+
+// â”€â”€ Disclaimer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function showDisclaimer() {
+  if (document.getElementById("disclaimer-overlay")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "disclaimer-overlay";
+  overlay.className = "disclaimer-overlay";
+  overlay.innerHTML = `
+    <div class="disclaimer-card anim-up">
+      <div class="eyebrow" style="color:var(--gold);margin-bottom:24px;">LumiÃ¨re</div>
+      <h2 class="disclaimer-title">Before you begin</h2>
+      <p class="disclaimer-text">
+        LumiÃ¨re provides general nutritional information and is not a substitute for
+        medical advice. Always consult a healthcare professional for medical decisions.
+      </p>
+      <button class="btn full" id="disclaimer-confirm">I understand â€” continue</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector("#disclaimer-confirm").addEventListener("click", () => {
+    state.disclaimerAccepted = true;
+    persist();
+    overlay.remove();
+    render();
+  });
+}
+
+// â”€â”€ Router â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function render() {
+  if (!state.disclaimerAccepted) return showDisclaimer();
   if (!state.name)    return renderNameStep();
   if (!state.profile) return renderOnboarding(0);
   if (!state.taste)   return renderTaste(0);
@@ -1146,20 +1291,20 @@ function render() {
 }
 
 $("home-btn").addEventListener("click", render);
-$("settings-btn").addEventListener("click", renderSettings);
+$("settings-btn").addEventListener("click", showProfilePanel);
 
-// ── Name-Schritt ───────────────────────────────────────────────────
+// â”€â”€ Name-Schritt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderNameStep() {
   const draft = { name: state.name || "" };
   app.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.className = "onb-step";
   wrap.innerHTML = `
-    <div class="eyebrow">Willkommen bei Lumière</div>
-    <h1 class="onb-title" style="margin-top:8px;">Wie heißt du?</h1>
-    <p class="onb-sub">Dein Vorname — damit dein Architect persönlich mit dir spricht.</p>
+    <div class="eyebrow">Willkommen bei LumiÃ¨re</div>
+    <h1 class="onb-title" style="margin-top:8px;">Wie heiÃŸt du?</h1>
+    <p class="onb-sub">Dein Vorname â€” damit dein Architect persÃ¶nlich mit dir spricht.</p>
     <div style="max-width:360px;margin:32px auto 0;">
-      <input id="name-input" type="text" placeholder="Vorname eingeben…"
+      <input id="name-input" type="text" placeholder="Vorname eingebenâ€¦"
         maxlength="50" autocomplete="given-name"
         value="${escapeHtml(draft.name)}"
         style="width:100%;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;
@@ -1168,7 +1313,7 @@ function renderNameStep() {
                transition:border-color .2s;">
     </div>
     <div class="onb-nav" style="justify-content:flex-end;margin-top:40px;">
-      <button class="btn gold" id="name-next" ${draft.name.trim() ? "" : "disabled"}>Weiter →</button>
+      <button class="btn gold" id="name-next" ${draft.name.trim() ? "" : "disabled"}>Weiter â†’</button>
     </div>
   `;
   const inp  = wrap.querySelector("#name-input");
@@ -1189,34 +1334,34 @@ function renderNameStep() {
   setTimeout(() => inp.focus(), 50);
 }
 
-// ── Mini-Onboarding (Geschmack) ────────────────────────────────────
+// â”€â”€ Mini-Onboarding (Geschmack) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CUISINES = [
-  ["italian",       "Italienisch",      "Pasta, Risotto, Olivenöl."],
-  ["mediterranean", "Mediterran",       "Fisch, Gemüse, Kräuter."],
-  ["french",        "Französisch",      "Klassisch, Butter, Saucen."],
-  ["spanish",       "Spanisch",         "Tapas, Paella, Olivenöl."],
-  ["greek",         "Griechisch",       "Feta, Olivenöl, frisch."],
+  ["italian",       "Italienisch",      "Pasta, Risotto, OlivenÃ¶l."],
+  ["mediterranean", "Mediterran",       "Fisch, GemÃ¼se, KrÃ¤uter."],
+  ["french",        "FranzÃ¶sisch",      "Klassisch, Butter, Saucen."],
+  ["spanish",       "Spanisch",         "Tapas, Paella, OlivenÃ¶l."],
+  ["greek",         "Griechisch",       "Feta, OlivenÃ¶l, frisch."],
   ["nordic",        "Nordisch",         "Klar, saisonal, Fisch."],
   ["german",        "Deutsch",          "Herzhaft, deftig, vertraut."],
   ["american",      "Amerikanisch",     "BBQ, Burger, Comfort Food."],
-  ["mexican",       "Mexikanisch",      "Würzig, frisch, Hülsenfrüchte."],
-  ["peruvian",      "Peruanisch",       "Ceviche, Aji, Andenfrüchte."],
-  ["middle_eastern","Nahöstlich",       "Hummus, Falafel, Tahini."],
+  ["mexican",       "Mexikanisch",      "WÃ¼rzig, frisch, HÃ¼lsenfrÃ¼chte."],
+  ["peruvian",      "Peruanisch",       "Ceviche, Aji, AndenfrÃ¼chte."],
+  ["middle_eastern","NahÃ¶stlich",       "Hummus, Falafel, Tahini."],
   ["levantine",     "Levantinisch",     "Mezze, Sumach, Granatapfel."],
-  ["indian",        "Indisch",          "Gewürze, Linsen, Curry."],
+  ["indian",        "Indisch",          "GewÃ¼rze, Linsen, Curry."],
   ["asian",         "Asiatisch (allg.)","Wok, Reis, Aromen."],
   ["japanese",      "Japanisch",        "Reduziert, Umami, Reis."],
   ["korean",        "Koreanisch",       "Kimchi, BBQ, Bibimbap."],
-  ["thai",          "Thailändisch",     "Süß-scharf, Kokos, Limette."],
-  ["vietnamese",    "Vietnamesisch",    "Pho, Kräuter, Reisnudeln."],
-  ["chinese",       "Chinesisch",       "Wok, Sojasoße, regional."],
+  ["thai",          "ThailÃ¤ndisch",     "SÃ¼ÃŸ-scharf, Kokos, Limette."],
+  ["vietnamese",    "Vietnamesisch",    "Pho, KrÃ¤uter, Reisnudeln."],
+  ["chinese",       "Chinesisch",       "Wok, SojasoÃŸe, regional."],
 ];
 
 const TASTE_GOALS = [
-  ["high_protein", "Proteinreich",  "Sättigend, muskelfreundlich."],
+  ["high_protein", "Proteinreich",  "SÃ¤ttigend, muskelfreundlich."],
   ["quick",        "Schnell",       "Unter 20 Minuten am Herd."],
   ["healthy",      "Gesund",        "Ausgewogen, frisch, ehrlich."],
-  ["light",        "Leicht",        "Wenig schwer, gut bekömmlich."],
+  ["light",        "Leicht",        "Wenig schwer, gut bekÃ¶mmlich."],
 ];
 
 const tasteDraft = { cuisines: [], goals: [] };
@@ -1238,9 +1383,9 @@ function renderTaste(step) {
 function renderCuisineStep() {
   const node = document.createElement("div");
   node.innerHTML = `
-    <div class="eyebrow">Geschmack — 01</div>
+    <div class="eyebrow">Geschmack â€” 01</div>
     <h1 class="onb-title">Was kommt dir auf den Teller?</h1>
-    <p class="onb-sub">Wähle alle Küchen, denen du gerne begegnest. Du kannst mehrere markieren.</p>
+    <p class="onb-sub">WÃ¤hle alle KÃ¼chen, denen du gerne begegnest. Du kannst mehrere markieren.</p>
     <div class="option-grid">
       ${CUISINES.map(([k, t, d]) => `
         <button class="option ${tasteDraft.cuisines.includes(k) ? "selected" : ""}" data-cuisine="${k}">
@@ -1248,7 +1393,7 @@ function renderCuisineStep() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">●</div>
+          <div class="option-mark">â—</div>
         </button>
       `).join("")}
     </div>
@@ -1270,9 +1415,9 @@ function renderCuisineStep() {
 function renderTasteGoalStep() {
   const node = document.createElement("div");
   node.innerHTML = `
-    <div class="eyebrow">Geschmack — 02</div>
+    <div class="eyebrow">Geschmack â€” 02</div>
     <h1 class="onb-title">Worauf liegt der Fokus?</h1>
-    <p class="onb-sub">Wähle so viele Richtungen, wie zu dir passen. Du kannst sie später jederzeit anpassen.</p>
+    <p class="onb-sub">WÃ¤hle so viele Richtungen, wie zu dir passen. Du kannst sie spÃ¤ter jederzeit anpassen.</p>
     <div class="option-grid">
       ${TASTE_GOALS.map(([k, t, d]) => `
         <button class="option ${tasteDraft.goals.includes(k) ? "selected" : ""}" data-tgoal="${k}">
@@ -1280,12 +1425,12 @@ function renderTasteGoalStep() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">●</div>
+          <div class="option-mark">â—</div>
         </button>
       `).join("")}
     </div>
     <div class="onb-nav">
-      <button class="btn ghost" id="taste-back-1">Zurück</button>
+      <button class="btn ghost" id="taste-back-1">ZurÃ¼ck</button>
       <button class="btn" id="taste-next-1" ${tasteDraft.goals.length ? "" : "disabled"}>Fertig</button>
     </div>
   `;
@@ -1306,7 +1451,7 @@ function renderTasteGoalStep() {
   return node;
 }
 
-// ── Onboarding ─────────────────────────────────────────────────────
+// â”€â”€ Onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const onbDraft = { goal: null, sex: null, age: 30, weight_kg: 75, height_cm: 178, activity: null };
 
 function renderOnboarding(step) {
@@ -1328,12 +1473,12 @@ function stepGoal() {
   const goals = [
     ["lose", "Definieren", "Kaloriendefizit, Fokus auf Protein."],
     ["maintain", "Halten", "Ausgewogen, Erhaltungskalorien."],
-    ["gain", "Aufbauen", "Leichter Überschuss, hoher Proteinanteil."],
+    ["gain", "Aufbauen", "Leichter Ãœberschuss, hoher Proteinanteil."],
   ];
   const node = document.createElement("div");
   node.innerHTML = `
-    <div class="eyebrow">Schritt 01 — Ziel</div>
-    <h1 class="onb-title">Was möchtest du erreichen?</h1>
+    <div class="eyebrow">Schritt 01 â€” Ziel</div>
+    <h1 class="onb-title">Was mÃ¶chtest du erreichen?</h1>
     <p class="onb-sub">Wir kalibrieren deine Tageswerte basierend auf deinem Ziel.</p>
     <div class="option-grid">
       ${goals.map(([k, t, d]) => `
@@ -1342,7 +1487,7 @@ function stepGoal() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">●</div>
+          <div class="option-mark">â—</div>
         </button>
       `).join("")}
     </div>
@@ -1361,14 +1506,14 @@ function stepGoal() {
 function stepStats() {
   const node = document.createElement("div");
   node.innerHTML = `
-    <div class="eyebrow">Schritt 02 — Profil</div>
-    <h1 class="onb-title">Über dich</h1>
+    <div class="eyebrow">Schritt 02 â€” Profil</div>
+    <h1 class="onb-title">Ãœber dich</h1>
     <p class="onb-sub">Diese Werte bestimmen deinen Grundumsatz.</p>
     <div style="max-width:420px;margin:0 auto;">
       <div class="field">
         <span class="field-label">Geschlecht</span>
         <div class="toggle-row">
-          <button data-sex="m" class="${onbDraft.sex === "m" ? "active" : ""}">Männlich</button>
+          <button data-sex="m" class="${onbDraft.sex === "m" ? "active" : ""}">MÃ¤nnlich</button>
           <button data-sex="f" class="${onbDraft.sex === "f" ? "active" : ""}">Weiblich</button>
         </div>
       </div>
@@ -1381,12 +1526,12 @@ function stepStats() {
         <input id="weight" type="number" min="30" max="300" step="0.1" value="${onbDraft.weight_kg}">
       </div>
       <div class="field">
-        <label class="field-label" for="height">Größe (cm)</label>
+        <label class="field-label" for="height">GrÃ¶ÃŸe (cm)</label>
         <input id="height" type="number" min="120" max="230" value="${onbDraft.height_cm}">
       </div>
     </div>
     <div class="onb-nav">
-      <button class="btn ghost" id="back-1">Zurück</button>
+      <button class="btn ghost" id="back-1">ZurÃ¼ck</button>
       <button class="btn" id="next-2">Weiter</button>
     </div>
   `;
@@ -1399,10 +1544,10 @@ function stepStats() {
     const age = +node.querySelector("#age").value;
     const weight = +node.querySelector("#weight").value;
     const height = +node.querySelector("#height").value;
-    if (!onbDraft.sex)          return toast("Bitte Geschlecht wählen");
+    if (!onbDraft.sex)          return toast("Bitte Geschlecht wÃ¤hlen");
     if (age < 14 || age > 100)  return toast("Alter muss zwischen 14 und 100 liegen");
     if (weight < 30 || weight > 300) return toast("Gewicht muss zwischen 30 und 300 kg liegen");
-    if (height < 120 || height > 230) return toast("Größe muss zwischen 120 und 230 cm liegen");
+    if (height < 120 || height > 230) return toast("GrÃ¶ÃŸe muss zwischen 120 und 230 cm liegen");
     onbDraft.age = age;
     onbDraft.weight_kg = weight;
     onbDraft.height_cm = height;
@@ -1413,17 +1558,17 @@ function stepStats() {
 
 function stepActivity() {
   const levels = [
-    ["sedentary", "Sitzend", "Büro, kaum Bewegung."],
-    ["light", "Leicht aktiv", "1–3× Sport pro Woche."],
-    ["moderate", "Moderat aktiv", "3–5× Sport pro Woche."],
-    ["active", "Sehr aktiv", "6–7× Sport pro Woche."],
-    ["very_active", "Athlet", "Tägliches intensives Training."],
+    ["sedentary", "Sitzend", "BÃ¼ro, kaum Bewegung."],
+    ["light", "Leicht aktiv", "1â€“3Ã— Sport pro Woche."],
+    ["moderate", "Moderat aktiv", "3â€“5Ã— Sport pro Woche."],
+    ["active", "Sehr aktiv", "6â€“7Ã— Sport pro Woche."],
+    ["very_active", "Athlet", "TÃ¤gliches intensives Training."],
   ];
   const node = document.createElement("div");
   node.innerHTML = `
-    <div class="eyebrow">Schritt 03 — Aktivität</div>
+    <div class="eyebrow">Schritt 03 â€” AktivitÃ¤t</div>
     <h1 class="onb-title">Wie aktiv bist du?</h1>
-    <p class="onb-sub">Schätze deinen typischen Wochenrhythmus.</p>
+    <p class="onb-sub">SchÃ¤tze deinen typischen Wochenrhythmus.</p>
     <div class="option-grid">
       ${levels.map(([k, t, d]) => `
         <button class="option ${onbDraft.activity === k ? "selected" : ""}" data-activity="${k}">
@@ -1431,12 +1576,12 @@ function stepActivity() {
             <div class="option-title">${t}</div>
             <div class="option-desc">${d}</div>
           </div>
-          <div class="option-mark">●</div>
+          <div class="option-mark">â—</div>
         </button>
       `).join("")}
     </div>
     <div class="onb-nav">
-      <button class="btn ghost" id="back-2">Zurück</button>
+      <button class="btn ghost" id="back-2">ZurÃ¼ck</button>
       <button class="btn gold" id="finish" ${onbDraft.activity ? "" : "disabled"}>Profil speichern</button>
     </div>
   `;
@@ -1469,7 +1614,7 @@ async function finishOnboarding() {
   }
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────
+// â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ringSvg(progress) {
   const r = 108, c = 2 * Math.PI * r;
   const outerR = 118;
@@ -1501,10 +1646,11 @@ function macroBlock(name, current, target) {
 function renderDashboard() {
   const t = todayTotals();
   const tgt = state.targets;
+  const calTarget = effectiveCalTarget();
   const entries = state.log[today()] || [];
 
-  const remaining = Math.max(tgt.calories - t.calories, 0);
-  const progress  = t.calories / tgt.calories;
+  const remaining = Math.max(calTarget - t.calories, 0);
+  const progress  = t.calories / calTarget;
   const pct       = Math.round(Math.min(progress, 1) * 100);
 
   const hr = new Date().getHours();
@@ -1513,12 +1659,12 @@ function renderDashboard() {
 
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière &nbsp;—&nbsp; ${dateStr}</div>
+      <div class="hero-eyebrow">LumiÃ¨re &nbsp;â€”&nbsp; ${dateStr}</div>
       <h1 class="hero-display">${greeting}</h1>
-      <p class="hero-sub">Scanne ein Gericht oder deinen Kühlschrank — wir kuratieren den Rest.</p>
+      <p class="hero-sub">Scanne ein Gericht oder deinen KÃ¼hlschrank â€” wir kuratieren den Rest.</p>
       <div class="hero-cta">
         <button class="btn" id="hero-scan">Mahlzeit scannen</button>
-        <button class="btn ghost" id="hero-fridge">Aus dem Kühlschrank</button>
+        <button class="btn ghost" id="hero-fridge">Aus dem KÃ¼hlschrank</button>
         <button class="btn ghost" id="hero-chat">Butler fragen</button>
       </div>
     </section>
@@ -1533,7 +1679,7 @@ function renderDashboard() {
         </div>
       </div>
       <div class="hero-target">
-        <b>${t.calories}</b> von <b>${tgt.calories}</b> kcal heute
+        <b>${t.calories}</b> von <b>${calTarget}</b> kcal heute
       </div>
     </section>
 
@@ -1546,45 +1692,38 @@ function renderDashboard() {
     ${state.favorites.length ? `
     <div class="section-head" id="hero-favorites" style="cursor:pointer;">
       <div class="section-title">Meine Rezepte</div>
-      <div class="eyebrow">${state.favorites.length} gespeichert →</div>
+      <div class="eyebrow">${state.favorites.length} gespeichert â†’</div>
     </div>
     ` : ""}
 
     <div class="section-head">
       <div class="section-title">Tagebuch</div>
-      <div class="eyebrow">${entries.length} ${entries.length === 1 ? "Eintrag" : "Einträge"}</div>
+      <div class="eyebrow">${entries.length} ${entries.length === 1 ? "Eintrag" : "EintrÃ¤ge"}</div>
     </div>
-    ${renderLedger(entries, tgt.calories)}
-
-    <div class="reset-foot">
-      <button class="reset-link" id="reset-app">App zurücksetzen</button>
-    </div>
+    ${renderLedger(entries, calTarget)}
   `;
 
   $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
   $("hero-fridge").addEventListener("click", () => renderFridge());
   $("hero-chat").addEventListener("click", renderChat);
   if ($("hero-favorites")) $("hero-favorites").addEventListener("click", renderFavorites);
-  fetchDailyBriefing();
 
-  // Welcome-Hint: einmalig nach erstem vollständigen Onboarding
-  if (!state.architectWelcomeShown) setTimeout(showWelcomeHint, 2500);
+  // Daily briefing only fires when there's log data (skip on first-ever visit)
+  const hasLogData = Object.values(state.log).some(entries => entries.length > 0);
+  if (hasLogData) fetchDailyBriefing();
 
-  // Ring-Animation: von 0 auf aktuellen Wert
+  // Allergie-Hint: einmalig, erst nach 4s VerzÃ¶gerung (nach Disclaimer-BestÃ¤tigung)
+  if (!state.architectWelcomeShown) setTimeout(showWelcomeHint, 4000);
+
+  // Ring-Animation
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const ring = document.getElementById("ring-progress");
     if (ring) {
       const r = 108, c = 2 * Math.PI * r;
-      ring.style.strokeDashoffset = c * (1 - Math.min(progress, 1));
+      ring.style.strokeDashoffset = c * (1 - Math.min(t.calories / calTarget, 1));
     }
   }));
-  $("reset-app").addEventListener("click", () => {
-    if (!confirm("Profil, Tagebuch und alle Daten löschen? Das lässt sich nicht rückgängig machen.")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    location.reload();
-  });
-
-  // Lösch-Buttons im Ledger
+  // LÃ¶sch-Buttons im Ledger
   document.querySelectorAll(".ledger-del").forEach(b => b.addEventListener("click", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
@@ -1612,19 +1751,19 @@ function renderDashboard() {
   });
 }
 
-// ── The Ledger ─────────────────────────────────────────────────────
+// â”€â”€ The Ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Caloric ledger modeled on a private bank's transaction book.
 // Each entry is a debit; running balance shows kcal remaining vs. the
 // day's budget. The footer is the day's closing balance.
 
 function formatLedgerTime(ts) {
-  if (!ts) return "—";
+  if (!ts) return "â€”";
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function ledgerRow(entry, balanceAfter) {
-  const meta = `${escapeHtml(entry.portion)} · ${Math.round(entry.protein_g)}P / ${Math.round(entry.carbs_g)}K / ${Math.round(entry.fat_g)}F`;
+  const meta = `${escapeHtml(entry.portion)} Â· ${Math.round(entry.protein_g)}P / ${Math.round(entry.carbs_g)}K / ${Math.round(entry.fat_g)}F`;
   const expandable = entry.items && entry.items.length;
   const time = formatLedgerTime(entry.timestamp);
   const expandAttrs = expandable
@@ -1638,9 +1777,9 @@ function ledgerRow(entry, balanceAfter) {
         <div class="ledger-name">${escapeHtml(entry.name)}</div>
         <div class="ledger-meta">${meta}</div>
       </div>
-      <div class="ledger-debit">−${entry.calories}</div>
+      <div class="ledger-debit">âˆ’${entry.calories}</div>
       <div class="ledger-balance">${balanceAfter}</div>
-      <button class="ledger-del" data-id="${entry.id}" aria-label="Eintrag löschen">×</button>
+      <button class="ledger-del" data-id="${entry.id}" aria-label="Eintrag lÃ¶schen">Ã—</button>
     </div>
   `;
 
@@ -1673,13 +1812,13 @@ function renderLedger(entries, target) {
         balance -= e.calories;
         return ledgerRow(e, balance);
       }).join("")
-    : `<div class="ledger-empty">Noch keine Einträge — der Tag ist ein leeres Blatt.</div>`;
+    : `<div class="ledger-empty">Noch keine EintrÃ¤ge â€” der Tag ist ein leeres Blatt.</div>`;
 
   const status = balance < 0
-    ? { cls: "over", text: `${Math.abs(balance)} kcal über Budget` }
+    ? { cls: "over", text: `${Math.abs(balance)} kcal Ã¼ber Budget` }
     : balance < target * 0.05
-      ? { cls: "within", text: "Budget ausgeschöpft" }
-      : { cls: "", text: `${balance} kcal verfügbar` };
+      ? { cls: "within", text: "Budget ausgeschÃ¶pft" }
+      : { cls: "", text: `${balance} kcal verfÃ¼gbar` };
 
   return `
     <section class="ledger" aria-label="Tagebuch">
@@ -1712,7 +1851,7 @@ function deleteEntry(id) {
   renderDashboard();
 }
 
-// ── Food scan ──────────────────────────────────────────────────────
+// â”€â”€ Food scan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function handleFoodScan(file) {
   renderLoading("Mahlzeit wird analysiert");
   try {
@@ -1728,7 +1867,7 @@ async function handleFoodScan(file) {
 
 function renderFoodReview(scan) {
   const items = scan.items.map(i => ({ ...i }));
-  // Default-Name: kalorienreichste Komponente — meist das Hauptgericht
+  // Default-Name: kalorienreichste Komponente â€” meist das Hauptgericht
   const defaultName = items.length
     ? items.reduce((a, b) => (b.calories > a.calories ? b : a)).name
     : "Mahlzeit";
@@ -1748,7 +1887,7 @@ function renderFoodReview(scan) {
     <div class="eyebrow">Scan-Ergebnis</div>
     <div style="display:flex;align-items:center;gap:12px;margin:10px 0 24px;">
       <input id="meal-name" value="${escapeHtml(mealName)}"
-        placeholder="Mahlzeit benennen…"
+        placeholder="Mahlzeit benennenâ€¦"
         style="flex:1;font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;
                border:0;border-bottom:1px solid var(--line);padding:4px 0;background:transparent;
                color:var(--ink);outline:none;">
@@ -1760,12 +1899,12 @@ function renderFoodReview(scan) {
     <div class="refine-box ${isLow ? "alert" : ""}" id="refine-box">
       <div class="refine-box-label">
         ${isLow
-          ? "Ich bin mir nicht sicher was das ist — beschreib es kurz und ich passe die Werte an."
-          : "Etwas stimmt nicht? Beschreib es kurz — ich korrigiere es für dich."}
+          ? "Ich bin mir nicht sicher was das ist â€” beschreib es kurz und ich passe die Werte an."
+          : "Etwas stimmt nicht? Beschreib es kurz â€” ich korrigiere es fÃ¼r dich."}
       </div>
       <div class="refine-row">
         <input type="text" id="refine-input" class="refine-input"
-          placeholder="${isLow ? "z.B. eingepackter Chicken Burrito mit Reis und Soße" : "z.B. das war eigentlich eine Pizza Margherita"}">
+          placeholder="${isLow ? "z.B. eingepackter Chicken Burrito mit Reis und SoÃŸe" : "z.B. das war eigentlich eine Pizza Margherita"}">
         <button class="btn ghost" id="refine-btn" style="flex-shrink:0;padding:0 18px;">Anpassen</button>
       </div>
     </div>
@@ -1777,7 +1916,7 @@ function renderFoodReview(scan) {
     </div>
     <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn ghost" id="cancel">Verwerfen</button>
-      <button class="btn gold" id="save">In Tagebuch übernehmen</button>
+      <button class="btn gold" id="save">In Tagebuch Ã¼bernehmen</button>
     </div>
   `;
 
@@ -1793,7 +1932,7 @@ function renderFoodReview(scan) {
         </div>
         <div class="scan-item-right">
           <span class="scan-item-kcal">${item.calories} kcal</span>
-          <button class="scan-item-del" data-rm="${idx}" aria-label="Entfernen">×</button>
+          <button class="scan-item-del" data-rm="${idx}" aria-label="Entfernen">Ã—</button>
         </div>
       </div>
     `).join("");
@@ -1811,7 +1950,7 @@ function renderFoodReview(scan) {
     if (!desc) return;
     const btn = $("refine-btn");
     btn.disabled = true;
-    btn.textContent = "…";
+    btn.textContent = "â€¦";
     try {
       const refined = await api("/api/scan/refine", {
         method: "POST",
@@ -1857,19 +1996,24 @@ function renderFoodReview(scan) {
     persist();
     toast("Mahlzeit erfasst");
     renderDashboard();
-    checkButler();
+    checkButler(items.map(i => ({
+      name: i.name, portion: i.portion,
+      calories: +i.calories || 0, protein_g: +i.protein_g || 0,
+      carbs_g: +i.carbs_g || 0, fat_g: +i.fat_g || 0,
+    })));
   });
 }
 
-// ── Fridge & recipe ────────────────────────────────────────────────
+// â”€â”€ Fridge & recipe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderFridge() {
   app.innerHTML = `
     <div class="eyebrow">Sous-Chef</div>
     <h1 class="onb-title" style="margin-top:8px;">Was hast du da?</h1>
-    <p class="onb-sub">Scanne deinen Kühlschrank oder ergänze Zutaten manuell.</p>
+    <p class="onb-sub">Scanne deinen KÃ¼hlschrank oder ergÃ¤nze Zutaten manuell.</p>
 
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">
       <button class="btn" id="scan-fridge">Kühlschrank scannen</button>
+      <!-- PRO: Barcode-Scan via Open Food Facts — implement & gate with isProUser() when ready -->
       <button class="btn ghost" id="add-manual">Zutat hinzufügen</button>
       <button class="btn ghost" id="inspire-me">Inspiration</button>
     </div>
@@ -1877,7 +2021,7 @@ function renderFridge() {
     <div id="fridge-list"></div>
 
     <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
-      <button class="btn ghost" id="cancel-fridge">Zurück</button>
+      <button class="btn ghost" id="cancel-fridge">ZurÃ¼ck</button>
       <button class="btn ghost" id="clear-fridge" ${state.fridge.length ? "" : "disabled"}>Korb leeren</button>
       <button class="btn gold" id="make-recipe" ${state.fridge.length ? "" : "disabled"}>Rezept kreieren</button>
     </div>
@@ -1885,7 +2029,10 @@ function renderFridge() {
     <div id="recipe-slot"></div>
   `;
 
-  $("scan-fridge").addEventListener("click", () => pickFile(handleFridgeScan));
+  $("scan-fridge").addEventListener("click", () => {
+    if (!isProUser()) { toast("Fridge scan is a Pro feature — coming soon."); return; }
+    pickFile(handleFridgeScan);
+  });
   $("add-manual").addEventListener("click", () => {
     const list = $("fridge-list");
     if (list.querySelector(".fridge-add-row")) return; // already open
@@ -1893,7 +2040,7 @@ function renderFridge() {
     addRow.className = "fridge-add-row";
     addRow.innerHTML = `
       <input type="text" class="fridge-add-input" id="fridge-manual-input"
-        placeholder="z.B. 4 Äpfel, 200g Reis, 2 Eier…" autocomplete="off">
+        placeholder="z.B. 4 Ã„pfel, 200g Reis, 2 Eierâ€¦" autocomplete="off">
       <button class="btn ghost" id="fridge-manual-add" style="flex-shrink:0;padding:0 18px;">+</button>
     `;
     list.appendChild(addRow);
@@ -1919,7 +2066,7 @@ function renderFridge() {
     $("recipe-slot").innerHTML = "";
   });
   $("make-recipe").addEventListener("click", makeRecipe);
-  $("inspire-me").addEventListener("click", () => makeInspiredRecipe(renderFridge, "← Sous-Chef"));
+  $("inspire-me").addEventListener("click", () => makeInspiredRecipe(renderFridge, "â† Sous-Chef"));
 
   paintFridge();
 }
@@ -1932,7 +2079,7 @@ function paintFridge() {
     list.innerHTML = `
       <div class="tags">
         ${state.fridge.map((ing, i) => `
-          <span class="tag">${escapeHtml(ing)}<span class="x" data-rm="${i}" aria-label="Entfernen">×</span></span>
+          <span class="tag">${escapeHtml(ing)}<span class="x" data-rm="${i}" aria-label="Entfernen">Ã—</span></span>
         `).join("")}
       </div>
     `;
@@ -1955,7 +2102,7 @@ async function handleFridgeScan(file) {
     const fd = new FormData();
     fd.append("image", file);
     const data = await api("/api/scan/fridge", { method: "POST", body: fd });
-    // Menge + Name zusammenführen, damit das Modell beim Rezept Mengen respektiert
+    // Menge + Name zusammenfÃ¼hren, damit das Modell beim Rezept Mengen respektiert
     const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
     state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
@@ -2038,8 +2185,8 @@ function renderRecipe(r) {
         </div>
       </div>
       <div class="recipe-foot">
-        <button class="btn ghost" id="recipe-back">Schließen</button>
-        <button class="btn ghost" id="recipe-save">${state.favorites.some(f => f.title === r.title) ? "★ Gespeichert" : "☆ Merken"}</button>
+        <button class="btn ghost" id="recipe-back">SchlieÃŸen</button>
+        <button class="btn ghost" id="recipe-save">${state.favorites.some(f => f.title === r.title) ? "â˜… Gespeichert" : "â˜† Merken"}</button>
         <button class="btn gold" id="recipe-log">Eine Portion erfassen</button>
       </div>
     </div>
@@ -2049,11 +2196,11 @@ function renderRecipe(r) {
     const idx = state.favorites.findIndex(f => f.title === r.title);
     if (idx >= 0) {
       state.favorites.splice(idx, 1);
-      $("recipe-save").textContent = "☆ Merken";
+      $("recipe-save").textContent = "â˜† Merken";
       toast("Aus Favoriten entfernt");
     } else {
       state.favorites.unshift({ ...r, id: newId(), savedAt: Date.now() });
-      $("recipe-save").textContent = "★ Gespeichert";
+      $("recipe-save").textContent = "â˜… Gespeichert";
       toast("Rezept gespeichert");
     }
     persist();
@@ -2074,236 +2221,19 @@ function renderRecipe(r) {
     });
     state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
-    toast("Rezept erfasst — Korb geleert");
+    toast("Rezept erfasst â€” Korb geleert");
     renderDashboard();
-    checkButler();
+    checkButler([{ name: r.title, portion: "1 Portion",
+      calories: r.calories_per_serving, protein_g: r.protein_g,
+      carbs_g: r.carbs_g, fat_g: r.fat_g }]);
   });
 }
 
-// ── Loading screen ─────────────────────────────────────────────────
+// â”€â”€ Loading screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderLoading(text) {
   app.innerHTML = `<div class="skeleton-card" style="margin-top:48px;"><span class="loader"></span>${escapeHtml(text)}</div>`;
 }
 
-// ── Settings ──────────────────────────────────────────────────────
-function renderSettings() {
-  const modes = [
-    {
-      key:   ARCHITECT.MODES.ELITE_BUTLER,
-      label: "Elite Butler",
-      desc:  "Analytisch, loyal, distanziert präzise. Maximale Seriosität.",
-      meta:  "Standard — empfohlen",
-    },
-    {
-      key:   ARCHITECT.MODES.PERFORMANCE_COACH,
-      label: "Performance Coach",
-      desc:  "Direkte Sprache, harte Metriken, kein Spielraum für Ausreden.",
-      meta:  "Für intensive Phasen",
-    },
-    {
-      key:   ARCHITECT.MODES.STRATEGIC_BUDDY,
-      label: "Strategic Buddy",
-      desc:  "Auf Augenhöhe, intelligent, klar — ohne übertriebene Formalität.",
-      meta:  "Alltag & Maintenance",
-    },
-  ];
-
-  const goalLabel     = { lose: "Definieren", maintain: "Halten", gain: "Aufbauen" };
-  const activityLabel = {
-    sedentary: "Sitzend", light: "Leicht aktiv", moderate: "Moderat aktiv",
-    active: "Sehr aktiv", very_active: "Athlet",
-  };
-
-  const p   = state.profile;
-  const tgt = state.targets;
-
-  const profileStats = p && tgt ? `
-    <div class="macros" style="margin-bottom:28px;">
-      <div class="macro">
-        <div class="macro-head">
-          <span class="macro-name">Kalorien</span>
-          <span class="macro-vals">${tgt.calories}<span class="target"> kcal</span></span>
-        </div>
-      </div>
-      <div class="macro">
-        <div class="macro-head">
-          <span class="macro-name">Protein</span>
-          <span class="macro-vals">${tgt.protein_g}<span class="target"> g</span></span>
-        </div>
-      </div>
-      <div class="macro">
-        <div class="macro-head">
-          <span class="macro-name">Ziel</span>
-          <span class="macro-vals" style="font-size:16px;">${goalLabel[p.goal]}</span>
-        </div>
-      </div>
-    </div>
-    <p style="font-size:12px;color:var(--ink-mute);letter-spacing:.08em;margin:0 0 24px;">
-      ${p.weight_kg} kg &nbsp;·&nbsp; ${p.height_cm} cm &nbsp;·&nbsp; ${p.age} J.
-      &nbsp;·&nbsp; ${activityLabel[p.activity] || p.activity}
-    </p>
-  ` : `<p style="color:var(--ink-soft);font-size:13px;margin:0 0 24px;">Kein Profil hinterlegt.</p>`;
-
-  const wrap = document.createElement("div");
-  wrap.innerHTML = `
-
-    <section class="hero-block">
-      <div class="hero-eyebrow">Performance Intelligence Core</div>
-      <h1 class="hero-display" style="font-size:clamp(32px,4vw,52px);max-width:none;">
-        Architect
-      </h1>
-      <p class="hero-sub" style="max-width:52ch;">
-        Kalibrieren Sie den Kommunikationsmodus. Die Analyse-Logik und Schwellenwerte
-        bleiben identisch — nur Tonalität und Sprache passen sich an.
-      </p>
-    </section>
-
-    <div style="margin-bottom:56px;">
-      <div class="eyebrow" style="margin-bottom:4px;">Kommunikationsmodus</div>
-      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 24px;letter-spacing:.04em;">
-        Aktiv: <strong style="color:var(--ink);">${ARCHITECT.getModeLabel()}</strong>
-      </p>
-
-      <div style="border:1px solid var(--line);">
-        ${modes.map((m, i) => {
-          const active = ARCHITECT.getMode() === m.key;
-          return `
-            <button
-              data-arch-mode="${m.key}"
-              style="
-                width:100%; text-align:left; background:${active ? "var(--surface)" : "var(--surface-2)"};
-                border:none; border-bottom:${i < modes.length - 1 ? "1px solid var(--line)" : "none"};
-                padding:22px 28px; cursor:pointer; display:grid;
-                grid-template-columns:1fr auto; gap:16px; align-items:center;
-                transition:background .2s;
-              "
-            >
-              <div>
-                <div style="
-                  font-family:'Cormorant Garamond',serif; font-size:20px;
-                  color:${active ? "var(--ink)" : "var(--ink-soft)"};
-                  margin-bottom:4px; transition:color .2s;
-                ">${m.label}</div>
-                <div style="font-size:12px;color:var(--ink-mute);line-height:1.5;">${m.desc}</div>
-                <div style="
-                  font-size:10px; letter-spacing:.18em; text-transform:uppercase;
-                  color:${active ? "var(--gold-deep)" : "var(--ink-mute)"};
-                  margin-top:6px;
-                ">${m.meta}</div>
-              </div>
-              <div style="
-                width:8px; height:8px; border-radius:50%;
-                background:${active ? "var(--gold)" : "transparent"};
-                border:1px solid ${active ? "var(--gold)" : "var(--ink-mute)"};
-                flex-shrink:0; transition:all .2s;
-              "></div>
-            </button>
-          `;
-        }).join("")}
-      </div>
-    </div>
-
-    <hr class="hairline gold">
-
-    <div style="margin:40px 0 56px;">
-      <div class="eyebrow" style="margin-bottom:20px;">Tagesparameter</div>
-      ${state.name ? `<p style="font-family:'Cormorant Garamond',serif;font-size:22px;margin:0 0 16px;color:var(--ink);">Hallo, ${escapeHtml(state.name)}.</p>` : ""}
-      ${profileStats}
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn ghost" id="settings-edit-name">Name ändern</button>
-        <button class="btn ghost" id="settings-edit-profile">Profil anpassen</button>
-      </div>
-    </div>
-
-    <hr class="hairline gold">
-
-    <div style="margin:40px 0 56px;">
-      <div class="eyebrow" style="margin-bottom:20px;">Unverträglichkeiten & No-Gos</div>
-
-      <div style="margin-bottom:32px;">
-        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">Allergien / Unverträglichkeiten</div>
-        <div class="tags" style="min-height:28px;">
-          ${(state.restrictions.allergies).map((a, i) => `<span class="tag">${escapeHtml(a)}<span class="x" data-rm-allergy="${i}" aria-label="Entfernen">×</span></span>`).join("") || `<span style="font-size:13px;color:var(--ink-mute);">Keine eingetragen</span>`}
-        </div>
-        <div style="display:flex;gap:8px;margin-top:14px;">
-          <input type="text" id="settings-allergy-input" placeholder="z.B. Gluten, Laktose, Nüsse"
-            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
-          <button class="btn ghost" id="settings-allergy-add" style="padding:0 20px;flex-shrink:0;">+</button>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">Persönliche No-Gos</div>
-        <div class="tags" style="min-height:28px;">
-          ${(state.restrictions.noGos).map((n, i) => `<span class="tag">${escapeHtml(n)}<span class="x" data-rm-nogo="${i}" aria-label="Entfernen">×</span></span>`).join("") || `<span style="font-size:13px;color:var(--ink-mute);">Keine eingetragen</span>`}
-        </div>
-        <div style="display:flex;gap:8px;margin-top:14px;">
-          <input type="text" id="settings-nogo-input" placeholder="z.B. Koriander, Fenchel, Rosinen"
-            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
-          <button class="btn ghost" id="settings-nogo-add" style="padding:0 20px;flex-shrink:0;">+</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
-      <button class="btn ghost" id="settings-back">Dashboard</button>
-    </div>
-
-  `;
-
-  wrap.querySelectorAll("[data-arch-mode]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      ARCHITECT.setMode(btn.dataset.archMode);
-      toast(`Modus: ${ARCHITECT.getModeLabel()}`);
-      renderSettings();
-    });
-  });
-
-  wrap.querySelector("#settings-edit-name").addEventListener("click", () => renderNameStep());
-  wrap.querySelector("#settings-edit-profile").addEventListener("click", () => renderOnboarding(0));
-  wrap.querySelector("#settings-back").addEventListener("click", render);
-
-  // ── Restrictions: Allergien ────────────────────────────────────────
-  const allergyInput = wrap.querySelector("#settings-allergy-input");
-  wrap.querySelector("#settings-allergy-add").addEventListener("click", () => {
-    const val = allergyInput.value.trim();
-    if (!val) return;
-    state.restrictions.allergies.push(val);
-    persist();
-    renderSettings();
-  });
-  allergyInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") wrap.querySelector("#settings-allergy-add").click();
-  });
-  wrap.querySelectorAll("[data-rm-allergy]").forEach(x => x.addEventListener("click", () => {
-    state.restrictions.allergies.splice(+x.dataset.rmAllergy, 1);
-    persist();
-    renderSettings();
-  }));
-
-  // ── Restrictions: No-Gos ──────────────────────────────────────────
-  const nogoInput = wrap.querySelector("#settings-nogo-input");
-  wrap.querySelector("#settings-nogo-add").addEventListener("click", () => {
-    const val = nogoInput.value.trim();
-    if (!val) return;
-    state.restrictions.noGos.push(val);
-    persist();
-    renderSettings();
-  });
-  nogoInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") wrap.querySelector("#settings-nogo-add").click();
-  });
-  wrap.querySelectorAll("[data-rm-nogo]").forEach(x => x.addEventListener("click", () => {
-    state.restrictions.noGos.splice(+x.dataset.rmNogo, 1);
-    persist();
-    renderSettings();
-  }));
-
-  app.innerHTML = "";
-  app.appendChild(wrap);
-}
-
-// ── Butler Welcome Hint ────────────────────────────────────────────
 function showWelcomeHint() {
   if (state.architectWelcomeShown) return;
   if (document.getElementById("butler-hint")) return;
@@ -2312,10 +2242,10 @@ function showWelcomeHint() {
   hint.id        = "butler-hint";
   hint.className = "butler-hint";
   hint.innerHTML = `
-    <button class="butler-hint-close" id="hint-close" aria-label="Schließen">×</button>
+    <button class="butler-hint-close" id="hint-close" aria-label="SchlieÃŸen">Ã—</button>
     <div class="butler-hint-eyebrow">ARCHITECT</div>
-    <p class="butler-hint-text">If you have allergies or foods you avoid, add them in Settings — I'll factor them into every recipe.</p>
-    <button class="butler-hint-link" id="hint-settings">Open Settings →</button>
+    <p class="butler-hint-text">If you have allergies or foods you avoid, add them in Settings â€” I'll factor them into every recipe.</p>
+    <button class="butler-hint-link" id="hint-settings">Open Settings â†’</button>
   `;
   document.body.appendChild(hint);
   requestAnimationFrame(() => requestAnimationFrame(() => hint.classList.add("show")));
@@ -2332,12 +2262,474 @@ function showWelcomeHint() {
   hint.querySelector("#hint-close").addEventListener("click", dismiss);
   hint.querySelector("#hint-settings").addEventListener("click", () => {
     dismiss();
-    renderSettings();
+    showProfilePanel();
   });
 }
 
-// ── Proactive Butler Check ─────────────────────────────────────────
-async function checkButler() {
+// â”€â”€ Pro Feature Gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function isProUser() {
+  return true; // Pro gate: replace with Stripe subscription check when payment is implemented
+}
+
+// â”€â”€ Confirm Dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function showConfirmDialog(title, message, confirmLabel = "Confirm", cancelLabel = "Cancel") {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "disclaimer-overlay";
+    overlay.style.zIndex = "1100";
+    overlay.innerHTML = `
+      <div class="disclaimer-card anim-up">
+        <h2 class="disclaimer-title">${escapeHtml(title)}</h2>
+        <p class="disclaimer-text">${escapeHtml(message)}</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn ghost" id="confirm-cancel" style="min-width:120px;">${escapeHtml(cancelLabel)}</button>
+          <button class="btn" id="confirm-ok"
+            style="background:var(--danger);border-color:var(--danger);min-width:160px;">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#confirm-cancel").addEventListener("click", () => { overlay.remove(); resolve(false); });
+    overlay.querySelector("#confirm-ok").addEventListener("click",     () => { overlay.remove(); resolve(true); });
+  });
+}
+
+// â”€â”€ App Reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function resetApp() {
+  const confirmed = await showConfirmDialog(
+    "Reset App",
+    "This will permanently delete all your data. This cannot be undone.",
+    "Delete Everything",
+    "Cancel"
+  );
+  if (!confirmed) return;
+
+  try {
+    await api("/api/user/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch { /* lautlos â€” local reset happens regardless */ }
+
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  state = defaultState();
+  render();
+}
+
+// â”€â”€ Profile Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function showProfilePanel() {
+  hideProfilePanel();
+
+  const hasHealth  = !!state.healthContext;
+  const hasRestr   = (state.restrictions.allergies.length + state.restrictions.noGos.length) > 0;
+  const hasTaste   = !!state.taste;
+  const calLabel   = state.customCalorieGoal ? `${state.customCalorieGoal} kcal` : "Calculated";
+
+  const panel = document.createElement("div");
+  panel.id = "profile-panel";
+  panel.className = "profile-panel";
+  panel.innerHTML = `
+    <div class="profile-panel-inner">
+      <button class="profile-panel-close" id="panel-close" aria-label="Close">Ã—</button>
+      <div class="profile-panel-eyebrow">LUMIÃˆRE</div>
+
+      <div class="panel-menu">
+        <button class="panel-row" id="panel-mode-btn">
+          <span class="panel-row-label">Butler Mode</span>
+          <span class="panel-row-value">${escapeHtml(ARCHITECT.getModeLabel())}</span>
+        </button>
+        <button class="panel-row" id="panel-health-btn">
+          <span class="panel-row-label">Health Profile</span>
+          <span class="panel-row-value">${hasHealth ? "Configured" : "Optional"}</span>
+        </button>
+        <button class="panel-row" id="panel-allergies-btn">
+          <span class="panel-row-label">Allergies &amp; Restrictions</span>
+          <span class="panel-row-value">${hasRestr ? "Configured" : "Optional"}</span>
+        </button>
+        <button class="panel-row" id="panel-calorie-btn">
+          <span class="panel-row-label">Calorie Goal</span>
+          <span class="panel-row-value">${escapeHtml(calLabel)}</span>
+        </button>
+        <button class="panel-row" id="panel-taste-btn">
+          <span class="panel-row-label">Taste Preferences</span>
+          <span class="panel-row-value">${hasTaste ? "Configured" : "Optional"}</span>
+        </button>
+        <button class="panel-row" id="panel-imprint-btn" style="align-items:flex-start;flex-direction:column;gap:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+            <span class="panel-row-label">Imprint</span>
+            <span class="panel-row-chevron" id="panel-imprint-chev">â€º</span>
+          </div>
+          <div class="panel-imprint-text" id="panel-imprint-text" hidden>
+            LumiÃ¨re is not a medical app. Always consult a healthcare professional for medical decisions.
+          </div>
+        </button>
+      </div>
+
+      <div class="panel-foot">
+        <button class="panel-signout" id="panel-signout">Sign Out</button>
+        <button class="panel-danger" id="panel-reset">Reset App</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+  requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("open")));
+
+  panel.addEventListener("click", (e) => { if (e.target === panel) hideProfilePanel(); });
+  panel.querySelector("#panel-close").addEventListener("click", hideProfilePanel);
+
+  panel.querySelector("#panel-mode-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderModeSelect(showProfilePanel);
+  });
+  panel.querySelector("#panel-health-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderHealthScreen(showProfilePanel);
+  });
+  panel.querySelector("#panel-allergies-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderAllergiesScreen(showProfilePanel);
+  });
+  panel.querySelector("#panel-calorie-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderCalorieGoalScreen(showProfilePanel);
+  });
+  panel.querySelector("#panel-taste-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderTaste(0);
+  });
+  panel.querySelector("#panel-imprint-btn").addEventListener("click", () => {
+    const txt  = panel.querySelector("#panel-imprint-text");
+    const chev = panel.querySelector("#panel-imprint-chev");
+    txt.hidden = !txt.hidden;
+    chev.textContent = txt.hidden ? "â€º" : "â€¹";
+  });
+  panel.querySelector("#panel-reset").addEventListener("click", () => {
+    hideProfilePanel(); resetApp();
+  });
+  panel.querySelector("#panel-signout").addEventListener("click", async () => {
+    hideProfilePanel(); await _sb.auth.signOut();
+  });
+}
+
+function hideProfilePanel() {
+  const panel = document.getElementById("profile-panel");
+  if (!panel) return;
+  panel.classList.remove("open");
+  panel.addEventListener("transitionend", () => panel.remove(), { once: true });
+}
+
+// â”€â”€ Mode Select Sub-screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function renderModeSelect(backFn) {
+  const modes = [
+    { key: ARCHITECT.MODES.ELITE_BUTLER,      label: "Elite Butler",
+      desc: "Analytical, loyal, precisely distanced. Maximum composure.", meta: "Recommended" },
+    { key: ARCHITECT.MODES.PERFORMANCE_COACH, label: "Performance Coach",
+      desc: "Direct language, hard metrics, no excuses.", meta: "Intensive phases" },
+    { key: ARCHITECT.MODES.STRATEGIC_BUDDY,   label: "Strategic Buddy",
+      desc: "Relaxed, on equal footing, intelligent â€” no bro-talk.", meta: "Daily use" },
+  ];
+
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Performance Intelligence Core</div>
+      <h1 class="hero-display" style="font-size:clamp(32px,4vw,52px);max-width:none;">Architect</h1>
+      <p class="hero-sub" style="max-width:42ch;">
+        Calibrate the communication mode. Analysis logic and thresholds stay identical â€” only tone adapts.
+      </p>
+    </section>
+
+    <div style="margin:40px 0;">
+      <div class="eyebrow" style="margin-bottom:4px;">Communication Mode</div>
+      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 24px;letter-spacing:.04em;">
+        Active: <strong style="color:var(--ink);">${escapeHtml(ARCHITECT.getModeLabel())}</strong>
+      </p>
+      <div style="border:1px solid var(--line);">
+        ${modes.map((m, i) => {
+          const active = ARCHITECT.getMode() === m.key;
+          return `
+            <button data-arch-mode="${m.key}" style="
+              width:100%;text-align:left;
+              background:${active ? "var(--surface)" : "var(--surface-2)"};
+              border:none;border-bottom:${i < modes.length - 1 ? "1px solid var(--line)" : "none"};
+              padding:22px 28px;cursor:pointer;
+              display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;
+              transition:background .2s;">
+              <div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:20px;
+                  color:${active ? "var(--ink)" : "var(--ink-soft)"};margin-bottom:4px;">${m.label}</div>
+                <div style="font-size:12px;color:var(--ink-mute);line-height:1.5;">${m.desc}</div>
+                <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+                  color:${active ? "var(--gold-deep)" : "var(--ink-mute)"};margin-top:6px;">${m.meta}</div>
+              </div>
+              <div style="width:8px;height:8px;border-radius:50%;
+                background:${active ? "var(--gold)" : "transparent"};
+                border:1px solid ${active ? "var(--gold)" : "var(--ink-mute)"};
+                flex-shrink:0;transition:all .2s;"></div>
+            </button>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+      <button class="btn ghost" id="mode-back">â† Profile</button>
+    </div>
+  `;
+
+  wrap.querySelectorAll("[data-arch-mode]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ARCHITECT.setMode(btn.dataset.archMode);
+      toast(`Mode: ${ARCHITECT.getModeLabel()}`);
+      renderModeSelect(backFn);
+    });
+  });
+  wrap.querySelector("#mode-back").addEventListener("click", backFn || renderDashboard);
+  app.innerHTML = "";
+  app.appendChild(wrap);
+}
+
+// â”€â”€ Health Profile Sub-screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function renderHealthScreen(backFn) {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:6px;">Health Profile</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 36px;line-height:1.75;">
+      Optional. Architect factors these into every notification. Never shared.
+    </p>
+
+    <div style="margin-bottom:24px;">
+      <div class="field-label" style="margin-bottom:10px;">Diabetes</div>
+      <div class="toggle-row" id="hs-diabetes-toggle">
+        <button data-diabetes="" ${!state.healthContext?.diabetesType ? 'class="active"' : ""}>None</button>
+        <button data-diabetes="type1" ${state.healthContext?.diabetesType === "type1" ? 'class="active"' : ""}>Type 1</button>
+        <button data-diabetes="type2" ${state.healthContext?.diabetesType === "type2" ? 'class="active"' : ""}>Type 2</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:24px;">
+      <label style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line-soft);cursor:pointer;">
+        <input type="checkbox" id="hs-lactose" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--gold);"
+          ${state.healthContext?.lactoseIntolerant ? "checked" : ""}>
+        <div>
+          <div style="font-size:15px;">Lactose Intolerance</div>
+          <div style="font-size:12px;color:var(--ink-mute);">Architect will flag dairy in your meals.</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line-soft);cursor:pointer;">
+        <input type="checkbox" id="hs-gluten" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--gold);"
+          ${state.healthContext?.glutenIntolerant ? "checked" : ""}>
+        <div>
+          <div style="font-size:15px;">Gluten Intolerance / Celiac</div>
+          <div style="font-size:12px;color:var(--ink-mute);">Architect will flag wheat and gluten sources.</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:14px;padding:14px 0;cursor:pointer;">
+        <input type="checkbox" id="hs-hypertension" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--gold);"
+          ${state.healthContext?.hypertension ? "checked" : ""}>
+        <div>
+          <div style="font-size:15px;">Hypertension</div>
+          <div style="font-size:12px;color:var(--ink-mute);">Architect will note high-sodium meals.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="field" style="margin-bottom:32px;">
+      <label class="field-label" for="hs-other">Other Notes</label>
+      <input type="text" id="hs-other" maxlength="100"
+        placeholder="e.g. kidney disease, IBSâ€¦"
+        value="${escapeHtml(state.healthContext?.otherNotes || "")}">
+      <div style="font-size:11px;color:var(--ink-mute);text-align:right;margin-top:4px;" id="hs-other-count">
+        ${(state.healthContext?.otherNotes || "").length} / 100
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px;">
+      <button class="btn" id="hs-save">Save</button>
+      ${state.healthContext ? `<button class="btn ghost" id="hs-clear">Clear Profile</button>` : ""}
+    </div>
+
+    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+      <button class="btn ghost" id="hs-back">â† Profile</button>
+    </div>
+  `;
+
+  let diabetesDraft = state.healthContext?.diabetesType || "";
+  wrap.querySelectorAll("[data-diabetes]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      diabetesDraft = btn.dataset.diabetes;
+      wrap.querySelectorAll("[data-diabetes]").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  const otherInp = wrap.querySelector("#hs-other");
+  const otherCnt = wrap.querySelector("#hs-other-count");
+  otherInp.addEventListener("input", () => { otherCnt.textContent = `${otherInp.value.length} / 100`; });
+
+  wrap.querySelector("#hs-save").addEventListener("click", () => {
+    const notes = otherInp.value.trim().slice(0, 100);
+    const hc = {
+      diabetesType:      diabetesDraft || null,
+      lactoseIntolerant: wrap.querySelector("#hs-lactose").checked,
+      glutenIntolerant:  wrap.querySelector("#hs-gluten").checked,
+      hypertension:      wrap.querySelector("#hs-hypertension").checked,
+      otherNotes:        notes,
+    };
+    const hasAny = hc.diabetesType || hc.lactoseIntolerant || hc.glutenIntolerant || hc.hypertension || notes;
+    state.healthContext = hasAny ? hc : null;
+    persist();
+    toast("Health profile saved");
+    (backFn || renderDashboard)();
+  });
+
+  const clearBtn = wrap.querySelector("#hs-clear");
+  if (clearBtn) clearBtn.addEventListener("click", () => {
+    state.healthContext = null; persist(); toast("Health profile cleared");
+    (backFn || renderDashboard)();
+  });
+
+  wrap.querySelector("#hs-back").addEventListener("click", backFn || renderDashboard);
+  app.innerHTML = "";
+  app.appendChild(wrap);
+}
+
+// â”€â”€ Allergies Sub-screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function renderAllergiesScreen(backFn) {
+  const renderList = () => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = `
+      <div class="eyebrow" style="margin-bottom:6px;">Allergies &amp; Restrictions</div>
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 36px;line-height:1.75;">
+        Architect factors these into every recipe suggestion.
+      </p>
+
+      <div style="margin-bottom:36px;">
+        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">
+          Allergies / Intolerances
+        </div>
+        <div class="tags" style="min-height:28px;">
+          ${state.restrictions.allergies.map((a, i) =>
+            `<span class="tag">${escapeHtml(a)}<span class="x" data-rm-allergy="${i}" aria-label="Remove">Ã—</span></span>`
+          ).join("") || `<span style="font-size:13px;color:var(--ink-mute);">None added</span>`}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <input type="text" id="allergy-input" placeholder="e.g. gluten, lactose, nuts"
+            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
+          <button class="btn ghost" id="allergy-add" style="padding:0 20px;flex-shrink:0;">+</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:40px;">
+        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:10px;">
+          Personal No-Gos
+        </div>
+        <div class="tags" style="min-height:28px;">
+          ${state.restrictions.noGos.map((n, i) =>
+            `<span class="tag">${escapeHtml(n)}<span class="x" data-rm-nogo="${i}" aria-label="Remove">Ã—</span></span>`
+          ).join("") || `<span style="font-size:13px;color:var(--ink-mute);">None added</span>`}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <input type="text" id="nogo-input" placeholder="e.g. coriander, fennel, raisins"
+            style="flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);padding:10px 0;font-size:14px;color:var(--ink);outline:none;">
+          <button class="btn ghost" id="nogo-add" style="padding:0 20px;flex-shrink:0;">+</button>
+        </div>
+      </div>
+
+      <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+        <button class="btn ghost" id="allergy-back">â† Profile</button>
+      </div>
+    `;
+
+    const rerender = () => { app.innerHTML = ""; app.appendChild(renderList()); };
+
+    wrap.querySelectorAll("[data-rm-allergy]").forEach(x => x.addEventListener("click", () => {
+      state.restrictions.allergies.splice(+x.dataset.rmAllergy, 1); persist(); rerender();
+    }));
+    wrap.querySelectorAll("[data-rm-nogo]").forEach(x => x.addEventListener("click", () => {
+      state.restrictions.noGos.splice(+x.dataset.rmNogo, 1); persist(); rerender();
+    }));
+
+    const allergyInp = wrap.querySelector("#allergy-input");
+    wrap.querySelector("#allergy-add").addEventListener("click", () => {
+      const v = allergyInp.value.trim(); if (!v) return;
+      state.restrictions.allergies.push(v); persist(); rerender();
+    });
+    allergyInp.addEventListener("keydown", e => { if (e.key === "Enter") wrap.querySelector("#allergy-add").click(); });
+
+    const nogoInp = wrap.querySelector("#nogo-input");
+    wrap.querySelector("#nogo-add").addEventListener("click", () => {
+      const v = nogoInp.value.trim(); if (!v) return;
+      state.restrictions.noGos.push(v); persist(); rerender();
+    });
+    nogoInp.addEventListener("keydown", e => { if (e.key === "Enter") wrap.querySelector("#nogo-add").click(); });
+
+    wrap.querySelector("#allergy-back").addEventListener("click", backFn || renderDashboard);
+    return wrap;
+  };
+
+  app.innerHTML = "";
+  app.appendChild(renderList());
+}
+
+// â”€â”€ Calorie Goal Sub-screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function renderCalorieGoalScreen(backFn) {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:6px;">Calorie Goal</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 8px;line-height:1.75;">
+      Override the calculated target with a custom daily goal.
+    </p>
+    ${state.targets ? `
+      <p style="font-size:12px;color:var(--ink-mute);margin:0 0 32px;">
+        Calculated from your profile: <strong style="color:var(--ink);">${state.targets.calories} kcal</strong>
+      </p>` : `<div style="margin-bottom:32px;"></div>`}
+
+    <div class="field" style="margin-bottom:8px;">
+      <label class="field-label" for="cg-input">Custom Daily Goal (kcal)</label>
+      <input type="number" id="cg-input" min="800" max="5000"
+        placeholder="Leave empty to use calculated"
+        value="${state.customCalorieGoal || ""}"
+        style="font-size:20px;">
+    </div>
+    <div id="cg-warning" style="font-size:12px;color:var(--danger);margin-bottom:20px;display:none;">
+      Please enter a value between 800 and 5000 kcal.
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px;">
+      <button class="btn" id="cg-save">Save Goal</button>
+      ${state.customCalorieGoal ? `<button class="btn ghost" id="cg-clear">Reset to Calculated</button>` : ""}
+    </div>
+
+    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+      <button class="btn ghost" id="cg-back">â† Profile</button>
+    </div>
+  `;
+
+  const inp  = wrap.querySelector("#cg-input");
+  const warn = wrap.querySelector("#cg-warning");
+
+  wrap.querySelector("#cg-save").addEventListener("click", () => {
+    const raw = inp.value.trim();
+    if (!raw) { state.customCalorieGoal = null; persist(); toast("Goal reset to calculated"); (backFn || renderDashboard)(); return; }
+    const val = parseInt(raw, 10);
+    if (isNaN(val) || val < 800 || val > 5000) { warn.style.display = "block"; return; }
+    warn.style.display = "none";
+    state.customCalorieGoal = val; persist();
+    toast(`Goal set: ${val} kcal`);
+    (backFn || renderDashboard)();
+  });
+  inp.addEventListener("input", () => { warn.style.display = "none"; });
+
+  const clearBtn = wrap.querySelector("#cg-clear");
+  if (clearBtn) clearBtn.addEventListener("click", () => {
+    state.customCalorieGoal = null; persist(); toast("Goal reset to calculated");
+    (backFn || renderDashboard)();
+  });
+
+  wrap.querySelector("#cg-back").addEventListener("click", backFn || renderDashboard);
+  app.innerHTML = "";
+  app.appendChild(wrap);
+}
+
+// â”€â”€ Proactive Butler Check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function checkButler(mealItems = null) {
   if (!state.targets) return;
 
   const d = today();
@@ -2348,6 +2740,16 @@ async function checkButler() {
   const t    = todayTotals();
   const hour = new Date().getHours();
 
+  // PRO: Health-Context Layer — gate with isProUser() when Stripe is live
+  const hc = isProUser() ? state.healthContext : null;
+  const healthContext = hc ? {
+    diabetes_type:       hc.diabetesType || null,
+    lactose_intolerant:  hc.lactoseIntolerant || false,
+    gluten_intolerant:   hc.glutenIntolerant  || false,
+    hypertension:        hc.hypertension       || false,
+    other_notes:         hc.otherNotes         || "",
+  } : null;
+
   try {
     const result = await api("/api/butler/check", {
       method: "POST",
@@ -2357,28 +2759,32 @@ async function checkButler() {
         protein_today:   t.protein,
         carbs_today:     t.carbs,
         fat_today:       t.fat,
-        calories_target: state.targets.calories,
+        calories_target: effectiveCalTarget(),
         protein_target:  state.targets.protein_g,
         carbs_target:    state.targets.carbs_g,
         hour,
-        mode:       ARCHITECT.getMode(),
-        user_name:  state.name || null,
+        mode:        ARCHITECT.getMode(),
+        user_name:   state.name || null,
         fired_today: state.butlerFired.types,
+        health_context: healthContext,
+        last_meal:   mealItems || [],
       }),
     });
     if (result.triggered && result.message) {
-      state.butlerFired.types.push(result.type);
-      persist();
+      if (result.type !== "health_context") {
+        state.butlerFired.types.push(result.type);
+        persist();
+      }
       showArchitectBriefing(result);
     }
   } catch { /* lautlos */ }
 }
 
-// ── Inspiration ────────────────────────────────────────────────────
+// â”€â”€ Inspiration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function makeInspiredRecipe(backFn, backLabel) {
   backFn    = backFn    || renderDashboard;
-  backLabel = backLabel || "← Dashboard";
-  renderLoading("Inspiration wird generiert…");
+  backLabel = backLabel || "â† Dashboard";
+  renderLoading("Inspiration wird generiertâ€¦");
   try {
     const recipe = await api("/api/recipe", {
       method: "POST",
@@ -2396,7 +2802,7 @@ async function makeInspiredRecipe(backFn, backLabel) {
   }
 }
 
-// ── Daily Briefing ─────────────────────────────────────────────────
+// â”€â”€ Daily Briefing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function fetchDailyBriefing() {
   if (!state.targets || state.lastBriefingDate === today()) return;
   state.lastBriefingDate = today();
@@ -2404,9 +2810,10 @@ async function fetchDailyBriefing() {
 
   const yDate  = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const yCals  = (state.log[yDate] || []).reduce((s, e) => s + (e.calories || 0), 0);
+  const calTgt = effectiveCalTarget();
   const msg    = yCals > 0
-    ? `Tages-Briefing. Gestern: ${Math.round(yCals)} kcal (Ziel ${state.targets.calories} kcal). Heute: Ziel ${state.targets.calories} kcal. Kurze Einschätzung + Empfehlung, max. 3 Sätze.`
-    : `Tages-Briefing. Heute: Ziel ${state.targets.calories} kcal, ${state.targets.protein_g} g Protein. Motiviere kurz, max. 2 Sätze.`;
+    ? `Daily briefing. Yesterday: ${Math.round(yCals)} kcal (target ${calTgt} kcal). Today's target: ${calTgt} kcal. Brief assessment and one recommendation, max 3 sentences.`
+    : `Daily briefing. Today's target: ${calTgt} kcal, ${state.targets.protein_g}g protein. Brief motivating note, max 2 sentences.`;
 
   try {
     const data = await api("/api/chat", {
@@ -2427,12 +2834,12 @@ async function fetchDailyBriefing() {
   } catch { /* lautlos ignorieren */ }
 }
 
-// ── Favorites ─────────────────────────────────────────────────────
+// â”€â”€ Favorites â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderFavorites() {
   if (!state.favorites.length) {
     app.innerHTML = `
       <section class="hero-block">
-        <div class="hero-eyebrow">Lumière</div>
+        <div class="hero-eyebrow">LumiÃ¨re</div>
         <h1 class="hero-display">Meine Rezepte</h1>
         <p class="hero-sub">Noch keine gespeicherten Rezepte.</p>
         <div class="hero-cta" style="margin-top:20px;">
@@ -2441,14 +2848,14 @@ function renderFavorites() {
         </div>
       </section>
     `;
-    $("fav-inspire").addEventListener("click", () => makeInspiredRecipe(renderFavorites, "← Meine Rezepte"));
+    $("fav-inspire").addEventListener("click", () => makeInspiredRecipe(renderFavorites, "â† Meine Rezepte"));
     $("fav-back").addEventListener("click", renderDashboard);
     return;
   }
 
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière</div>
+      <div class="hero-eyebrow">LumiÃ¨re</div>
       <h1 class="hero-display">Meine Rezepte</h1>
     </section>
 
@@ -2461,9 +2868,9 @@ function renderFavorites() {
                  alt="${escapeHtml(fav.title)}" loading="lazy" onerror="this.style.display='none'">
             <div class="fav-card-body">
               <div class="fav-card-title">${escapeHtml(fav.title)}</div>
-              <div class="fav-card-meta">${fav.duration_min} Min · ${fav.calories_per_serving} kcal · ${fav.protein_g}g P</div>
+              <div class="fav-card-meta">${fav.duration_min} Min Â· ${fav.calories_per_serving} kcal Â· ${fav.protein_g}g P</div>
             </div>
-            <button class="fav-del" data-del-id="${escapeHtml(fav.id)}" aria-label="Entfernen">×</button>
+            <button class="fav-del" data-del-id="${escapeHtml(fav.id)}" aria-label="Entfernen">Ã—</button>
           </div>
         `;
       }).join("")}
@@ -2496,7 +2903,7 @@ function renderFavorites() {
 
 function renderFavRecipe(r, backFn, backLabel) {
   backFn    = backFn    || renderFavorites;
-  backLabel = backLabel || "← Meine Rezepte";
+  backLabel = backLabel || "â† Meine Rezepte";
   const imgQuery = encodeURIComponent(r.title + ',food,gericht');
   const isSaved = state.favorites.some(f => f.id === r.id);
   app.innerHTML = `
@@ -2530,7 +2937,7 @@ function renderFavRecipe(r, backFn, backLabel) {
       </div>
       <div class="recipe-foot">
         <button class="btn ghost" id="fav-recipe-back">${escapeHtml(backLabel)}</button>
-        <button class="btn ghost" id="fav-recipe-toggle">${isSaved ? "★ Entfernen" : "☆ Merken"}</button>
+        <button class="btn ghost" id="fav-recipe-toggle">${isSaved ? "â˜… Entfernen" : "â˜† Merken"}</button>
         <button class="btn gold" id="fav-recipe-log">Eine Portion erfassen</button>
       </div>
     </div>
@@ -2547,7 +2954,7 @@ function renderFavRecipe(r, backFn, backLabel) {
       state.favorites.unshift({ ...r, savedAt: Date.now() });
       persist();
       toast("Rezept gespeichert");
-      $("fav-recipe-toggle").textContent = "★ Entfernen";
+      $("fav-recipe-toggle").textContent = "â˜… Entfernen";
     }
   });
   $("fav-recipe-log").addEventListener("click", () => {
@@ -2561,17 +2968,19 @@ function renderFavRecipe(r, backFn, backLabel) {
     persist();
     toast("Mahlzeit erfasst");
     renderDashboard();
-    checkButler();
+    checkButler([{ name: r.title, portion: "1 Portion",
+      calories: r.calories_per_serving, protein_g: r.protein_g,
+      carbs_g: r.carbs_g, fat_g: r.fat_g }]);
   });
 }
 
-// ── Butler Chat ────────────────────────────────────────────────────
+// â”€â”€ Butler Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderChat() {
   const welcome = {
-    ELITE_BUTLER:      "Guten Tag. Ich analysiere Ihren Tagesstand und stehe für Anfragen bereit.",
-    PERFORMANCE_COACH: "Los geht's. Was ist heute dein Ziel? Ich bin direkt.",
-    STRATEGIC_BUDDY:   "Hey — was beschäftigt dich gerade? Essen, Makros, Entscheidungen?",
-  }[ARCHITECT.getMode()] || "Bereit für Ihre Anfrage.";
+    ELITE_BUTLER:      "Good day. I have your current day's numbers ready â€” what would you like to address?",
+    PERFORMANCE_COACH: "Let's go. What's your goal today? I'm direct.",
+    STRATEGIC_BUDDY:   "Hey â€” what's on your mind? Food, macros, decisions?",
+  }[ARCHITECT.getMode()] || "Ready when you are.";
 
   app.innerHTML = `
     <section class="hero-block" style="padding-bottom:20px;">
@@ -2585,7 +2994,7 @@ function renderChat() {
         <div class="chat-bubble bot">${escapeHtml(welcome)}</div>
       </div>
       <div class="chat-input-row">
-        <textarea id="chat-input" class="chat-input" placeholder="Nachricht eingeben…" rows="1"></textarea>
+        <textarea id="chat-input" class="chat-input" placeholder="Nachricht eingebenâ€¦" rows="1"></textarea>
         <button class="btn gold" id="chat-send" style="padding:0 20px;flex-shrink:0;align-self:flex-end;">Senden</button>
       </div>
     </div>
@@ -2627,20 +3036,22 @@ function renderChat() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: history,
+          // PRO: Extended butler context window — gate with isProUser() when Stripe is live
+          // Free tier: last 6 messages. Pro tier: full history (no slice).
+          messages: isProUser() ? history : history.slice(-6),
           mode: ARCHITECT.getMode(),
           context: {
             calories_today:  t.calories,
             protein_today:   t.protein,
             carbs_today:     t.carbs,
             fat_today:       t.fat,
-            calories_target: state.targets?.calories ?? null,
+            calories_target: effectiveCalTarget(),
             protein_target:  state.targets?.protein_g ?? null,
             user_name:       state.name || null,
           },
         }),
       });
-      const reply = data.reply || "—";
+      const reply = data.reply || "â€”";
       loadBubble.textContent = reply;
       history.push({ role: "assistant", content: reply });
     } catch (e) {
@@ -2662,14 +3073,14 @@ function renderChat() {
   $("chat-back").addEventListener("click", renderDashboard);
 }
 
-// ── Auth Screen ────────────────────────────────────────────────────
+// â”€â”€ Auth Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderAuth() {
   if ($("logout-btn")) $("logout-btn").style.display = "none";
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière</div>
+      <div class="hero-eyebrow">LumiÃ¨re</div>
       <h1 class="hero-display">Willkommen</h1>
-      <p class="hero-sub">Melde dich an, um deine Daten sicher zu speichern und von überall zu nutzen.</p>
+      <p class="hero-sub">Melde dich an, um deine Daten sicher zu speichern und von Ã¼berall zu nutzen.</p>
     </section>
 
     <div style="max-width:380px;margin:32px auto 0;">
@@ -2730,7 +3141,7 @@ function renderAuth() {
       render();
     } else {
       errEl.style.color = "var(--gold-deep)";
-      errEl.textContent = "Bestätigungs-E-Mail gesendet — bitte Posteingang prüfen.";
+      errEl.textContent = "BestÃ¤tigungs-E-Mail gesendet â€” bitte Posteingang prÃ¼fen.";
       $("auth-signup").disabled = false;
     }
   };
@@ -2741,12 +3152,9 @@ function renderAuth() {
   pwEl.addEventListener("keydown",    e => { if (e.key === "Enter") doLogin(); });
 }
 
-function _showLogout() {
-  const btn = $("logout-btn");
-  if (btn) btn.style.display = "";
-}
+function _showLogout() { /* logout moved to profile panel */ }
 
-// ── Boot ───────────────────────────────────────────────────────────
+// â”€â”€ Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $("arch-dismiss").addEventListener("click", () => {
   $("arch-panel").classList.remove("show");
 });
@@ -2759,11 +3167,6 @@ async function boot() {
   await loadFromCloud();
   render();
 }
-
-$("logout-btn").addEventListener("click", async () => {
-  await _sb.auth.signOut();
-  // onAuthStateChange kümmert sich um den Rest
-});
 
 boot();
 </script>

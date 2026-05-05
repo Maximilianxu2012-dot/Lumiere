@@ -174,6 +174,23 @@ class RecipeRequest(BaseModel):
     taste: TastePrefs | None = None
 
 
+class HealthContextInput(BaseModel):
+    diabetes_type: str | None = None  # None, "type1", "type2"
+    lactose_intolerant: bool = False
+    gluten_intolerant: bool = False
+    hypertension: bool = False
+    other_notes: str = ""
+
+
+class MealItemForCheck(BaseModel):
+    name: str
+    portion: str = ""
+    calories: int = 0
+    protein_g: float = 0
+    carbs_g: float = 0
+    fat_g: float = 0
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
@@ -207,29 +224,31 @@ class ButlerCheckRequest(BaseModel):
     mode: str = "ELITE_BUTLER"
     user_name: str | None = None
     fired_today: list[str] = []
+    health_context: HealthContextInput | None = None
+    last_meal: list[MealItemForCheck] = []
 
 
 BUTLER_PROMPTS: dict[str, str] = {
     "ELITE_BUTLER": (
-        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
-        "Modus: Elite Butler. "
-        "ABSOLUTES VERBOT: Verwende NIEMALS 'Chairman', 'Sir', 'Herr' oder andere formelle Titel. "
-        "Falls der Name des Nutzers bekannt ist, sprich ihn beim Vornamen an (z.B. 'Guten Tag, Max.'). "
-        "Falls kein Name bekannt ist, starte direkt mit dem Inhalt — keine Anrede. "
-        "Tonalität: höflich, sachlich-analytisch, Quiet-Luxury. "
-        "Nur Fakten, kurze Empfehlungen, keine Floskeln. "
-        "Antworte in 2–4 Sätzen auf Deutsch."
+        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "Mode: Elite Butler. "
+        "ABSOLUTE PROHIBITION: NEVER use 'Sir', 'Mr.', or other formal titles. "
+        "If the user's name is known, address them by first name only (e.g. 'Max.'). "
+        "If no name is known, begin directly with the content — no greeting. "
+        "Tone: polite, analytically precise, Quiet-Luxury. "
+        "Facts only, brief recommendations, no filler phrases. "
+        "Respond in 2–4 sentences in English."
     ),
     "PERFORMANCE_COACH": (
-        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
-        "Modus: Performance Coach. Direkte Sprache, du-Form, keine Ausreden. "
-        "Fokus auf harte Metriken und Ergebnisse. Kurz, klar, fordernd. "
-        "Sprache: Deutsch."
+        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "Mode: Performance Coach. Direct language, second person, no excuses. "
+        "Focus on hard metrics and results. Short, clear, demanding. "
+        "Respond in English."
     ),
     "STRATEGIC_BUDDY": (
-        "Du bist der Performance Intelligence Core 'Architect' von Lumière. "
-        "Modus: Strategic Buddy. Locker, auf Augenhöhe, intelligent — kein Bro-Talk. "
-        "Kurze smarte Antworten, no nonsense. Sprache: Deutsch."
+        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "Mode: Strategic Buddy. Relaxed, on equal footing, intelligent — no bro-talk. "
+        "Short, smart responses, no nonsense. Respond in English."
     ),
 }
 
@@ -509,23 +528,23 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
         if c.user_name:
             if is_first:
                 system += (
-                    f"\n\nName des Nutzers: {c.user_name}. "
-                    "Begrüße ihn/sie einmalig mit dem Vornamen zu Beginn dieses Gesprächs."
+                    f"\n\nUser's name: {c.user_name}. "
+                    "Greet them by first name once at the start of this conversation."
                 )
             else:
                 system += (
-                    f"\n\nName des Nutzers: {c.user_name}. "
-                    "Das Gespräch läuft bereits — antworte OHNE Anrede oder Begrüßung, direkt zum Inhalt."
+                    f"\n\nUser's name: {c.user_name}. "
+                    "Conversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
                 )
-        parts = [f"{c.calories_today:.0f} kcal verbraucht"]
+        parts = [f"{c.calories_today:.0f} kcal consumed"]
         if c.calories_target:
             remaining = c.calories_target - c.calories_today
-            parts.append(f"Ziel {c.calories_target} kcal ({remaining:.0f} kcal verbleibend)")
+            parts.append(f"target {c.calories_target} kcal ({remaining:.0f} remaining)")
         if c.protein_target:
-            parts.append(f"Protein {c.protein_today:.0f}/{c.protein_target} g")
-        system += f"\n\nAktueller Tagesstand: {', '.join(parts)}."
+            parts.append(f"protein {c.protein_today:.0f}/{c.protein_target}g")
+        system += f"\n\nCurrent day status: {', '.join(parts)}."
     elif not is_first:
-        system += "\n\nDas Gespräch läuft bereits — antworte OHNE Anrede oder Begrüßung, direkt zum Inhalt."
+        system += "\n\nConversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
 
     contents = [
         types.Content(
@@ -558,13 +577,14 @@ _BUTLER_SEVERITY: dict[str, str] = {
     "calories_90":    "warning",
     "protein_low":    "warning",
     "carbs_routing":  "info",
+    "health_context": "info",
 }
 
 _TRIGGER_DESC: dict[str, str] = {
-    "calories_over":  "Das Kalorienbudget wurde überschritten: {cal:.0f} von {target} kcal ({over:.0f} kcal über dem Ziel).",
-    "calories_90":    "90 % des Kalorienbudgets verbraucht: {cal:.0f} von {target} kcal — noch {rem:.0f} kcal übrig.",
-    "protein_low":    "Protein-Lücke: erst {prot:.0f} von {ptgt} g Protein, aber {cpct:.0f} % der Kalorien verbraucht.",
-    "carbs_routing":  "Kohlenhydrat-Routing: {carb:.0f} von {ctgt} g Kohlenhydrate bereits vor 14 Uhr verbraucht.",
+    "calories_over":  "Calorie budget exceeded: {cal:.0f} of {target} kcal ({over:.0f} kcal over target).",
+    "calories_90":    "90% of calorie budget consumed: {cal:.0f} of {target} kcal — {rem:.0f} kcal remaining.",
+    "protein_low":    "Protein gap: only {prot:.0f} of {ptgt}g protein consumed, but {cpct:.0f}% of calories used.",
+    "carbs_routing":  "Carb alert: {carb:.0f} of {ctgt}g carbs consumed before 2 PM.",
 }
 
 
@@ -585,6 +605,50 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_curren
     elif "carbs_routing" not in fired and req.hour < 14 and req.carbs_today >= ctgt * 0.80:
         trigger = "carbs_routing"
 
+    if not trigger and req.health_context and req.last_meal:
+        # Health context check — only runs when no macro trigger fired
+        hc = req.health_context
+        conditions: list[str] = []
+        if hc.diabetes_type:
+            conditions.append(f"Diabetes {hc.diabetes_type.replace('type', 'Type ')}")
+        if hc.lactose_intolerant:
+            conditions.append("Lactose intolerance")
+        if hc.gluten_intolerant:
+            conditions.append("Gluten intolerance / Celiac disease")
+        if hc.hypertension:
+            conditions.append("Hypertension")
+        if hc.other_notes.strip():
+            conditions.append(f"Other: {hc.other_notes.strip()}")
+
+        if conditions:
+            meal_desc = "; ".join(
+                f"{m.name} ({m.portion}, {m.calories} kcal, {m.carbs_g:.0f}g carbs, {m.fat_g:.0f}g fat)"
+                for m in req.last_meal
+            )
+            health_prompt = (
+                f"Health profile: {', '.join(conditions)}.\n\n"
+                f"Meal just logged: {meal_desc}.\n\n"
+                "If any food in this meal is potentially problematic for ONE of the listed health conditions, "
+                "write a single informative note in 1–2 sentences. Be specific — name the food and the concern. "
+                "Do NOT diagnose or prescribe medication. Use language like 'may want to monitor' or "
+                "'consider an alternative'. If nothing is relevant, respond with exactly: NO_FLAG\n\n"
+                "Respond in English."
+            )
+            try:
+                r = client.models.generate_content(
+                    model=MODEL,
+                    contents=[types.Content(role="user", parts=[types.Part(text=health_prompt)])],
+                    config=types.GenerateContentConfig(temperature=0.3),
+                )
+                msg = (r.text or "").strip()
+                if msg and msg != "NO_FLAG" and not msg.upper().startswith("NO_FLAG"):
+                    return {
+                        "triggered": True, "type": "health_context",
+                        "severity": "info", "message": msg,
+                    }
+            except Exception:
+                pass
+
     if not trigger:
         return {"triggered": False, "type": None, "message": None}
 
@@ -598,15 +662,15 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_curren
     )
     mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
     name_note = (
-        f"Nutzername: {req.user_name}. Sprich ihn/sie mit dem Vornamen an."
-        if req.user_name else "Keine persönliche Anrede."
+        f"User's name: {req.user_name}. Address them by first name."
+        if req.user_name else "No personal address."
     )
     prompt = (
         f"{BUTLER_PROMPTS[mode]}\n\n"
         f"{name_note}\n\n"
         f"Situation: {desc}\n\n"
-        "Schreibe eine präzise Nachricht (max. 2 Sätze). "
-        "Nenne konkrete Zahlen. Keine Floskeln. Gib eine spezifische Empfehlung. Deutsch."
+        "Write a precise message (max. 2 sentences). "
+        "State concrete numbers. No filler phrases. Give a specific recommendation."
     )
     try:
         r = client.models.generate_content(
