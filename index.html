@@ -58,23 +58,17 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-fill-color: currentColor;
 }
-select, option {
+select, option, button, input, textarea {
   -webkit-appearance: none;
   appearance: none;
-  color: var(--ink);
-  -webkit-text-fill-color: var(--ink);
-}
-button { -webkit-appearance: none; }
-input, textarea {
-  -webkit-text-fill-color: var(--ink);
-  color: var(--ink);
 }
 input::placeholder, textarea::placeholder {
-  -webkit-text-fill-color: var(--ink-mute);
+  color: var(--ink-mute);
   opacity: 1;
 }
-a { color: inherit; -webkit-text-fill-color: inherit; }
+a { color: inherit; }
 html, body {
   margin: 0; padding: 0;
   background: var(--bg);
