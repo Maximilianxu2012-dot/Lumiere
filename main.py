@@ -341,7 +341,7 @@ def image_part(image: UploadFile, data: bytes) -> types.Part:
 # ── Routes ─────────────────────────────────────────────────────────
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(ROOT / "index.html")
+    return FileResponse(ROOT / "index.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/architectConfig.js")

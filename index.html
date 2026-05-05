@@ -55,7 +55,16 @@
 
   --transition: .3s cubic-bezier(.2,.7,.2,1);
 }
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+select, option {
+  -webkit-appearance: none;
+  appearance: none;
+  color: var(--ink);
+}
+button { -webkit-appearance: none; }
 html, body {
   margin: 0; padding: 0;
   background: var(--bg);
