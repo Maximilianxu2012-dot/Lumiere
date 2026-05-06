@@ -397,11 +397,54 @@ async def scan_food(image: UploadFile = File(...), _user: dict = Depends(get_cur
     data = await image.read()
     prompt = (
         "Du bist Ernährungsexperte. Analysiere dieses Foto eines Gerichts. "
-        "Identifiziere jede Komponente einzeln, schätze Portionsgrößen visuell anhand "
-        "von Tellergröße und üblichen Referenzobjekten. Sei eher konservativ bei Kalorien. "
+        "Identifiziere jede Komponente einzeln. "
+        "Schätze Portionsgrößen präzise anhand dieser Referenzen: "
+        "Standard-Essteller = 26 cm Durchmesser; eine Faust ≈ 150–200 ml Volumen; "
+        "eine Handfläche ≈ 85 g Fleisch/Fisch; ein Daumen ≈ 30 g Käse oder Fett; "
+        "typische Restaurantportion Fleisch 150–200 g, Pasta 200–250 g. "
+        "Sei konservativ — lieber 10 % weniger als zu viel. "
         "Setze 'confidence' auf 'high' nur wenn alles klar erkennbar ist. Antworte auf Deutsch."
     )
     return await generate_structured([prompt, image_part(image, data)], FoodScan)
+
+
+class BarcodeRequest(BaseModel):
+    barcode: str
+
+
+@app.post("/api/scan/barcode", response_model=FoodScan)
+async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(get_current_user)) -> FoodScan:
+    barcode = req.barcode.strip()
+    url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+    async with httpx.AsyncClient(timeout=10) as c:
+        try:
+            r = await c.get(url, headers={"User-Agent": "Lumiere-App/1.0"})
+            data = r.json()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Open Food Facts unreachable: {exc}") from exc
+
+    if data.get("status") != 1 or "product" not in data:
+        raise HTTPException(status_code=404, detail="Product not found in database.")
+
+    p  = data["product"]
+    nu = p.get("nutriments", {})
+
+    name     = p.get("product_name") or p.get("product_name_en") or "Unknown Product"
+    kcal100  = float(nu.get("energy-kcal_100g") or nu.get("energy_100g", 0) or 0)
+    prot100  = float(nu.get("proteins_100g", 0) or 0)
+    carb100  = float(nu.get("carbohydrates_100g", 0) or 0)
+    fat100   = float(nu.get("fat_100g", 0) or 0)
+
+    # Default portion 100 g — frontend lets user adjust
+    portion = "100 g"
+    item = FoodItem(
+        name=name, portion=portion,
+        calories=round(kcal100),
+        protein_g=round(prot100, 1),
+        carbs_g=round(carb100, 1),
+        fat_g=round(fat100, 1),
+    )
+    return FoodScan(items=[item], confidence="high")
 
 
 @app.post("/api/scan/fridge", response_model=FridgeScan)
