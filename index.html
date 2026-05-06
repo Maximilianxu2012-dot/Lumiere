@@ -1785,7 +1785,8 @@ function formatLedgerTime(ts) {
 }
 
 function ledgerRow(entry, balanceAfter) {
-  const meta = `${escapeHtml(entry.portion)} · ${Math.round(entry.protein_g)}P / ${Math.round(entry.carbs_g)}K / ${Math.round(entry.fat_g)}F`;
+  const portion = entry.portion ? entry.portion.replace(/(\d+)\s*Komponenten?/, (_, n) => `${n} ${+n === 1 ? "item" : "items"}`) : "";
+  const meta = `${escapeHtml(portion)} &middot; ${Math.round(entry.protein_g)}P / ${Math.round(entry.carbs_g)}C / ${Math.round(entry.fat_g)}F`;
   const expandable = entry.items && entry.items.length;
   const time = formatLedgerTime(entry.timestamp);
   const expandAttrs = expandable
@@ -1799,7 +1800,7 @@ function ledgerRow(entry, balanceAfter) {
         <div class="ledger-name">${escapeHtml(entry.name)}</div>
         <div class="ledger-meta">${meta}</div>
       </div>
-      <div class="ledger-debit">âˆ’${entry.calories}</div>
+      <div class="ledger-debit">&#8722;${entry.calories}</div>
       <div class="ledger-balance">${balanceAfter}</div>
       <button class="ledger-del" data-id="${entry.id}" aria-label="Remove entry">×</button>
     </div>
