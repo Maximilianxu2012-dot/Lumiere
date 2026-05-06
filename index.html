@@ -272,7 +272,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   background: var(--charcoal);
   color: #EDE5D8;
   padding: clamp(72px, 11vw, 128px) clamp(32px, 5vw, 72px) clamp(64px, 9vw, 104px);
-  margin: -56px -24px var(--space-4);
+  margin: -56px calc(-50vw + 50%) var(--space-4);
   text-align: left;
   position: relative;
   overflow: hidden;
@@ -1060,9 +1060,8 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   .ring-wrap { width: 200px; height: 200px; }
   .ring-num { font-size: 48px; }
 
-  /* Charcoal-Hero passt sich Mobile-Padding (32px top, 18px sides) an */
   .hero-block {
-    margin: -32px -18px var(--space-3);
+    margin: -32px calc(-50vw + 50%) var(--space-3);
     padding: 56px 24px 56px;
   }
   .hero-block .hero-cta { flex-direction: column; align-items: stretch; }
@@ -1672,7 +1671,7 @@ function renderDashboard() {
 
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière &nbsp;—&nbsp; ${dateStr}</div>
+      <div style="font-size:var(--fs-meta);letter-spacing:.1em;color:var(--ink-mute);margin-bottom:var(--space-2);">${dateStr}</div>
       <h1 class="hero-display">${greeting}</h1>
       <p class="hero-sub">Scan a meal or your fridge — we take care of the rest.</p>
       <div class="hero-cta">
