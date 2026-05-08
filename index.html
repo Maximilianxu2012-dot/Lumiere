@@ -1902,35 +1902,54 @@ function renderBarcodeScanner() {
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 260, height: 120 } },
       async (barcode) => {
-        window._barcodeScanner.stop().catch(() => {});
-        window._barcodeScanner = null;
-        status.textContent = `Found: ${barcode} — looking up…`;
+        status.textContent = "Checking database…";
         try {
           const data = await api("/api/scan/barcode", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ barcode }),
           });
+          window._barcodeScanner.stop().catch(() => {});
+          window._barcodeScanner = null;
           renderFoodReview(data);
         } catch (e) {
           if (e.message && e.message.includes("not found")) {
-            app.innerHTML = `
-              <div style="text-align:center;padding:48px 24px;">
-                <div class="eyebrow" style="margin-bottom:20px;">Barcode Scan</div>
-                <p style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;
-                           color:var(--ink);margin:0 0 12px;">Product not in database</p>
-                <p style="font-size:14px;color:var(--ink-soft);margin:0 0 36px;line-height:1.75;">
-                  This product isn't in our database yet.<br>Switch to photo scan instead?
-                </p>
-                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-                  <button class="btn gold" id="barcode-fallback-scan">Take a Photo</button>
-                  <button class="btn ghost" id="barcode-fallback-back">Back</button>
-                </div>
-              </div>
-            `;
-            $("barcode-fallback-scan").addEventListener("click", () => pickFile(handleFoodScan));
-            $("barcode-fallback-back").addEventListener("click", renderDashboard);
+            // Capture current video frame from the still-open camera stream
+            status.textContent = "Not in database — analysing photo instead…";
+            const video = document.querySelector("#barcode-reader video");
+            if (video && video.videoWidth > 0) {
+              const canvas = document.createElement("canvas");
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              canvas.getContext("2d").drawImage(video, 0, 0);
+              window._barcodeScanner.stop().catch(() => {});
+              window._barcodeScanner = null;
+              canvas.toBlob(async (blob) => {
+                if (!blob) { renderDashboard(); return; }
+                renderLoading("Analysing photo…");
+                try {
+                  const fd = new FormData();
+                  fd.append("image", blob, "capture.jpg");
+                  const scanData = await api("/api/scan/food", { method: "POST", body: fd });
+                  renderFoodReview(scanData);
+                  setTimeout(() => showArchitectBriefing({
+                    triggered: true, type: "barcode_fallback", severity: "info",
+                    message: "Couldn't find this product in the database — nutritional values estimated from the photo.",
+                  }), 800);
+                } catch (err) {
+                  toast(err.message);
+                  renderDashboard();
+                }
+              }, "image/jpeg", 0.92);
+            } else {
+              window._barcodeScanner.stop().catch(() => {});
+              window._barcodeScanner = null;
+              toast("Product not found — please use photo scan");
+              renderDashboard();
+            }
           } else {
+            window._barcodeScanner.stop().catch(() => {});
+            window._barcodeScanner = null;
             toast(e.message);
             renderDashboard();
           }
