@@ -1913,8 +1913,27 @@ function renderBarcodeScanner() {
           });
           renderFoodReview(data);
         } catch (e) {
-          toast(e.message);
-          renderDashboard();
+          if (e.message && e.message.includes("not found")) {
+            app.innerHTML = `
+              <div style="text-align:center;padding:48px 24px;">
+                <div class="eyebrow" style="margin-bottom:20px;">Barcode Scan</div>
+                <p style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;
+                           color:var(--ink);margin:0 0 12px;">Product not in database</p>
+                <p style="font-size:14px;color:var(--ink-soft);margin:0 0 36px;line-height:1.75;">
+                  This product isn't in our database yet.<br>Switch to photo scan instead?
+                </p>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                  <button class="btn gold" id="barcode-fallback-scan">Take a Photo</button>
+                  <button class="btn ghost" id="barcode-fallback-back">Back</button>
+                </div>
+              </div>
+            `;
+            $("barcode-fallback-scan").addEventListener("click", () => pickFile(handleFoodScan));
+            $("barcode-fallback-back").addEventListener("click", renderDashboard);
+          } else {
+            toast(e.message);
+            renderDashboard();
+          }
         }
       },
       () => {}
