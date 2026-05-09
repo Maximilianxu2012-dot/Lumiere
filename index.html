@@ -527,6 +527,43 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   color: var(--ink);
   line-height: 1.2;
   transition: color .2s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+.scan-item-name { cursor: pointer; }
+
+/* ── Full-name modal ─────────────────────────────────────────────── */
+.name-modal-overlay {
+  position: fixed; inset: 0; z-index: 950;
+  background: rgba(26,22,20,0.72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fadeIn .18s ease forwards;
+}
+.name-modal {
+  background: var(--charcoal);
+  color: #EDE5D8;
+  padding: 36px 32px 32px;
+  max-width: 380px; width: 100%;
+  position: relative;
+  box-shadow: 0 24px 64px rgba(0,0,0,.45);
+  border-top: 1px solid rgba(201,169,97,0.25);
+}
+.name-modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none;
+  color: rgba(237,229,216,.35); font-size: 22px; line-height: 1;
+  cursor: pointer; padding: 4px 8px; transition: color .15s;
+}
+.name-modal-close:hover { color: rgba(237,229,216,.8); }
+.name-modal-label {
+  font-size: 10px; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--gold-glow); opacity: .7; margin-bottom: 14px;
+}
+.name-modal-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(22px, 5vw, 30px); font-weight: 400; line-height: 1.25;
+  color: #EDE5D8;
 }
 .ledger-meta {
   font-size: var(--fs-meta);
@@ -1207,6 +1244,33 @@ const fileInput = $("hidden-file");
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
 ));
+
+// ── Full-name modal ────────────────────────────────────────────────
+function showNameModal(name) {
+  const overlay = document.createElement("div");
+  overlay.className = "name-modal-overlay";
+  overlay.innerHTML = `
+    <div class="name-modal">
+      <button class="name-modal-close" aria-label="Close">&#215;</button>
+      <div class="name-modal-label">Full Name</div>
+      <div class="name-modal-name">${escapeHtml(name)}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+  overlay.querySelector(".name-modal-close").addEventListener("click", close);
+}
+
+// Delegated tap handler — fires for any .ledger-name or .scan-item-name that is truncated
+document.addEventListener("click", e => {
+  const el = e.target.closest(".ledger-name, .scan-item-name");
+  if (!el) return;
+  if (el.scrollWidth > el.clientWidth + 2) {
+    e.stopPropagation();
+    showNameModal(el.textContent.trim());
+  }
+});
 
 let toastTimer;
 function toast(msg, ms = 2400) {
