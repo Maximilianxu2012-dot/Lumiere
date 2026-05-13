@@ -1113,6 +1113,80 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   /* Macros stacken */
   .macros { grid-template-columns: 1fr; gap: 18px; padding: 20px 0; }
 }
+
+/* ── AI Onboarding ───────────────────────────────────────────────── */
+.onb-ai-wrap {
+  display: flex; flex-direction: column;
+  min-height: calc(100dvh - 80px);
+  padding: 0;
+}
+.onb-ai-messages {
+  flex: 1; overflow-y: auto;
+  padding: 36px 0 20px;
+  scroll-behavior: smooth;
+}
+.onb-ai-actions {
+  padding: 22px 0 40px;
+  border-top: 1px solid var(--line);
+}
+.onb-bubble {
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeUp .55s cubic-bezier(.2,.7,.2,1) forwards;
+}
+.onb-bubble.butler {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(22px, 3.5vw, 30px);
+  font-weight: 400; line-height: 1.35;
+  color: var(--ink); max-width: 86%;
+}
+.onb-bubble.user {
+  text-align: right; font-size: 13px;
+  color: var(--gold-deep); letter-spacing: .04em;
+  font-style: italic;
+}
+.onb-choices {
+  display: flex; flex-wrap: wrap; gap: 10px;
+}
+.onb-choices-col { flex-direction: column; align-items: flex-start; }
+.onb-choice {
+  background: transparent; border: 1px solid var(--line);
+  padding: 12px 22px; cursor: pointer; color: var(--ink);
+  font: 400 14px/1 'Inter', sans-serif; letter-spacing: .06em;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.onb-choice:hover { border-color: var(--gold); }
+.onb-choice:active { background: var(--charcoal); color: #EDE5D8; border-color: var(--charcoal); }
+.onb-input-row { display: flex; gap: 8px; align-items: center; }
+.onb-text-input {
+  flex: 1; border: none; border-bottom: 1px solid var(--line);
+  padding: 10px 0; font: 400 16px/1 'Inter', sans-serif;
+  color: var(--ink); background: transparent; outline: none;
+  transition: border-color .2s; min-width: 0;
+}
+.onb-text-input:focus { border-bottom-color: var(--gold); }
+.onb-mic {
+  background: transparent; border: none; color: var(--ink-mute);
+  cursor: pointer; padding: 8px 6px; display: flex; align-items: center;
+  flex-shrink: 0; transition: color .2s;
+}
+.onb-mic:hover { color: var(--gold); }
+.onb-mic.listening { color: var(--gold); animation: fadeIn .4s infinite alternate; }
+.onb-submit {
+  background: var(--gold); border: 1px solid var(--gold); color: var(--charcoal);
+  padding: 10px 20px; cursor: pointer; font: 500 13px/1 'Inter', sans-serif;
+  letter-spacing: .12em; flex-shrink: 0; transition: background .2s;
+}
+.onb-submit:hover { background: var(--gold-deep); border-color: var(--gold-deep); }
+.onb-skip {
+  background: none; border: none; color: var(--ink-mute); cursor: pointer;
+  font: 400 11px/1 'Inter', sans-serif; letter-spacing: .16em;
+  text-transform: uppercase; display: block; margin-top: 16px;
+  padding: 4px 0; transition: color .2s;
+}
+.onb-skip:hover { color: var(--ink); }
+.onb-dual { display: flex; gap: 12px; }
+.onb-dual .onb-text-input { max-width: 160px; }
 </style>
 </head>
 <body>
@@ -1182,6 +1256,11 @@ const defaultState = () => ({
   disclaimerAccepted: false,
   healthContext: null,
   customCalorieGoal: null,
+  onboardingComplete: false,
+  butlerName: "Architect",
+  userTitle: "first_name",
+  sleepQuality: null,
+  goalDetails: null,
 });
 
 let state = (() => {
@@ -1195,6 +1274,11 @@ let state = (() => {
     if (!s.hasOwnProperty("disclaimerAccepted"))    s.disclaimerAccepted     = false;
     if (!s.hasOwnProperty("healthContext"))         s.healthContext           = null;
     if (!s.hasOwnProperty("customCalorieGoal"))     s.customCalorieGoal      = null;
+    if (!s.hasOwnProperty("onboardingComplete"))    s.onboardingComplete     = !!(s.profile && s.name);
+    if (!s.hasOwnProperty("butlerName"))            s.butlerName             = "Architect";
+    if (!s.hasOwnProperty("userTitle"))             s.userTitle              = "first_name";
+    if (!s.hasOwnProperty("sleepQuality"))          s.sleepQuality           = null;
+    if (!s.hasOwnProperty("goalDetails"))           s.goalDetails            = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -1231,6 +1315,11 @@ async function loadFromCloud() {
       if (!state.hasOwnProperty("disclaimerAccepted")) state.disclaimerAccepted = false;
       if (!state.hasOwnProperty("healthContext"))      state.healthContext      = null;
       if (!state.hasOwnProperty("customCalorieGoal"))  state.customCalorieGoal  = null;
+      if (!state.hasOwnProperty("onboardingComplete")) state.onboardingComplete = !!(state.profile && state.name);
+      if (!state.hasOwnProperty("butlerName"))         state.butlerName         = "Architect";
+      if (!state.hasOwnProperty("userTitle"))          state.userTitle          = "first_name";
+      if (!state.hasOwnProperty("sleepQuality"))       state.sleepQuality       = null;
+      if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
     }
   } catch { /* kein Cloud-State â†’ defaultState bleibt */ }
 }
@@ -1271,6 +1360,26 @@ document.addEventListener("click", e => {
     showNameModal(el.textContent.trim());
   }
 });
+
+// ── Voice Input (Web Speech API) ───────────────────────────────────
+function startVoiceInput(inputEl, micBtn) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast("Voice input not supported in this browser"); return; }
+  if (micBtn) micBtn.classList.add("listening");
+  const r = new SR();
+  r.lang = "en-US"; r.interimResults = false; r.maxAlternatives = 1;
+  r.onresult = (e) => {
+    inputEl.value = e.results[0][0].transcript;
+    inputEl.dispatchEvent(new Event("input"));
+    if (micBtn) micBtn.classList.remove("listening");
+  };
+  r.onerror = () => {
+    if (micBtn) micBtn.classList.remove("listening");
+    toast("Couldn't capture voice — please type instead");
+  };
+  r.onend = () => { if (micBtn) micBtn.classList.remove("listening"); };
+  r.start();
+}
 
 let toastTimer;
 function toast(msg, ms = 2400) {
@@ -1360,9 +1469,7 @@ function showDisclaimer() {
 // â”€â”€ Router â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function render() {
   if (!state.disclaimerAccepted) return showDisclaimer();
-  if (!state.name)    return renderNameStep();
-  if (!state.profile) return renderOnboarding(0);
-  if (!state.taste)   return renderTaste(0);
+  if (!state.onboardingComplete) return renderAIOnboarding();
   renderDashboard();
 }
 
@@ -1691,6 +1798,424 @@ async function finishOnboarding() {
 }
 
 // â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AI Onboarding ──────────────────────────────────────────────────
+function renderAIOnboarding() {
+  const MIC = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+
+  app.innerHTML = `
+    <div class="onb-ai-wrap" id="onb-ai-wrap">
+      <div class="onb-ai-messages" id="onb-msgs"></div>
+      <div class="onb-ai-actions" id="onb-acts"></div>
+    </div>
+  `;
+
+  const msgs = $("onb-msgs");
+  const acts = $("onb-acts");
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const d = {
+    butlerName: null, userTitle: null, name: null,
+    age: null, height: null, weight: null, sex: null,
+    activity: null, activityNotes: null,
+    sleep: null, sleepNotes: null,
+    goal: null, goalWeight: null, goalTimeline: null,
+    healthNotes: null, buildPlan: false,
+  };
+
+  async function say(html, delay = 500) {
+    await sleep(delay);
+    const el = document.createElement("div");
+    el.className = "onb-bubble butler";
+    el.innerHTML = html;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+    await sleep(350);
+  }
+
+  function echo(text) {
+    const el = document.createElement("div");
+    el.className = "onb-bubble user";
+    el.textContent = text;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function show(html) {
+    acts.innerHTML = html;
+    acts.style.opacity = "0";
+    requestAnimationFrame(() => {
+      acts.style.transition = "opacity .28s ease";
+      acts.style.opacity = "1";
+    });
+  }
+  const clear = () => { acts.innerHTML = ""; };
+
+  function mic(inputId) {
+    const btn = document.getElementById(inputId + "-mic");
+    const inp = document.getElementById(inputId);
+    if (btn && inp) btn.addEventListener("click", () => startVoiceInput(inp, btn));
+  }
+
+  function submitOn(inputId, btnId, fn) {
+    const inp = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (btn) btn.addEventListener("click", fn);
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") fn(); });
+  }
+
+  // ── Step 1: Butler name ──────────────────────────────────────────
+  async function s1() {
+    await say(`Hey. I'm your personal nutrition guide. You can call me <em>Architect</em> — or give me a different name if you prefer.`);
+    show(`
+      <div class="onb-choices" style="margin-bottom:14px;">
+        <button class="onb-choice" data-n="Architect">Architect</button>
+        <button class="onb-choice" data-n="Alex">Alex</button>
+        <button class="onb-choice" data-n="Coach">Coach</button>
+      </div>
+      <div class="onb-input-row">
+        <input id="n-custom" class="onb-text-input" placeholder="Something else…" maxlength="30">
+        <button id="n-custom-mic" class="onb-mic" aria-label="Voice">${MIC}</button>
+        <button id="n-submit" class="onb-submit">→</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-n]").forEach(b => b.addEventListener("click", () => {
+      d.butlerName = b.dataset.n; echo(d.butlerName); clear(); s2();
+    }));
+    submitOn("n-custom", "n-submit", () => {
+      const v = $("n-custom").value.trim(); if (!v) return;
+      d.butlerName = v; echo(v); clear(); s2();
+    });
+    mic("n-custom");
+  }
+
+  // ── Step 2: User title ───────────────────────────────────────────
+  async function s2() {
+    await say(`And how should I address you?`);
+    show(`
+      <div class="onb-choices">
+        <button class="onb-choice" data-t="first_name">By my first name</button>
+        <button class="onb-choice" data-t="sir">Sir</button>
+        <button class="onb-choice" data-t="coach">Coach</button>
+        <button class="onb-choice" data-t="direct">Just be direct</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => {
+      d.userTitle = b.dataset.t; echo(b.textContent); clear(); s3();
+    }));
+  }
+
+  // ── Step 3: Name ─────────────────────────────────────────────────
+  async function s3() {
+    await say(`What's your name?`);
+    show(`
+      <div class="onb-input-row">
+        <input id="nm" class="onb-text-input" placeholder="Your first name…" autocomplete="given-name" maxlength="50">
+        <button id="nm-mic" class="onb-mic">${MIC}</button>
+        <button id="nm-sub" class="onb-submit">→</button>
+      </div>
+    `);
+    submitOn("nm", "nm-sub", () => {
+      const v = $("nm").value.trim(); if (!v) return;
+      d.name = v; echo(v); clear(); s4a();
+    });
+    mic("nm");
+    setTimeout(() => { const i = $("nm"); if (i) i.focus(); }, 120);
+  }
+
+  // ── Step 4a: Age ─────────────────────────────────────────────────
+  async function s4a() {
+    await say(`How old are you?`);
+    show(`
+      <div class="onb-input-row">
+        <input id="ag" class="onb-text-input" type="number" min="10" max="100" placeholder="Age" style="max-width:110px;">
+        <button id="ag-mic" class="onb-mic">${MIC}</button>
+        <button id="ag-sub" class="onb-submit">→</button>
+      </div>
+    `);
+    submitOn("ag", "ag-sub", () => {
+      const v = parseInt($("ag").value);
+      if (!v || v < 10 || v > 100) { toast("Please enter a valid age"); return; }
+      d.age = v; echo(`${v} years old`); clear(); s4b();
+    });
+    mic("ag");
+    setTimeout(() => { const i = $("ag"); if (i) i.focus(); }, 120);
+  }
+
+  // ── Step 4b: Height + Weight ──────────────────────────────────────
+  async function s4b() {
+    await say(`Your height and weight?`);
+    show(`
+      <div class="onb-input-row">
+        <input id="ht" class="onb-text-input" type="number" min="120" max="230" placeholder="Height (cm)">
+        <input id="wt" class="onb-text-input" type="number" min="30" max="300" step="0.1" placeholder="Weight (kg)">
+        <button id="hw-sub" class="onb-submit">→</button>
+      </div>
+    `);
+    const go = () => {
+      const h = parseFloat($("ht").value), w = parseFloat($("wt").value);
+      if (!h || h < 120 || h > 230) { toast("Please enter a valid height"); return; }
+      if (!w || w < 30 || w > 300) { toast("Please enter a valid weight"); return; }
+      d.height = h; d.weight = w; echo(`${h} cm · ${w} kg`); clear(); s4c();
+    };
+    $("hw-sub").addEventListener("click", go);
+    $("ht").addEventListener("keydown", e => { if (e.key === "Enter") $("wt").focus(); });
+    $("wt").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    setTimeout(() => { const i = $("ht"); if (i) i.focus(); }, 120);
+  }
+
+  // ── Step 4c: Sex ─────────────────────────────────────────────────
+  async function s4c() {
+    await say(`Male or female?`);
+    show(`
+      <div class="onb-choices">
+        <button class="onb-choice" data-s="m">Male</button>
+        <button class="onb-choice" data-s="f">Female</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
+      d.sex = b.dataset.s; echo(b.textContent); clear(); s5();
+    }));
+  }
+
+  // ── Step 5: Activity ─────────────────────────────────────────────
+  async function s5() {
+    await say(`How active are you on a typical week?`);
+    show(`
+      <div class="onb-choices onb-choices-col">
+        <button class="onb-choice" data-a="sedentary">Mostly sitting</button>
+        <button class="onb-choice" data-a="light">Light movement</button>
+        <button class="onb-choice" data-a="moderate">Regular training</button>
+        <button class="onb-choice" data-a="very_active">Intense training daily</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-a]").forEach(b => b.addEventListener("click", () => {
+      d.activity = b.dataset.a; echo(b.textContent); clear(); s5notes();
+    }));
+  }
+
+  async function s5notes() {
+    await say(`Anything to add? Starting a sport soon, recovering from an injury — anything I should know.`, 350);
+    show(`
+      <div class="onb-input-row">
+        <input id="an" class="onb-text-input" placeholder="Optional…">
+        <button id="an-mic" class="onb-mic">${MIC}</button>
+        <button id="an-sub" class="onb-submit">→</button>
+      </div>
+      <button class="onb-skip" id="an-skip">Skip</button>
+    `);
+    const go = () => {
+      const v = $("an").value.trim(); d.activityNotes = v || null;
+      if (v) echo(v); clear(); s6();
+    };
+    submitOn("an", "an-sub", go);
+    $("an-skip").addEventListener("click", go);
+    mic("an");
+  }
+
+  // ── Step 6: Sleep ────────────────────────────────────────────────
+  async function s6() {
+    await say(`How's your sleep usually?`);
+    show(`
+      <div class="onb-choices onb-choices-col">
+        <button class="onb-choice" data-sl="good">Solid 7–8h</button>
+        <button class="onb-choice" data-sl="medium">Around 6h</button>
+        <button class="onb-choice" data-sl="poor">Often under 6h</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-sl]").forEach(b => b.addEventListener("click", () => {
+      d.sleep = b.dataset.sl; echo(b.textContent); clear(); s6notes();
+    }));
+  }
+
+  async function s6notes() {
+    await say(`Anything affecting your sleep I should know about?`, 350);
+    show(`
+      <div class="onb-input-row">
+        <input id="sn" class="onb-text-input" placeholder="Optional…">
+        <button id="sn-mic" class="onb-mic">${MIC}</button>
+        <button id="sn-sub" class="onb-submit">→</button>
+      </div>
+      <button class="onb-skip" id="sn-skip">Skip</button>
+    `);
+    const go = () => {
+      const v = $("sn").value.trim(); d.sleepNotes = v || null;
+      if (v) echo(v); clear(); s7();
+    };
+    submitOn("sn", "sn-sub", go);
+    $("sn-skip").addEventListener("click", go);
+    mic("sn");
+  }
+
+  // ── Step 7: Goal ─────────────────────────────────────────────────
+  async function s7() {
+    await say(`What are you here for?`);
+    show(`
+      <div class="onb-choices onb-choices-col">
+        <button class="onb-choice" data-g="lose" data-gl="Lose weight">Lose weight</button>
+        <button class="onb-choice" data-g="gain" data-gl="Build muscle">Build muscle</button>
+        <button class="onb-choice" data-g="maintain" data-gl="Eat cleaner">Eat cleaner</button>
+        <button class="onb-choice" data-g="maintain" data-gl="Just track">Just track</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-g]").forEach(b => b.addEventListener("click", () => {
+      d.goal = b.dataset.g; d.goalLabel = b.dataset.gl;
+      echo(b.dataset.gl); clear();
+      (d.goal === "lose" || d.goal === "gain") ? s7details() : s8();
+    }));
+  }
+
+  async function s7details() {
+    await say(`Got a specific target? Tell me your goal weight and timeline.`);
+    show(`
+      <div class="onb-input-row">
+        <input id="gw" class="onb-text-input" type="number" min="30" max="300" step="0.1" placeholder="Goal weight (kg)">
+        <input id="gt" class="onb-text-input" placeholder="Timeline (e.g. 3 months)">
+        <button id="gd-sub" class="onb-submit">→</button>
+      </div>
+      <button class="onb-skip" id="gd-skip">Skip</button>
+    `);
+    const go = (skip) => {
+      if (skip) { clear(); s8(); return; }
+      const kg = parseFloat($("gw").value), tl = $("gt").value.trim();
+      if (!kg || kg < 30 || kg > 300) { toast("Please enter a valid goal weight"); return; }
+      d.goalWeight = kg; d.goalTimeline = tl;
+      echo(`${kg} kg · ${tl || "no timeline"}`);
+      // Validate realism (>1 kg/week = ambitious)
+      if (d.weight && d.goal === "lose" && kg < d.weight && tl) {
+        const m = tl.match(/(\d+)/);
+        if (m) {
+          const weeks = parseInt(m[1]) * (tl.toLowerCase().includes("month") ? 4.3 : 1);
+          if ((d.weight - kg) / weeks > 1) { clear(); s7validate(d.weight - kg, weeks); return; }
+        }
+      }
+      clear(); s8();
+    };
+    $("gd-sub").addEventListener("click", () => go(false));
+    $("gd-skip").addEventListener("click", () => go(true));
+    $("gw").addEventListener("keydown", e => { if (e.key === "Enter") $("gt").focus(); });
+    $("gt").addEventListener("keydown", e => { if (e.key === "Enter") go(false); });
+    setTimeout(() => { const i = $("gw"); if (i) i.focus(); }, 120);
+  }
+
+  async function s7validate(diff, weeks) {
+    const suggested = Math.ceil(diff / 0.75);
+    await say(`That's ambitious — for sustainable results I'd suggest at least ${suggested} weeks. Want to adjust?`);
+    show(`
+      <div class="onb-choices">
+        <button class="onb-choice" data-v="adjust">Adjust</button>
+        <button class="onb-choice" data-v="keep">Keep my goal</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", () => {
+      if (b.dataset.v === "adjust") d.goalTimeline = `${suggested} weeks`;
+      echo(b.textContent); clear(); s8();
+    }));
+  }
+
+  // ── Step 8: Health notes ─────────────────────────────────────────
+  async function s8() {
+    await say(`Anything else I should factor in? Allergies, health conditions, injuries — completely optional.`);
+    show(`
+      <div class="onb-input-row">
+        <input id="hn" class="onb-text-input" placeholder="Optional…">
+        <button id="hn-mic" class="onb-mic">${MIC}</button>
+        <button id="hn-sub" class="onb-submit">→</button>
+      </div>
+      <button class="onb-skip" id="hn-skip">Skip</button>
+    `);
+    const go = () => {
+      const v = $("hn").value.trim(); d.healthNotes = v || null;
+      if (v) echo(v); clear(); s9();
+    };
+    submitOn("hn", "hn-sub", go);
+    $("hn-skip").addEventListener("click", go);
+    mic("hn");
+  }
+
+  // ── Step 9: Plan offer ───────────────────────────────────────────
+  async function s9() {
+    await say(`I can build you a personalized nutrition plan right now — or you can explore first and set it up later in settings.`);
+    show(`
+      <div class="onb-choices onb-choices-col">
+        <button class="onb-choice" data-p="build">Build my plan</button>
+        <button class="onb-choice" data-p="later">I'll explore first</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", async () => {
+      echo(b.textContent); clear();
+      if (b.dataset.p === "build") await s9build(); else await finish();
+    }));
+  }
+
+  async function s9build() {
+    const loadEl = document.createElement("div");
+    loadEl.className = "onb-bubble butler";
+    loadEl.innerHTML = `<span class="loader"></span> Working on your plan…`;
+    msgs.appendChild(loadEl);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    const profile = {
+      age: d.age || 25, weight_kg: d.weight || 70, height_cm: d.height || 175,
+      sex: d.sex || "m", activity: d.activity || "moderate", goal: d.goal || "maintain",
+    };
+    try {
+      const targets = await api("/api/profile/targets", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      state.targets = targets;
+      loadEl.innerHTML = `Your plan: <strong>${targets.calories} kcal</strong> / day &mdash; ${targets.protein_g}g protein &middot; ${targets.carbs_g}g carbs &middot; ${targets.fat_g}g fat.`;
+    } catch { loadEl.innerHTML = `Plan calculated — we'll refine it as we go.`; }
+    await sleep(800);
+    await finish();
+  }
+
+  // ── Step 10: Finish ──────────────────────────────────────────────
+  async function finish() {
+    const name = d.name || "there";
+    await say(`You're all set, ${escapeHtml(name)}. Let's get to work.`, 400);
+
+    state.name            = d.name || state.name;
+    state.butlerName      = d.butlerName || "Architect";
+    state.userTitle       = d.userTitle  || "first_name";
+    state.sleepQuality    = d.sleep;
+    state.goalDetails     = d.goalWeight ? { weight: d.goalWeight, timeline: d.goalTimeline } : null;
+    state.taste           = state.taste || { cuisines: [], goals: [] };
+    state.architectWelcomeShown = true; // suppress hint bubble
+
+    if (d.age && d.height && d.weight && d.sex && d.activity && d.goal) {
+      state.profile = {
+        age: d.age, weight_kg: d.weight, height_cm: d.height,
+        sex: d.sex, activity: d.activity, goal: d.goal,
+      };
+      if (!state.targets) {
+        try {
+          state.targets = await api("/api/profile/targets", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(state.profile),
+          });
+        } catch {}
+      }
+    }
+
+    if (d.healthNotes) {
+      state.healthContext = state.healthContext || {};
+      state.healthContext.otherNotes = d.healthNotes;
+    }
+
+    state.onboardingComplete = true;
+    persist();
+
+    await sleep(1000);
+    const wrap = $("onb-ai-wrap");
+    if (wrap) { wrap.style.transition = "opacity .5s ease"; wrap.style.opacity = "0"; }
+    await sleep(500);
+    renderDashboard();
+  }
+
+  s1();
+}
+
 function ringSvg(progress) {
   const r = 108, c = 2 * Math.PI * r;
   const outerR = 118;
@@ -2543,6 +3068,7 @@ function showProfilePanel() {
       </div>
 
       <div class="panel-foot">
+        <button class="panel-signout" id="panel-repeat-setup">Repeat Setup</button>
         <button class="panel-signout" id="panel-signout">Sign Out</button>
         <button class="panel-danger" id="panel-reset">Reset App</button>
       </div>
@@ -2575,6 +3101,12 @@ function showProfilePanel() {
     const chev = panel.querySelector("#panel-imprint-chev");
     txt.hidden = !txt.hidden;
     chev.textContent = txt.hidden ? "›" : "‹";
+  });
+  panel.querySelector("#panel-repeat-setup").addEventListener("click", () => {
+    hideProfilePanel();
+    state.onboardingComplete = false;
+    persist();
+    render();
   });
   panel.querySelector("#panel-reset").addEventListener("click", () => {
     hideProfilePanel(); resetApp();
