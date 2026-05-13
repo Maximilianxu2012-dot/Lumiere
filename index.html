@@ -2060,7 +2060,7 @@ function renderAIOnboarding() {
     acts.querySelectorAll("[data-g]").forEach(b => b.addEventListener("click", () => {
       d.goal = b.dataset.g; d.goalLabel = b.dataset.gl;
       echo(b.dataset.gl); clear();
-      (d.goal === "lose" || d.goal === "gain") ? s7details() : s8();
+      (d.goal === "lose" || d.goal === "gain") ? s7details() : s7diet();
     }));
   }
 
@@ -2075,20 +2075,34 @@ function renderAIOnboarding() {
       <button class="onb-skip" id="gd-skip">Skip</button>
     `);
     const go = (skip) => {
-      if (skip) { clear(); s8(); return; }
+      if (skip) { clear(); s7diet(); return; }
       const kg = parseFloat($("gw").value), tl = $("gt").value.trim();
       if (!kg || kg < 30 || kg > 300) { toast("Please enter a valid goal weight"); return; }
       d.goalWeight = kg; d.goalTimeline = tl;
       echo(`${kg} kg · ${tl || "no timeline"}`);
-      // Validate realism (>1 kg/week = ambitious)
-      if (d.weight && d.goal === "lose" && kg < d.weight && tl) {
+
+      // Realistic rate check
+      if (tl) {
         const m = tl.match(/(\d+)/);
         if (m) {
-          const weeks = parseInt(m[1]) * (tl.toLowerCase().includes("month") ? 4.3 : 1);
-          if ((d.weight - kg) / weeks > 1) { clear(); s7validate(d.weight - kg, weeks); return; }
+          const rawNum = parseInt(m[1]);
+          const tlLow  = tl.toLowerCase();
+          const weeks  = tlLow.includes("month") ? rawNum * 4.33
+                       : tlLow.includes("year")  ? rawNum * 52
+                       : rawNum; // assume weeks if no unit
+
+          if (d.goal === "lose" && d.weight && kg < d.weight) {
+            const diff = d.weight - kg;
+            if (diff / weeks > 0.75) { clear(); s7validate("lose", diff, weeks); return; }
+          }
+          if (d.goal === "gain" && d.weight && kg > d.weight) {
+            const diff = kg - d.weight;
+            const months = weeks / 4.33;
+            if (diff / months > 1) { clear(); s7validate("gain", diff, Math.ceil(diff)); return; }
+          }
         }
       }
-      clear(); s8();
+      clear(); s7diet();
     };
     $("gd-sub").addEventListener("click", () => go(false));
     $("gd-skip").addEventListener("click", () => go(true));
@@ -2097,18 +2111,70 @@ function renderAIOnboarding() {
     setTimeout(() => { const i = $("gw"); if (i) i.focus(); }, 120);
   }
 
-  async function s7validate(diff, weeks) {
-    const suggested = Math.ceil(diff / 0.75);
-    await say(`That's ambitious — for sustainable results I'd suggest at least ${suggested} weeks. Want to adjust?`);
+  async function s7validate(type, diff, rawWeeksOrMonths) {
+    let msg, suggestedTimeline;
+    if (type === "lose") {
+      const sugWeeks = Math.ceil(diff / 0.75);
+      const sugMonths = Math.ceil(sugWeeks / 4.33);
+      suggestedTimeline = sugWeeks <= 8 ? `${sugWeeks} weeks` : `${sugMonths} months`;
+      msg = `To lose ${diff.toFixed(1)} kg safely, you'd need at least ${sugWeeks} weeks. I'd recommend ${suggestedTimeline} for sustainable results. Want to adjust?`;
+    } else {
+      const sugMonths = Math.ceil(diff); // max 1 kg/month
+      suggestedTimeline = `${sugMonths} months`;
+      msg = `Building ${diff.toFixed(1)} kg of muscle takes time — realistically at least ${sugMonths} months. Want to adjust your timeline?`;
+    }
+    await say(msg);
     show(`
-      <div class="onb-choices">
-        <button class="onb-choice" data-v="adjust">Adjust</button>
-        <button class="onb-choice" data-v="keep">Keep my goal</button>
+      <div class="onb-choices onb-choices-col">
+        <button class="onb-choice" data-v="timeline">Adjust timeline</button>
+        <button class="onb-choice" data-v="weight">Adjust goal weight</button>
+        <button class="onb-choice" data-v="keep">Keep my plan</button>
       </div>
     `);
-    acts.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", () => {
-      if (b.dataset.v === "adjust") d.goalTimeline = `${suggested} weeks`;
-      echo(b.textContent); clear(); s8();
+    acts.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", async () => {
+      echo(b.textContent); clear();
+      if (b.dataset.v === "timeline") {
+        d.goalTimeline = suggestedTimeline;
+        await say(`Got it — I've set your timeline to ${suggestedTimeline}.`, 300);
+      } else if (b.dataset.v === "weight") {
+        // Let user re-enter goal weight
+        await s7details();
+        return;
+      }
+      s7diet();
+    }));
+  }
+
+  // ── Step 7.5: Dietary preferences ───────────────────────────────
+  async function s7diet() {
+    await say(`Want to set up your dietary preferences now? It helps me give better recommendations.`, 400);
+    show(`
+      <div class="onb-choices">
+        <button class="onb-choice" data-d="yes">Yes, set it up</button>
+        <button class="onb-choice" data-d="skip">Skip for now</button>
+      </div>
+    `);
+    acts.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", async () => {
+      echo(b.textContent); clear();
+      if (b.dataset.d === "yes") {
+        // Partially save state so settings screen works, then open allergies
+        state.name    = d.name || state.name;
+        state.taste   = state.taste || { cuisines: [], goals: [] };
+        state.profile = d.age && d.height && d.weight && d.sex && d.activity && d.goal ? {
+          age: d.age, weight_kg: d.weight, height_cm: d.height,
+          sex: d.sex, activity: d.activity, goal: d.goal,
+        } : state.profile;
+        state.onboardingComplete = false; // keep onboarding incomplete
+        persist();
+        await say(`I'll open your preference settings — come back here when you're done.`, 300);
+        await sleep(700);
+        const wrap = $("onb-ai-wrap");
+        if (wrap) { wrap.style.transition = "opacity .4s ease"; wrap.style.opacity = "0"; }
+        await sleep(400);
+        renderAllergiesScreen(() => { state.onboardingComplete = false; renderAIOnboarding(); });
+      } else {
+        s8();
+      }
     }));
   }
 
