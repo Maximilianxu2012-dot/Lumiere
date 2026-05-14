@@ -1335,6 +1335,7 @@ const defaultState = () => ({
   userTitle: "first_name",
   sleepQuality: null,
   goalDetails: null,
+  onboardingTemp: null,
 });
 
 let state = (() => {
@@ -1353,6 +1354,7 @@ let state = (() => {
     if (!s.hasOwnProperty("userTitle"))             s.userTitle              = "first_name";
     if (!s.hasOwnProperty("sleepQuality"))          s.sleepQuality           = null;
     if (!s.hasOwnProperty("goalDetails"))           s.goalDetails            = null;
+    if (!s.hasOwnProperty("onboardingTemp"))        s.onboardingTemp         = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -1394,6 +1396,7 @@ async function loadFromCloud() {
       if (!state.hasOwnProperty("userTitle"))          state.userTitle          = "first_name";
       if (!state.hasOwnProperty("sleepQuality"))       state.sleepQuality       = null;
       if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
+      if (!state.hasOwnProperty("onboardingTemp"))     state.onboardingTemp     = null;
     }
   } catch { /* kein Cloud-State â†’ defaultState bleibt */ }
 }
@@ -2231,21 +2234,22 @@ function renderAIOnboarding() {
     acts.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", async () => {
       echo(b.textContent); clear();
       if (b.dataset.d === "yes") {
-        // Partially save state so settings screen works, then open allergies
+        // Save all collected answers so we can resume after the detour
+        state.onboardingTemp = { ...d };
         state.name    = d.name || state.name;
         state.taste   = state.taste || { cuisines: [], goals: [] };
         state.profile = d.age && d.height && d.weight && d.sex && d.activity && d.goal ? {
           age: d.age, weight_kg: d.weight, height_cm: d.height,
           sex: d.sex, activity: d.activity, goal: d.goal,
         } : state.profile;
-        state.onboardingComplete = false; // keep onboarding incomplete
+        state.onboardingComplete = false;
         persist();
         await say(`I'll open your preference settings — come back here when you're done.`, 300);
         await sleep(700);
         const wrap = $("onb-ai-wrap");
         if (wrap) { wrap.style.transition = "opacity .4s ease"; wrap.style.opacity = "0"; }
         await sleep(400);
-        renderAllergiesScreen(() => { state.onboardingComplete = false; renderAIOnboarding(); });
+        renderAllergiesScreen(() => { state.onboardingComplete = false; renderAIOnboarding(); }, "← Continue setup");
       } else {
         s8();
       }
@@ -2353,7 +2357,16 @@ function renderAIOnboarding() {
     renderDashboard();
   }
 
-  s1();
+  // Resume after allergies detour, or start fresh
+  if (state.onboardingTemp) {
+    const saved = state.onboardingTemp;
+    state.onboardingTemp = null;
+    persist();
+    Object.assign(d, saved);
+    say(`Welcome back — your preferences are saved. Let's continue.`, 200).then(() => s8());
+  } else {
+    s1();
+  }
 }
 
 function ringSvg(progress) {
@@ -3442,7 +3455,7 @@ function renderHealthScreen(backFn) {
 }
 
 // â"€â"€ Allergies Sub-screen â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-function renderAllergiesScreen(backFn) {
+function renderAllergiesScreen(backFn, backLabel) {
   const renderList = () => {
     const wrap = document.createElement("div");
     wrap.innerHTML = `
@@ -3484,7 +3497,7 @@ function renderAllergiesScreen(backFn) {
       </div>
 
       <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
-        <button class="btn ghost" id="allergy-back">← Profile</button>
+        <button class="btn ghost" id="allergy-back">${backLabel || "← Profile"}</button>
       </div>
     `;
 
