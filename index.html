@@ -1187,6 +1187,51 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-skip:hover { color: var(--ink); }
 .onb-dual { display: flex; gap: 12px; }
 .onb-dual .onb-text-input { max-width: 160px; }
+
+/* ── Anchor Navigation ───────────────────────────────────────────────── */
+.anchor-nav {
+  position: fixed;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+.anchor-nav.visible {
+  opacity: 1;
+  pointer-events: auto;
+  animation: fadeIn 400ms ease 600ms both;
+}
+.anchor-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: rgba(26, 22, 20, 0.4);
+  transition: color 200ms ease, transform 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.anchor-btn:hover, .anchor-btn.active { color: var(--gold); }
+.anchor-btn svg {
+  width: 16px; height: 16px;
+  display: block; flex-shrink: 0; pointer-events: none;
+}
+@media (max-width: 540px) {
+  .anchor-nav { right: 8px; }
+  .anchor-btn { width: 24px; height: 24px; }
+  .anchor-btn svg { width: 14px; height: 14px; }
+}
 </style>
 </head>
 <body>
@@ -1216,6 +1261,35 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
     </div>
   </div>
 </div>
+
+<nav id="anchor-nav" class="anchor-nav" aria-label="Section navigation">
+  <button class="anchor-btn" data-section="section-hero" title="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-5H9v5H4a1 1 0 0 1-1-1z"/>
+    </svg>
+  </button>
+  <button class="anchor-btn" data-section="section-ring" title="Calories">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/>
+    </svg>
+  </button>
+  <button class="anchor-btn" data-section="section-macros" title="Macros">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  </button>
+  <button class="anchor-btn" data-section="section-log" title="Journal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <line x1="5" y1="7" x2="19" y2="7"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="17" x2="13" y2="17"/>
+    </svg>
+  </button>
+  <button class="anchor-btn" data-section="section-butler" title="Butler">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </button>
+</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="/supabaseConfig.js"></script>
@@ -2325,7 +2399,7 @@ function renderDashboard() {
   const dateStr  = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
 
   app.innerHTML = `
-    <section class="hero-block">
+    <section class="hero-block" id="section-hero">
       <div style="font-size:var(--fs-meta);letter-spacing:.1em;color:var(--ink-mute);margin-bottom:var(--space-2);">${dateStr}</div>
       <h1 class="hero-display">${greeting}</h1>
       <p class="hero-sub">Scan a meal or your fridge — we take care of the rest.</p>
@@ -2341,7 +2415,7 @@ function renderDashboard() {
       </div>
     </section>
 
-    <section class="hero anim-up" style="animation-delay:80ms;text-align:center;">
+    <section class="hero anim-up" id="section-ring" style="animation-delay:80ms;text-align:center;">
       <div class="ring-wrap">
         ${ringSvg(progress)}
         <div class="ring-center">
@@ -2355,7 +2429,7 @@ function renderDashboard() {
       </div>
     </section>
 
-    <div class="macros anim-up" style="animation-delay:160ms;">
+    <div class="macros anim-up" id="section-macros" style="animation-delay:160ms;">
       ${macroBlock("Protein", t.protein, tgt.protein_g)}
       ${macroBlock("Carbs", t.carbs, tgt.carbs_g)}
       ${macroBlock("Fat", t.fat, tgt.fat_g)}
@@ -2368,11 +2442,13 @@ function renderDashboard() {
     </div>
     ` : ""}
 
+    <div id="section-log">
     <div class="section-head">
       <div class="section-title">Journal</div>
       <div class="eyebrow">${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
     </div>
     ${renderLedger(entries, calTarget)}
+    </div>
   `;
 
   $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
@@ -2418,13 +2494,14 @@ function renderDashboard() {
       if (ev.target.closest(".ledger-del")) return;
       toggle();
     });
-    row.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") {
+    row.addEventListener(“keydown”, (ev) => {
+      if (ev.key === “Enter” || ev.key === “ “) {
         ev.preventDefault();
         toggle();
       }
     });
   });
+  initAnchorNav();
 }
 
 // â”€â”€ The Ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -3928,7 +4005,90 @@ function renderAuth() {
 
 function _showLogout() { /* logout moved to profile panel */ }
 
-// â”€â”€ Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Anchor Navigation ──────────────────────────────────────────────────
+let _anchorObserver = null;
+let _anchorMutation = null;
+
+function smoothScrollTo(targetY, duration) {
+  duration = duration || 700;
+  const startY = window.scrollY;
+  const diff = targetY - startY;
+  if (!diff) return;
+  let start = null;
+  function ease(t) { return t < 0.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1; }
+  function step(ts) {
+    if (!start) start = ts;
+    const t = Math.min((ts - start) / duration, 1);
+    window.scrollTo(0, startY + diff * ease(t));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function initAnchorNav() {
+  const nav = document.getElementById(“anchor-nav”);
+  if (!nav) return;
+
+  if (_anchorObserver) { _anchorObserver.disconnect(); _anchorObserver = null; }
+  if (_anchorMutation) { _anchorMutation.disconnect(); _anchorMutation = null; }
+
+  const sectionIds = [“section-hero”, “section-ring”, “section-macros”, “section-log”, “section-butler”];
+
+  // Hide buttons for sections not in the DOM
+  sectionIds.forEach(id => {
+    const el = document.getElementById(id);
+    const btn = nav.querySelector(`[data-section=”${id}”]`);
+    if (btn) btn.style.display = el ? “” : “none”;
+  });
+
+  // Fade in
+  nav.classList.add(“visible”);
+
+  // Intersection Observer — 40% threshold, highlight active section
+  _anchorObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        nav.querySelectorAll(“[data-section]”).forEach(b => {
+          b.classList.toggle(“active”, b.dataset.section === entry.target.id);
+        });
+      }
+    });
+  }, { threshold: 0.4 });
+
+  sectionIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) _anchorObserver.observe(el);
+  });
+
+  // Re-attach click handlers (clone to avoid duplicate listeners)
+  nav.querySelectorAll(“[data-section]”).forEach(btn => {
+    const fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener(“click”, () => {
+      const el = document.getElementById(fresh.dataset.section);
+      if (!el) return;
+      fresh.style.transform = “scale(1.15)”;
+      setTimeout(() => { fresh.style.transform = “”; }, 150);
+      const top = el.getBoundingClientRect().top + window.scrollY - 20;
+      setTimeout(() => smoothScrollTo(top, 700), 60);
+    });
+  });
+
+  // Auto-hide when leaving dashboard (app.innerHTML replaced, sections gone)
+  const appEl = document.getElementById(“app”);
+  if (appEl) {
+    _anchorMutation = new MutationObserver(() => {
+      if (!document.getElementById(“section-hero”)) {
+        nav.classList.remove(“visible”);
+        if (_anchorObserver) { _anchorObserver.disconnect(); _anchorObserver = null; }
+        _anchorMutation.disconnect(); _anchorMutation = null;
+      }
+    });
+    _anchorMutation.observe(appEl, { childList: true });
+  }
+}
+
+// ── Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $("arch-dismiss").addEventListener("click", () => {
   $("arch-panel").classList.remove("show");
 });
