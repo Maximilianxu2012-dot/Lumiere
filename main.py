@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
             print(f"JWKS load warning: {e}")
     yield
 
-app = FastAPI(title="Lumière", lifespan=lifespan)
+app = FastAPI(title="Nouri", lifespan=lifespan)
 
 
 # ── Auth ─────────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ class ButlerCheckRequest(BaseModel):
 
 BUTLER_PROMPTS: dict[str, str] = {
     "ELITE_BUTLER": (
-        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "You are the Performance Intelligence Core 'Architect' for Nouri. "
         "Mode: Elite Butler. "
         "ABSOLUTE PROHIBITION: NEVER use 'Sir', 'Mr.', or other formal titles. "
         "If the user's name is known, address them by first name only (e.g. 'Max.'). "
@@ -240,13 +240,13 @@ BUTLER_PROMPTS: dict[str, str] = {
         "Respond in 2–4 sentences in English."
     ),
     "PERFORMANCE_COACH": (
-        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "You are the Performance Intelligence Core 'Architect' for Nouri. "
         "Mode: Performance Coach. Direct language, second person, no excuses. "
         "Focus on hard metrics and results. Short, clear, demanding. "
         "Respond in English."
     ),
     "STRATEGIC_BUDDY": (
-        "You are the Performance Intelligence Core 'Architect' for Lumière. "
+        "You are the Performance Intelligence Core 'Architect' for Nouri. "
         "Mode: Strategic Buddy. Relaxed, on equal footing, intelligent — no bro-talk. "
         "Short, smart responses, no nonsense. Respond in English."
     ),
@@ -418,7 +418,7 @@ async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(get_current_us
     url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
     async with httpx.AsyncClient(timeout=10) as c:
         try:
-            r = await c.get(url, headers={"User-Agent": "Lumiere-App/1.0"})
+            r = await c.get(url, headers={"User-Agent": "Nouri-App/1.0"})
             data = r.json()
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Open Food Facts unreachable: {exc}") from exc

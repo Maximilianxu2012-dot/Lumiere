@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5F1EA">
 <meta name="format-detection" content="telephone=no,date=no,email=no,address=no">
-<title>Lumière — Nutrition & Kitchen</title>
+<title>Nouri — Nutrition & Kitchen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -1236,7 +1236,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 </head>
 <body>
 <header>
-  <div class="brand">LUMIÈRE</div>
+  <div class="brand">NOURI</div>
   <div class="header-right">
     <button class="icon-btn" id="home-btn" title="Dashboard" aria-label="Dashboard">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
@@ -1308,10 +1308,13 @@ _sb.auth.onAuthStateChange((event, session) => {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
     renderAuth();
   }
+  if (event === "PASSWORD_RECOVERY") {
+    renderPasswordReset();
+  }
 });
 
 // â"€â"€ State â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const STORAGE_KEY = "lumiere_v1";
+const STORAGE_KEY = "nouri_v1";
 const today = () => new Date().toISOString().slice(0, 10);
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -1525,10 +1528,10 @@ function showDisclaimer() {
   overlay.className = "disclaimer-overlay";
   overlay.innerHTML = `
     <div class="disclaimer-card anim-up">
-      <div class="eyebrow" style="color:var(--gold);margin-bottom:24px;">Lumière</div>
+      <div class="eyebrow" style="color:var(--gold);margin-bottom:24px;">Nouri</div>
       <h2 class="disclaimer-title">Before you begin</h2>
       <p class="disclaimer-text">
-        Lumière provides general nutritional information and is not a substitute for
+        Nouri provides general nutritional information and is not a substitute for
         medical advice. Always consult a healthcare professional for medical decisions.
       </p>
       <button class="btn full" id="disclaimer-confirm">I understand — continue</button>
@@ -1560,7 +1563,7 @@ function renderNameStep() {
   const wrap = document.createElement("div");
   wrap.className = "onb-step";
   wrap.innerHTML = `
-    <div class="eyebrow">Welcome to Lumière</div>
+    <div class="eyebrow">Welcome to Nouri</div>
     <h1 class="onb-title" style="margin-top:8px;">What's your name?</h1>
     <p class="onb-sub">Your first name — so Architect can speak to you personally.</p>
     <div style="max-width:360px;margin:32px auto 0;">
@@ -3189,7 +3192,7 @@ function showProfilePanel() {
   panel.innerHTML = `
     <div class="profile-panel-inner">
       <button class="profile-panel-close" id="panel-close" aria-label="Close">×</button>
-      <div class="profile-panel-eyebrow">LUMIÈRE</div>
+      <div class="profile-panel-eyebrow">NOURI</div>
 
       <div class="panel-menu">
         <button class="panel-row" id="panel-mode-btn">
@@ -3218,7 +3221,7 @@ function showProfilePanel() {
             <span class="panel-row-chevron" id="panel-imprint-chev">›</span>
           </div>
           <div class="panel-imprint-text" id="panel-imprint-text" hidden>
-            Lumière is not a medical app. Always consult a healthcare professional for medical decisions.
+            Nouri is not a medical app. Always consult a healthcare professional for medical decisions.
           </div>
         </button>
       </div>
@@ -3703,7 +3706,7 @@ function renderFavorites() {
   if (!state.favorites.length) {
     app.innerHTML = `
       <section class="hero-block">
-        <div class="hero-eyebrow">Lumière</div>
+        <div class="hero-eyebrow">Nouri</div>
         <h1 class="hero-display">My Recipes</h1>
         <p class="hero-sub">No saved recipes yet.</p>
         <div class="hero-cta" style="margin-top:20px;">
@@ -3719,7 +3722,7 @@ function renderFavorites() {
 
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière</div>
+      <div class="hero-eyebrow">Nouri</div>
       <h1 class="hero-display">My Recipes</h1>
     </section>
 
@@ -3942,7 +3945,7 @@ function renderAuth() {
   if ($("logout-btn")) $("logout-btn").style.display = "none";
   app.innerHTML = `
     <section class="hero-block">
-      <div class="hero-eyebrow">Lumière</div>
+      <div class="hero-eyebrow">Nouri</div>
       <h1 class="hero-display">Welcome</h1>
       <p class="hero-sub">Sign in to save your data securely and access it from anywhere.</p>
     </section>
@@ -3951,32 +3954,76 @@ function renderAuth() {
       <div class="field">
         <label class="field-label" for="auth-email">Email</label>
         <input type="email" id="auth-email" placeholder="your@email.com" autocomplete="email">
+        <div id="auth-dup-msg" style="display:none;opacity:0;transition:opacity 200ms;margin-top:12px;padding:14px 16px;background:rgba(139,46,46,0.06);border-radius:10px;border-left:3px solid var(--danger);">
+          <p style="margin:0 0 12px;font-size:13px;color:var(--ink);line-height:1.5;">You already have an account with this email.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn gold" id="auth-dup-signin" style="font-size:13px;padding:9px 18px;">Sign in instead</button>
+            <button class="btn ghost" id="auth-dup-forgot" style="font-size:13px;padding:9px 18px;">Forgot password?</button>
+          </div>
+        </div>
       </div>
       <div class="field" style="margin-top:16px;">
         <label class="field-label" for="auth-pw">Password</label>
-        <input type="password" id="auth-pw" placeholder="At least 6 characters" autocomplete="current-password">
+        <div style="position:relative;">
+          <input type="password" id="auth-pw" placeholder="At least 8 characters" autocomplete="current-password" style="padding-right:36px;">
+          <button id="auth-pw-toggle" type="button" tabindex="-1" aria-label="Show password" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer;color:var(--ink);opacity:0.4;line-height:0;">
+            <svg id="auth-pw-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
-      <div id="auth-err" style="color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;"></div>
+      <div id="auth-err" style="color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;opacity:0;transition:opacity 200ms;"></div>
+      <div id="auth-success" style="color:var(--gold-deep);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;display:none;opacity:0;transition:opacity 200ms;"></div>
       <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
         <button class="btn gold" id="auth-login">Sign In</button>
         <button class="btn ghost" id="auth-signup">Create Account</button>
       </div>
+      <div style="margin-top:16px;text-align:center;">
+        <button id="auth-forgot-link" style="background:none;border:none;color:var(--ink-mute);font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px;padding:0;">Forgot password?</button>
+      </div>
     </div>
   `;
 
-  const errEl  = $("auth-err");
-  const emailEl = $("auth-email");
-  const pwEl    = $("auth-pw");
+  const errEl     = $("auth-err");
+  const successEl = $("auth-success");
+  const emailEl   = $("auth-email");
+  const pwEl      = $("auth-pw");
+  const dupMsg    = $("auth-dup-msg");
+
+  function showErr(msg) {
+    errEl.textContent = msg;
+    errEl.style.opacity = "1";
+    pwEl.style.borderColor = "var(--danger)";
+  }
+  function clearState() {
+    errEl.textContent = "";
+    errEl.style.opacity = "0";
+    successEl.style.opacity = "0";
+    successEl.style.display = "none";
+    pwEl.style.borderColor = "";
+    emailEl.style.borderColor = "";
+    dupMsg.style.opacity = "0";
+    dupMsg.style.display = "none";
+  }
+  function showSuccess(msg) {
+    successEl.textContent = msg;
+    successEl.style.display = "block";
+    requestAnimationFrame(() => { successEl.style.opacity = "1"; });
+  }
+  function showDuplicate() {
+    emailEl.style.borderColor = "var(--danger)";
+    dupMsg.style.display = "block";
+    requestAnimationFrame(() => { dupMsg.style.opacity = "1"; });
+  }
 
   const doLogin = async () => {
     const email = emailEl.value.trim();
     const pw    = pwEl.value;
-    if (!email || !pw) { errEl.textContent = "Please enter email and password."; return; }
-    errEl.textContent = "";
+    if (!email || !pw) { showErr("Please enter email and password."); return; }
+    clearState();
     $("auth-login").disabled = true;
     const { data, error } = await _sb.auth.signInWithPassword({ email, password: pw });
     if (error) {
-      errEl.textContent = error.message;
+      showErr(error.message);
       $("auth-login").disabled = false;
       return;
     }
@@ -3989,13 +4036,27 @@ function renderAuth() {
   const doSignup = async () => {
     const email = emailEl.value.trim();
     const pw    = pwEl.value;
-    if (!email || !pw) { errEl.textContent = "Please enter email and password."; return; }
-    if (pw.length < 6) { errEl.textContent = "Password must be at least 6 characters."; return; }
-    errEl.textContent = "";
+    if (!email || !pw) { showErr("Please enter email and password."); return; }
+    if (pw.length < 8) { showErr("Password must be at least 8 characters."); return; }
+    clearState();
     $("auth-signup").disabled = true;
     const { data, error } = await _sb.auth.signUp({ email, password: pw });
     if (error) {
-      errEl.textContent = error.message;
+      const msg = error.message || "";
+      if (msg.toLowerCase().includes("already registered") ||
+          msg.toLowerCase().includes("already exists") ||
+          msg.toLowerCase().includes("email address is already")) {
+        showDuplicate();
+        $("auth-signup").disabled = false;
+        return;
+      }
+      showErr(msg);
+      $("auth-signup").disabled = false;
+      return;
+    }
+    // Supabase returns empty identities when email already exists (confirm mode)
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      showDuplicate();
       $("auth-signup").disabled = false;
       return;
     }
@@ -4004,16 +4065,133 @@ function renderAuth() {
       _showLogout();
       render();
     } else {
-      errEl.style.color = "var(--gold-deep)";
-      errEl.textContent = "Confirmation email sent — please check your inbox.";
+      showSuccess("Confirmation email sent — please check your inbox.");
       $("auth-signup").disabled = false;
     }
   };
 
+  const doForgotPassword = async () => {
+    const email = emailEl.value.trim();
+    if (!email) { showErr("Enter your email address first."); emailEl.focus(); return; }
+    clearState();
+    $("auth-forgot-link").disabled = true;
+    if ($("auth-dup-forgot")) $("auth-dup-forgot").disabled = true;
+    await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    showSuccess("We've sent a reset link to your email. Check your inbox.");
+    $("auth-forgot-link").disabled = false;
+    if ($("auth-dup-forgot")) $("auth-dup-forgot").disabled = false;
+  };
+
   $("auth-login").addEventListener("click", doLogin);
   $("auth-signup").addEventListener("click", doSignup);
+  $("auth-forgot-link").addEventListener("click", doForgotPassword);
+  $("auth-dup-signin").addEventListener("click", () => { clearState(); pwEl.value = ""; pwEl.focus(); });
+  $("auth-dup-forgot").addEventListener("click", doForgotPassword);
   emailEl.addEventListener("keydown", e => { if (e.key === "Enter") pwEl.focus(); });
   pwEl.addEventListener("keydown",    e => { if (e.key === "Enter") doLogin(); });
+
+  $("auth-pw-toggle").addEventListener("click", () => {
+    const show = pwEl.type === "password";
+    pwEl.type = show ? "text" : "password";
+    $("auth-pw-eye").innerHTML = show
+      ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  });
+}
+
+function renderPasswordReset() {
+  if ($("logout-btn")) $("logout-btn").style.display = "none";
+  app.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Nouri</div>
+      <h1 class="hero-display">New Password</h1>
+      <p class="hero-sub">Choose a new password for your account.</p>
+    </section>
+    <div style="max-width:380px;margin:32px auto 0;">
+      <div class="field">
+        <label class="field-label" for="reset-pw">New password</label>
+        <div style="position:relative;">
+          <input type="password" id="reset-pw" placeholder="At least 8 characters" autocomplete="new-password" style="padding-right:36px;">
+          <button id="reset-pw-toggle" type="button" tabindex="-1" aria-label="Show password" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer;color:var(--ink);opacity:0.4;line-height:0;">
+            <svg id="reset-pw-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <label class="field-label" for="reset-pw2">Confirm password</label>
+        <div style="position:relative;">
+          <input type="password" id="reset-pw2" placeholder="Repeat your new password" autocomplete="new-password" style="padding-right:36px;">
+          <button id="reset-pw2-toggle" type="button" tabindex="-1" aria-label="Show password" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px;cursor:pointer;color:var(--ink);opacity:0.4;line-height:0;">
+            <svg id="reset-pw2-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="reset-err" style="color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;opacity:0;transition:opacity 200ms;"></div>
+      <div id="reset-ok" style="color:var(--gold-deep);font-size:13px;margin-top:10px;min-height:16px;line-height:1.4;opacity:0;transition:opacity 200ms;"></div>
+      <div style="margin-top:20px;">
+        <button class="btn gold" id="reset-submit" style="width:100%;">Set new password</button>
+      </div>
+    </div>
+  `;
+
+  const errEl = $("reset-err");
+  const okEl  = $("reset-ok");
+  const pw1   = $("reset-pw");
+  const pw2   = $("reset-pw2");
+  const btn   = $("reset-submit");
+
+  const doReset = async () => {
+    const p1 = pw1.value;
+    const p2 = pw2.value;
+    pw1.style.borderColor = "";
+    pw2.style.borderColor = "";
+    errEl.style.opacity = "0";
+    if (p1.length < 8) {
+      errEl.textContent = "Password must be at least 8 characters.";
+      errEl.style.opacity = "1";
+      pw1.style.borderColor = "var(--danger)";
+      return;
+    }
+    if (p1 !== p2) {
+      errEl.textContent = "Passwords don't match.";
+      errEl.style.opacity = "1";
+      pw2.style.borderColor = "var(--danger)";
+      return;
+    }
+    btn.disabled = true;
+    const { error } = await _sb.auth.updateUser({ password: p1 });
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.opacity = "1";
+      btn.disabled = false;
+      return;
+    }
+    history.replaceState(null, "", window.location.pathname);
+    okEl.textContent = "Password updated. You're now signed in.";
+    okEl.style.opacity = "1";
+    setTimeout(async () => {
+      const { data: { session } } = await _sb.auth.getSession();
+      _session = session;
+      _showLogout();
+      await loadFromCloud();
+      render();
+    }, 1500);
+  };
+
+  btn.addEventListener("click", doReset);
+  pw2.addEventListener("keydown", e => { if (e.key === "Enter") doReset(); });
+
+  function eyeToggle(btnId, eyeId, el) {
+    $(btnId).addEventListener("click", () => {
+      const show = el.type === "password";
+      el.type = show ? "text" : "password";
+      $(eyeId).innerHTML = show
+        ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`
+        : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    });
+  }
+  eyeToggle("reset-pw-toggle",  "reset-pw-eye",  pw1);
+  eyeToggle("reset-pw2-toggle", "reset-pw2-eye", pw2);
 }
 
 function _showLogout() { /* logout moved to profile panel */ }
@@ -4107,6 +4285,12 @@ $("arch-dismiss").addEventListener("click", () => {
 });
 
 async function boot() {
+  const hash = window.location.hash;
+  if (hash && hash.includes("type=recovery")) {
+    await _sb.auth.getSession(); // lets Supabase exchange the recovery token
+    renderPasswordReset();
+    return;
+  }
   const { data: { session } } = await _sb.auth.getSession();
   _session = session;
   if (!session) { renderAuth(); return; }

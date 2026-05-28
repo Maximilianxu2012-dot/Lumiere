@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lumiere
+    name: nouri
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
