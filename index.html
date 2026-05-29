@@ -174,7 +174,7 @@ header {
 }
 .icon-btn:hover { color: var(--ink); border-color: var(--ink); }
 
-main { max-width: 720px; margin: 0 auto; padding: 56px 28px 120px; }
+main { max-width: 720px; margin: 0 auto; padding: 56px 28px calc(60px + env(safe-area-inset-bottom, 0px)); }
 
 /* Buttons — 300ms, elegant */
 .btn {
@@ -344,9 +344,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .ring-outer { fill: none; stroke: var(--gold); stroke-width: 0.5; opacity: 0.18; }
 .ring-center {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px;
+  overflow: hidden;
 }
 .ring-num {
   font-family: 'Cormorant Garamond', serif;
@@ -357,7 +358,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   font-size: 11px; color: var(--ink-mute); letter-spacing: .1em; margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
-.hero-target { color: var(--ink-soft); font-size: 13px; letter-spacing: .04em; line-height: 1.6; }
+.hero-target {
+  color: var(--ink-soft); font-size: 13px; letter-spacing: .04em; line-height: 1.6;
+  text-align: center; max-width: 100%; overflow: hidden; padding: 0 8px;
+}
 .hero-target b { color: var(--ink); font-weight: 500; }
 
 /* Macros */
@@ -533,37 +537,18 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .scan-item-name { cursor: pointer; }
 
 /* ── Full-name modal ─────────────────────────────────────────────── */
-.name-modal-overlay {
-  position: fixed; inset: 0; z-index: 950;
-  background: rgba(26,22,20,0.72);
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-  animation: fadeIn .18s ease forwards;
-}
-.name-modal {
-  background: var(--charcoal);
-  color: #EDE5D8;
-  padding: 36px 32px 32px;
-  max-width: 380px; width: 100%;
-  position: relative;
-  box-shadow: 0 24px 64px rgba(0,0,0,.45);
-  border-top: 1px solid rgba(201,169,97,0.25);
-}
-.name-modal-close {
-  position: absolute; top: 14px; right: 16px;
-  background: none; border: none;
-  color: rgba(237,229,216,.35); font-size: 22px; line-height: 1;
-  cursor: pointer; padding: 4px 8px; transition: color .15s;
-}
-.name-modal-close:hover { color: rgba(237,229,216,.8); }
-.name-modal-label {
-  font-size: 10px; letter-spacing: .28em; text-transform: uppercase;
-  color: var(--gold-glow); opacity: .7; margin-bottom: 14px;
-}
-.name-modal-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(22px, 5vw, 30px); font-weight: 400; line-height: 1.25;
-  color: #EDE5D8;
+.name-tooltip {
+  position: fixed; z-index: 900;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.4;
+  color: var(--ink);
+  max-width: 260px;
+  pointer-events: none;
+  opacity: 0; display: none;
+  transition: opacity 200ms;
 }
 .ledger-meta {
   font-size: var(--fs-meta);
@@ -954,24 +939,26 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 
 /* â”€â”€ Bottom Navigation (CSS-ready, nicht funktional verdrahtet) â”€â”€â”€â”€ */
 .bottom-nav {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-  background: var(--charcoal);
-  border-top: 1px solid rgba(201,169,97,0.14);
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: #1A1614;
+  border-top: 1px solid rgba(255,255,255,0.08);
   display: flex;
-  height: 62px;
+  align-items: stretch;
+  height: 60px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: none; /* Aktivierung im nächsten Schritt */
+  -webkit-tap-highlight-color: transparent;
 }
 .bottom-nav-item {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 5px; background: none; border: none; cursor: pointer;
-  color: rgba(237,229,216,0.35);
-  font: 500 8.5px/1 'Inter', sans-serif; letter-spacing: .18em; text-transform: uppercase;
-  transition: color var(--transition);
-  padding-bottom: 2px;
+  gap: 4px; background: none; border: none; cursor: pointer;
+  color: #F5F0E8;
+  font: 500 10px/1 'Inter', sans-serif; letter-spacing: .06em;
+  transition: color 200ms ease;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
-.bottom-nav-item.active { color: var(--gold-glow); }
-.bottom-nav-item svg { width: 19px; height: 19px; stroke-width: 1.5; }
+.bottom-nav-item.active { color: #B89968; }
+.bottom-nav-item svg { width: 22px; height: 22px; display: block; }
 
 /* â”€â”€ Disclaimer Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .disclaimer-overlay {
@@ -1088,7 +1075,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 /* Responsive */
 @media (max-width: 540px) {
   header { padding: 18px 20px; }
-  main { padding: 32px 18px 80px; }
+  main { padding: 32px 18px calc(60px + env(safe-area-inset-bottom, 0px)); }
   .actions { grid-template-columns: 1fr; }
   .recipe-head, .recipe-body, .recipe-foot { padding-inline: 24px; }
   .recipe-meta-cell { padding: 16px 8px; }
@@ -1188,50 +1175,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-dual { display: flex; gap: 12px; }
 .onb-dual .onb-text-input { max-width: 160px; }
 
-/* ── Anchor Navigation ───────────────────────────────────────────────── */
-.anchor-nav {
-  position: fixed;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 400ms ease;
-}
-.anchor-nav.visible {
-  opacity: 1;
-  pointer-events: auto;
-  animation: fadeIn 400ms ease 600ms both;
-}
-.anchor-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  color: rgba(26, 22, 20, 0.4);
-  transition: color 200ms ease, transform 150ms ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.anchor-btn:hover, .anchor-btn.active { color: var(--gold); }
-.anchor-btn svg {
-  width: 16px; height: 16px;
-  display: block; flex-shrink: 0; pointer-events: none;
-}
-@media (max-width: 540px) {
-  .anchor-nav { right: 8px; }
-  .anchor-btn { width: 24px; height: 24px; }
-  .anchor-btn svg { width: 14px; height: 14px; }
-}
 </style>
 </head>
 <body>
@@ -1262,32 +1205,25 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   </div>
 </div>
 
-<nav id="anchor-nav" class="anchor-nav" aria-label="Section navigation">
-  <button class="anchor-btn" data-section="section-hero" title="Home">
+<nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation">
+  <button class="bottom-nav-item active" id="bnav-home" aria-label="Home">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-5H9v5H4a1 1 0 0 1-1-1z"/>
     </svg>
+    Home
   </button>
-  <button class="anchor-btn" data-section="section-ring" title="Calories">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/>
-    </svg>
-  </button>
-  <button class="anchor-btn" data-section="section-macros" title="Macros">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-    </svg>
-  </button>
-  <button class="anchor-btn" data-section="section-log" title="Journal">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <line x1="5" y1="7" x2="19" y2="7"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="17" x2="13" y2="17"/>
-    </svg>
-  </button>
-  <button class="anchor-btn" data-section="section-butler" title="Butler">
+  <button class="bottom-nav-item" id="bnav-butler" aria-label="Butler">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
+    Butler
+  </button>
+  <button class="bottom-nav-item" id="bnav-profile" aria-label="Profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="3.5"/>
+      <path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/>
+    </svg>
+    Profile
   </button>
 </nav>
 
@@ -1414,31 +1350,57 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
 ));
 
-// ── Full-name modal ────────────────────────────────────────────────
-function showNameModal(name) {
-  const overlay = document.createElement("div");
-  overlay.className = "name-modal-overlay";
-  overlay.innerHTML = `
-    <div class="name-modal">
-      <button class="name-modal-close" aria-label="Close">&#215;</button>
-      <div class="name-modal-label">Full Name</div>
-      <div class="name-modal-name">${escapeHtml(name)}</div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
-  overlay.querySelector(".name-modal-close").addEventListener("click", close);
-}
+// ── Food name tooltip ─────────────────────────────────────────────
+let _tip = null;
+let _tipAnchor = null;
 
-// Delegated tap handler — fires for any .ledger-name or .scan-item-name that is truncated
+function _ensureTip() {
+  if (_tip) return _tip;
+  _tip = document.createElement("div");
+  _tip.className = "name-tooltip";
+  document.body.appendChild(_tip);
+  return _tip;
+}
+function _showTip(anchor) {
+  const tip = _ensureTip();
+  tip.textContent = anchor.textContent.trim();
+  tip.style.display = "block";
+  tip.getBoundingClientRect(); // force layout before measuring
+  const r   = anchor.getBoundingClientRect();
+  const gap = 6;
+  let top  = r.top - tip.offsetHeight - gap;
+  if (top < 8) top = r.bottom + gap;
+  let left = r.left;
+  tip.style.top  = Math.max(8, Math.min(top,  window.innerHeight - tip.offsetHeight - 8)) + "px";
+  tip.style.left = Math.max(8, Math.min(left, window.innerWidth  - tip.offsetWidth  - 8)) + "px";
+  tip.style.opacity = "1";
+  _tipAnchor = anchor;
+}
+function _hideTip() {
+  if (!_tip) return;
+  _tipAnchor = null;
+  _tip.style.opacity = "0";
+  setTimeout(() => { if (_tip && _tip.style.opacity === "0") _tip.style.display = "none"; }, 210);
+}
+function _isTruncated(el) { return el.scrollWidth > el.clientWidth + 2; }
+
+// Desktop hover
+document.addEventListener("mouseover", e => {
+  const el = e.target.closest(".ledger-name, .scan-item-name");
+  if (el && _isTruncated(el)) _showTip(el);
+});
+document.addEventListener("mouseout", e => {
+  if (e.target.closest(".ledger-name, .scan-item-name")) _hideTip();
+});
+
+// Mobile tap
 document.addEventListener("click", e => {
   const el = e.target.closest(".ledger-name, .scan-item-name");
-  if (!el) return;
-  if (el.scrollWidth > el.clientWidth + 2) {
-    e.stopPropagation();
-    showNameModal(el.textContent.trim());
-  }
+  if (!el) { _hideTip(); return; }
+  if (!_isTruncated(el)) return;
+  if (_tipAnchor === el) { _hideTip(); return; } // second tap dismisses
+  e.stopPropagation();
+  _showTip(el);
 });
 
 // ── Voice Input (Web Speech API) ───────────────────────────────────
@@ -2517,7 +2479,7 @@ function renderDashboard() {
       }
     });
   });
-  initAnchorNav();
+  setBottomTab("home");
 }
 
 // â"€â"€ The Ledger â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -2572,8 +2534,8 @@ function ledgerRow(entry, balanceAfter) {
 
 function renderLedger(entries, target) {
   const sorted = [...entries].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-  const dateLabel = new Date().toLocaleDateString("de-DE", {
-    day: "2-digit", month: "long", year: "numeric"
+  const dateLabel = new Date().toLocaleDateString("en-US", {
+    day: "numeric", month: "long", year: "numeric"
   });
 
   let balance = target;
@@ -2591,7 +2553,7 @@ function renderLedger(entries, target) {
       : { cls: "", text: `${balance} kcal available` };
 
   return `
-    <section class="ledger" aria-label="Tagebuch">
+    <section class="ledger" aria-label="Daily Log">
       <header class="ledger-head">
         <div class="ledger-date">${dateLabel}</div>
         <div class="ledger-budget">Budget <b>${target}</b> kcal</div>
@@ -3843,6 +3805,7 @@ function renderFavRecipe(r, backFn, backLabel) {
 
 // â"€â"€ Butler Chat â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function renderChat() {
+  setBottomTab("butler");
   const welcome = {
     ELITE_BUTLER:      "Good day. I have your current day's numbers ready — what would you like to address?",
     PERFORMANCE_COACH: "Let's go. What's your goal today? I'm direct.",
@@ -4196,10 +4159,6 @@ function renderPasswordReset() {
 
 function _showLogout() { /* logout moved to profile panel */ }
 
-// ── Anchor Navigation ──────────────────────────────────────────────────
-let _anchorObserver = null;
-let _anchorMutation = null;
-
 function smoothScrollTo(targetY, duration) {
   duration = duration || 700;
   const startY = window.scrollY;
@@ -4216,73 +4175,35 @@ function smoothScrollTo(targetY, duration) {
   requestAnimationFrame(step);
 }
 
-function initAnchorNav() {
-  const nav = document.getElementById("anchor-nav");
-  if (!nav) return;
-
-  if (_anchorObserver) { _anchorObserver.disconnect(); _anchorObserver = null; }
-  if (_anchorMutation) { _anchorMutation.disconnect(); _anchorMutation = null; }
-
-  const sectionIds = ["section-hero", "section-ring", "section-macros", "section-log", "section-butler"];
-
-  // Hide buttons for sections not in the DOM
-  sectionIds.forEach(id => {
-    const el = document.getElementById(id);
-    const btn = nav.querySelector(`[data-section="${id}"]`);
-    if (btn) btn.style.display = el ? "" : "none";
+function setBottomTab(tab) {
+  ["home","butler","profile"].forEach(id => {
+    const btn = document.getElementById("bnav-" + id);
+    if (btn) btn.classList.toggle("active", id === tab);
   });
+}
 
-  // Fade in
-  nav.classList.add("visible");
-
-  // Intersection Observer — 40% threshold, highlight active section
-  _anchorObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        nav.querySelectorAll("[data-section]").forEach(b => {
-          b.classList.toggle("active", b.dataset.section === entry.target.id);
-        });
-      }
-    });
-  }, { threshold: 0.4 });
-
-  sectionIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) _anchorObserver.observe(el);
+function initBottomNav() {
+  document.getElementById("bnav-home").addEventListener("click", () => {
+    if (document.getElementById("section-hero")) {
+      smoothScrollTo(0, 500);
+    } else {
+      renderDashboard();
+    }
   });
-
-  // Re-attach click handlers (clone to avoid duplicate listeners)
-  nav.querySelectorAll("[data-section]").forEach(btn => {
-    const fresh = btn.cloneNode(true);
-    btn.parentNode.replaceChild(fresh, btn);
-    fresh.addEventListener("click", () => {
-      const el = document.getElementById(fresh.dataset.section);
-      if (!el) return;
-      fresh.style.transform = "scale(1.15)";
-      setTimeout(() => { fresh.style.transform = ""; }, 150);
-      const top = el.getBoundingClientRect().top + window.scrollY - 20;
-      setTimeout(() => smoothScrollTo(top, 700), 60);
-    });
+  document.getElementById("bnav-butler").addEventListener("click", () => {
+    renderChat();
   });
-
-  // Auto-hide when leaving dashboard (app.innerHTML replaced, sections gone)
-  const appEl = document.getElementById("app");
-  if (appEl) {
-    _anchorMutation = new MutationObserver(() => {
-      if (!document.getElementById("section-hero")) {
-        nav.classList.remove("visible");
-        if (_anchorObserver) { _anchorObserver.disconnect(); _anchorObserver = null; }
-        _anchorMutation.disconnect(); _anchorMutation = null;
-      }
-    });
-    _anchorMutation.observe(appEl, { childList: true });
-  }
+  document.getElementById("bnav-profile").addEventListener("click", () => {
+    showProfilePanel();
+  });
 }
 
 // ── Boot â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 $("arch-dismiss").addEventListener("click", () => {
   $("arch-panel").classList.remove("show");
 });
+
+initBottomNav();
 
 async function boot() {
   const hash = window.location.hash;

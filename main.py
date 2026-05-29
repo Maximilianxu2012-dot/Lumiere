@@ -94,7 +94,7 @@ def _sb_headers(token: str) -> dict:
 # ── Schemas ─────────────────────────────────────────────────────────
 class FoodItem(BaseModel):
     name: str
-    portion: str = Field(description="z.B. '150 g', '1 Stück', '1 Tasse'")
+    portion: str = Field(description="e.g. '150 g', '1 piece', '1 cup'")
     calories: int
     protein_g: float
     carbs_g: float
@@ -110,7 +110,7 @@ class FridgeItem(BaseModel):
     name: str
     portion: str = ""
     # Tolerant gegenüber dem, was das Modell vorschlägt — verhindert Schema-Crashs
-    category: str = "sonstiges"
+    category: str = "other"
 
 
 class FridgeScan(BaseModel):
@@ -140,7 +140,7 @@ class Targets(BaseModel):
 
 class Recipe(BaseModel):
     title: str
-    summary: str = Field(description="Eleganter, kurzer Untertitel — max. 12 Wörter.")
+    summary: str = Field(description="Elegant, short subtitle — max. 12 words.")
     duration_min: int
     servings: int
     calories_per_serving: int
@@ -398,12 +398,20 @@ async def scan_food(image: UploadFile = File(...), _user: dict = Depends(get_cur
     prompt = (
         "Du bist Ernährungsexperte. Analysiere dieses Foto eines Gerichts. "
         "Identifiziere jede Komponente einzeln. "
+        "BEHÄLTERTYP bestimmt die Kategorie: Schüssel oder tiefer Teller = Suppe oder Gericht — KEIN Getränk. "
+        "Glas oder Becher = Getränk. Rote Farbe allein bedeutet NICHT Cherry- oder Beerengeschmack. "
+        "Nutze Form, Textur und Kontext — nie nur Farbe. "
+        "LEBENSMITTELNAMEN: maximal 3 Wörter, auf Englisch, konkret und direkt. "
+        "VERBOTEN in Namen und Beschreibungen: 'wahrscheinlich', 'vermutlich', 'möglicherweise', "
+        "'vielleicht', 'probably', 'likely', 'possibly', 'maybe', 'flavor', 'perhaps'. "
+        "Richtige Beispiele: 'Beet soup', 'Red lentil soup', 'Tomato soup', 'Cherry juice'. "
+        "Wenn das Gericht wirklich nicht identifizierbar ist: Name = 'Unknown dish'. "
         "Schätze Portionsgrößen präzise anhand dieser Referenzen: "
         "Standard-Essteller = 26 cm Durchmesser; eine Faust ≈ 150–200 ml Volumen; "
         "eine Handfläche ≈ 85 g Fleisch/Fisch; ein Daumen ≈ 30 g Käse oder Fett; "
         "typische Restaurantportion Fleisch 150–200 g, Pasta 200–250 g. "
         "Sei konservativ — lieber 10 % weniger als zu viel. "
-        "Setze 'confidence' auf 'high' nur wenn alles klar erkennbar ist. Antworte auf Deutsch."
+        "Setze 'confidence' auf 'high' nur wenn alles klar erkennbar ist."
     )
     return await generate_structured([prompt, image_part(image, data)], FoodScan)
 
@@ -459,7 +467,7 @@ async def scan_fridge(image: UploadFile = File(...), _user: dict = Depends(get_c
         "Inhalt. Nur klar erkennbare Lebensmittel benennen. "
         "Schätze Mengen so genau wie möglich anhand der sichtbaren Anzahl/Größe "
         "(z.B. '4 Stück', '1 Bund', '500 g'). Kategorisiere jedes Item nach dem Schema. "
-        "Antworte auf Deutsch."
+        "Return all food names, categories, and quantities in English."
     )
     return await generate_structured([prompt, image_part(image, data)], FridgeScan)
 
@@ -489,14 +497,14 @@ _GOAL_LABELS: dict[str, str] = {
 @app.post("/api/scan/refine", response_model=FoodScan)
 async def refine_scan(req: RefineRequest, _user: dict = Depends(get_current_user)) -> FoodScan:
     if not req.description.strip():
-        raise HTTPException(400, "Keine Beschreibung angegeben")
-    orig = ", ".join(f"{i.name} ({i.portion}, {i.calories} kcal)" for i in req.original_items) or "nichts erkannt"
+        raise HTTPException(400, "No description provided")
+    orig = ", ".join(f"{i.name} ({i.portion}, {i.calories} kcal)" for i in req.original_items) or "nothing detected"
     prompt = (
-        f"Die KI hat folgende Mahlzeit erkannt: {orig}.\n\n"
-        f"Der Nutzer korrigiert/ergänzt: \"{req.description}\"\n\n"
-        "Erstelle auf Basis dieser Korrektur eine vollständige, revidierte Komponentenliste "
-        "mit realistischen Nährwerten. Setze 'confidence' auf 'high' wenn die Beschreibung klar ist. "
-        "Antworte auf Deutsch."
+        f"The AI detected this meal: {orig}.\n\n"
+        f"The user corrects/adds: \"{req.description}\"\n\n"
+        "Based on this correction, create a complete, revised component list with realistic nutritional values. "
+        "Set 'confidence' to 'high' when the description is clear. "
+        "Return all food names, descriptions, and portion strings in English."
     )
     return await generate_structured([prompt], FoodScan)
 
@@ -506,7 +514,7 @@ async def generate_recipe(req: RecipeRequest, _user: dict = Depends(get_current_
     inspiration_mode = not req.ingredients
 
     if inspiration_mode and not req.taste:
-        raise HTTPException(400, "Keine Zutaten oder Geschmackspräferenzen angegeben")
+        raise HTTPException(400, "No ingredients or taste preferences provided")
 
     constraints: list[str] = []
     if req.remaining_calories is not None:
@@ -552,8 +560,8 @@ async def generate_recipe(req: RecipeRequest, _user: dict = Depends(get_current_
     prompt = (
         f"{ingredient_block}\n\n"
         f"{chr(10).join(constraints)}\n\n"
-        "Stil: reduziert, hochwertig, alltagstauglich. Klare Schritte, präzise Mengen "
-        "in metrischen Einheiten. Keine Floskeln. Antworte auf Deutsch."
+        "Style: refined, high-quality, practical. Clear steps, precise metric measurements. No filler. "
+        "Return the recipe title, summary, all ingredients, and all steps in English."
     )
     return await generate_structured([prompt], Recipe)
 
