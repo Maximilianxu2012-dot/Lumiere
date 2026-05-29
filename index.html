@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5F1EA">
 <meta name="format-detection" content="telephone=no,date=no,email=no,address=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Nouri — Nutrition & Kitchen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,6 +85,7 @@ input:-webkit-autofill:active {
 a { color: inherit; }
 html, body {
   margin: 0; padding: 0;
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 8px);
   background: var(--bg);
   color: var(--ink);
   font: 400 var(--fs-body)/1.8 'Inter', system-ui, sans-serif;
@@ -858,14 +861,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .pill.low { color: var(--danger); border-color: var(--danger); opacity: .6; }
 
 /* Toast */
-.toast {
-  position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px); left: 50%;
-  transform: translateX(-50%) translateY(120%);
-  background: var(--ink); color: var(--surface);
-  padding: 14px 22px; font-size: 13px; letter-spacing: .04em;
-  transition: transform .35s cubic-bezier(.2,.7,.2,1); z-index: 999;
-}
-.toast.show { transform: translateX(-50%) translateY(0); }
 
 /* Loader */
 .loader {
@@ -977,9 +972,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   background: #1A1614;
   border-top: 1px solid rgba(255,255,255,0.08);
   display: flex;
-  align-items: stretch;
-  height: 60px;
+  align-items: flex-start;
+  height: calc(60px + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
   -webkit-tap-highlight-color: transparent;
 }
 .bottom-nav-item {
@@ -1248,7 +1244,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 <main id="app"></main>
 
 <input type="file" id="hidden-file" accept="image/*" capture="environment" hidden>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <div id="arch-panel" class="arch-panel" role="alertdialog" aria-label="Architect Briefing">
   <div class="arch-inner">
@@ -1398,7 +1393,6 @@ async function loadFromCloud() {
 // â"€â"€ DOM helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const $ = (id) => document.getElementById(id);
 const app = $("app");
-const toastEl = $("toast");
 const fileInput = $("hidden-file");
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
@@ -1461,7 +1455,7 @@ document.addEventListener("click", e => {
 // ── Voice Input (Web Speech API) ───────────────────────────────────
 function startVoiceInput(inputEl, micBtn) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { toast("Voice input not supported in this browser"); return; }
+  if (!SR) return;
   if (micBtn) micBtn.classList.add("listening");
   const r = new SR();
   r.lang = "en-US"; r.interimResults = false; r.maxAlternatives = 1;
@@ -1472,19 +1466,11 @@ function startVoiceInput(inputEl, micBtn) {
   };
   r.onerror = () => {
     if (micBtn) micBtn.classList.remove("listening");
-    toast("Couldn't capture voice — please type instead");
   };
   r.onend = () => { if (micBtn) micBtn.classList.remove("listening"); };
   r.start();
 }
 
-let toastTimer;
-function toast(msg, ms = 2400) {
-  toastEl.textContent = msg;
-  toastEl.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
-}
 
 function showArchitectBriefing(result) {
   const panel = $("arch-panel");
@@ -1726,7 +1712,6 @@ function renderTasteGoalStep() {
   node.querySelector("#taste-next-1").addEventListener("click", () => {
     state.taste = { cuisines: [...tasteDraft.cuisines], goals: [...tasteDraft.goals] };
     persist();
-    toast("Taste profile saved");
     renderDashboard();
   });
   return node;
@@ -1825,10 +1810,10 @@ function stepStats() {
     const age = +node.querySelector("#age").value;
     const weight = +node.querySelector("#weight").value;
     const height = +node.querySelector("#height").value;
-    if (!onbDraft.sex)          return toast("Please select your sex");
-    if (age < 14 || age > 100)  return toast("Age must be between 14 and 100");
-    if (weight < 30 || weight > 300) return toast("Weight must be between 30 and 300 kg");
-    if (height < 120 || height > 230) return toast("Height must be between 120 and 230 cm");
+    if (!onbDraft.sex)          return;
+    if (age < 14 || age > 100)  return;
+    if (weight < 30 || weight > 300) return;
+    if (height < 120 || height > 230) return;
     onbDraft.age = age;
     onbDraft.weight_kg = weight;
     onbDraft.height_cm = height;
@@ -1887,11 +1872,9 @@ async function finishOnboarding() {
     state.profile = profile;
     state.targets = targets;
     persist();
-    toast("Profile saved");
     if (!state.taste) renderTaste(0);
     else renderDashboard();
   } catch (e) {
-    toast(e.message);
   }
 }
 
@@ -2032,7 +2015,7 @@ function renderAIOnboarding() {
     `);
     submitOn("ag", "ag-sub", () => {
       const v = parseInt($("ag").value);
-      if (!v || v < 10 || v > 100) { toast("Please enter a valid age"); return; }
+      if (!v || v < 10 || v > 100) return;
       d.age = v; echo(`${v} years old`); clear(); s4b();
     });
     mic("ag");
@@ -2051,8 +2034,8 @@ function renderAIOnboarding() {
     `);
     const go = () => {
       const h = parseFloat($("ht").value), w = parseFloat($("wt").value);
-      if (!h || h < 120 || h > 230) { toast("Please enter a valid height"); return; }
-      if (!w || w < 30 || w > 300) { toast("Please enter a valid weight"); return; }
+      if (!h || h < 120 || h > 230) return;
+      if (!w || w < 30 || w > 300) return;
       d.height = h; d.weight = w; echo(`${h} cm · ${w} kg`); clear(); s4c();
     };
     $("hw-sub").addEventListener("click", go);
@@ -2175,7 +2158,7 @@ function renderAIOnboarding() {
     const go = (skip) => {
       if (skip) { clear(); s7diet(); return; }
       const kg = parseFloat($("gw").value), tl = $("gt").value.trim();
-      if (!kg || kg < 30 || kg > 300) { toast("Please enter a valid goal weight"); return; }
+      if (!kg || kg < 30 || kg > 300) return;
       d.goalWeight = kg; d.goalTimeline = tl;
       echo(`${kg} kg · ${tl || "no timeline"}`);
 
@@ -2487,7 +2470,7 @@ function renderDashboard() {
 
   $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
   $("hero-barcode").addEventListener("click", () => {
-    if (!isProUser()) { toast("Barcode scan is a Pro feature — coming soon."); return; }
+    if (!isProUser()) return;
     renderBarcodeScanner();
   });
   $("hero-fridge").addEventListener("click", () => renderFridge());
@@ -2703,20 +2686,17 @@ function renderBarcodeScanner() {
                     message: "Couldn't find this product in the database — nutritional values estimated from the photo.",
                   }), 800);
                 } catch (err) {
-                  toast(err.message);
                   renderDashboard();
                 }
               }, "image/jpeg", 0.92);
             } else {
               window._barcodeScanner.stop().catch(() => {});
               window._barcodeScanner = null;
-              toast("Product not found — please use photo scan");
               renderDashboard();
             }
           } else {
             window._barcodeScanner.stop().catch(() => {});
             window._barcodeScanner = null;
-            toast(e.message);
             renderDashboard();
           }
         }
@@ -2738,7 +2718,6 @@ async function handleFoodScan(file) {
     const data = await api("/api/scan/food", { method: "POST", body: fd });
     renderFoodReview(data);
   } catch (e) {
-    toast(e.message);
     renderDashboard();
   }
 }
@@ -2837,7 +2816,6 @@ function renderFoodReview(scan) {
       });
       renderFoodReview({ items: refined.items, confidence: refined.confidence });
     } catch (e) {
-      toast(e.message);
       btn.disabled = false;
       btn.textContent = "Adjust";
     }
@@ -2848,7 +2826,7 @@ function renderFoodReview(scan) {
 
   $("cancel").addEventListener("click", renderDashboard);
   $("save").addEventListener("click", () => {
-    if (!items.length) { toast("No components to save"); return; }
+    if (!items.length) return;
     const t = totals();
     const d = today();
     state.log[d] = state.log[d] || [];
@@ -2872,7 +2850,6 @@ function renderFoodReview(scan) {
       })),
     });
     persist();
-    toast("Meal logged");
     renderDashboard();
     checkButler(items.map(i => ({
       name: i.name, portion: i.portion,
@@ -2908,7 +2885,7 @@ function renderFridge() {
   `;
 
   $("scan-fridge").addEventListener("click", () => {
-    if (!isProUser()) { toast("Fridge scan is a Pro feature — coming soon."); return; }
+    if (!isProUser()) return;
     pickFile(handleFridgeScan);
   });
   $("add-manual").addEventListener("click", () => {
@@ -2985,9 +2962,7 @@ async function handleFridgeScan(file) {
     state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
     paintFridge();
-    toast(`${items.length} ingredient${items.length === 1 ? "" : "s"} detected`);
   } catch (e) {
-    toast(e.message);
     paintFridge();
   }
 }
@@ -3012,7 +2987,6 @@ async function makeRecipe() {
     renderRecipe(recipe);
   } catch (e) {
     slot.innerHTML = "";
-    toast(e.message);
   }
 }
 
@@ -3075,11 +3049,9 @@ function renderRecipe(r) {
     if (idx >= 0) {
       state.favorites.splice(idx, 1);
       $("recipe-save").textContent = "☆ Save";
-      toast("Removed from favorites");
     } else {
       state.favorites.unshift({ ...r, id: newId(), savedAt: Date.now() });
       $("recipe-save").textContent = "★ Saved";
-      toast("Recipe saved");
     }
     persist();
   });
@@ -3099,7 +3071,6 @@ function renderRecipe(r) {
     });
     state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
-    toast("Recipe logged — basket cleared");
     renderDashboard();
     checkButler([{ name: r.title, portion: "1 Portion",
       calories: r.calories_per_serving, protein_g: r.protein_g,
@@ -3361,7 +3332,6 @@ function renderModeSelect(backFn) {
   wrap.querySelectorAll("[data-arch-mode]").forEach(btn => {
     btn.addEventListener("click", () => {
       ARCHITECT.setMode(btn.dataset.archMode);
-      toast(`Mode: ${ARCHITECT.getModeLabel()}`);
       renderModeSelect(backFn);
     });
   });
@@ -3460,13 +3430,12 @@ function renderHealthScreen(backFn) {
     const hasAny = hc.diabetesType || hc.lactoseIntolerant || hc.glutenIntolerant || hc.hypertension || notes;
     state.healthContext = hasAny ? hc : null;
     persist();
-    toast("Health profile saved");
     (backFn || renderDashboard)();
   });
 
   const clearBtn = wrap.querySelector("#hs-clear");
   if (clearBtn) clearBtn.addEventListener("click", () => {
-    state.healthContext = null; persist(); toast("Health profile cleared");
+    state.healthContext = null; persist();
     (backFn || renderDashboard)();
   });
 
@@ -3592,19 +3561,18 @@ function renderCalorieGoalScreen(backFn) {
 
   wrap.querySelector("#cg-save").addEventListener("click", () => {
     const raw = inp.value.trim();
-    if (!raw) { state.customCalorieGoal = null; persist(); toast("Goal reset to calculated"); (backFn || renderDashboard)(); return; }
+    if (!raw) { state.customCalorieGoal = null; persist(); (backFn || renderDashboard)(); return; }
     const val = parseInt(raw, 10);
     if (isNaN(val) || val < 800 || val > 5000) { warn.style.display = "block"; return; }
     warn.style.display = "none";
     state.customCalorieGoal = val; persist();
-    toast(`Goal set: ${val} kcal`);
     (backFn || renderDashboard)();
   });
   inp.addEventListener("input", () => { warn.style.display = "none"; });
 
   const clearBtn = wrap.querySelector("#cg-clear");
   if (clearBtn) clearBtn.addEventListener("click", () => {
-    state.customCalorieGoal = null; persist(); toast("Goal reset to calculated");
+    state.customCalorieGoal = null; persist();
     (backFn || renderDashboard)();
   });
 
@@ -3682,7 +3650,6 @@ async function makeInspiredRecipe(backFn, backLabel) {
     });
     renderFavRecipe({ ...recipe, id: newId(), savedAt: null }, backFn, backLabel);
   } catch (e) {
-    toast(e.message);
     backFn();
   }
 }
@@ -3833,12 +3800,10 @@ function renderFavRecipe(r, backFn, backLabel) {
     if (idx >= 0) {
       state.favorites.splice(idx, 1);
       persist();
-      toast("Removed from favorites");
       backFn();
     } else {
       state.favorites.unshift({ ...r, savedAt: Date.now() });
       persist();
-      toast("Recipe saved");
       $("fav-recipe-toggle").textContent = "★ Remove";
     }
   });
@@ -3851,7 +3816,6 @@ function renderFavRecipe(r, backFn, backLabel) {
       calories: r.calories_per_serving, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
     });
     persist();
-    toast("Meal logged");
     renderDashboard();
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
