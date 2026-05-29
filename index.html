@@ -859,7 +859,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 
 /* Toast */
 .toast {
-  position: fixed; bottom: 24px; left: 50%;
+  position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px); left: 50%;
   transform: translateX(-50%) translateY(120%);
   background: var(--ink); color: var(--surface);
   padding: 14px 22px; font-size: 13px; letter-spacing: .04em;
@@ -935,7 +935,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 
 /* â”€â”€ Butler Welcome Hint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .butler-hint {
-  position: fixed; bottom: 24px; right: 24px; z-index: 500;
+  position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px); right: 24px; z-index: 500;
   width: min(292px, calc(100vw - 32px));
   background: var(--charcoal);
   border-top: 2px solid var(--gold-glow);
