@@ -1006,6 +1006,14 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .bottom-nav-item.active { color: #B89968; }
 .bottom-nav-item svg { width: 22px; height: 22px; display: block; pointer-events: none; }
+.bnav-label {
+  display: block;
+  background: transparent !important;
+  color: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
 
 /* â”€â”€ Disclaimer Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .disclaimer-overlay {
@@ -1253,24 +1261,24 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 </div>
 
 <nav id="bottom-nav" class="bottom-nav" style="display:none" aria-label="Primary navigation">
-  <button class="bottom-nav-item active" id="bnav-home" aria-label="Home">
+  <button class="bottom-nav-item active" id="bnav-home">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-5H9v5H4a1 1 0 0 1-1-1z"/>
     </svg>
-    Home
+    <span class="bnav-label">Home</span>
   </button>
-  <button class="bottom-nav-item" id="bnav-butler" aria-label="Butler">
+  <button class="bottom-nav-item" id="bnav-butler">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
-    Butler
+    <span class="bnav-label">Butler</span>
   </button>
-  <button class="bottom-nav-item" id="bnav-profile" aria-label="Profile">
+  <button class="bottom-nav-item" id="bnav-profile">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="8" r="3.5"/>
       <path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/>
     </svg>
-    Profile
+    <span class="bnav-label">Profile</span>
   </button>
 </nav>
 
