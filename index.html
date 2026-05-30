@@ -1307,6 +1307,10 @@ _sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT") {
     state = defaultState();
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    clearInterval(_proactiveInterval);
+    _proactiveInterval = null;
+    _locationRequested = false;
+    _weatherCache = null;
     renderAuth();
   }
   if (event === "PASSWORD_RECOVERY") {
@@ -1575,6 +1579,7 @@ function effectiveCalTarget() {
 
 // â"€â"€ Disclaimer â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function showDisclaimer() {
+  setChrome(false); // chrome must be hidden while disclaimer is shown
   if (document.getElementById("disclaimer-overlay")) return;
   const overlay = document.createElement("div");
   overlay.id = "disclaimer-overlay";
@@ -1609,47 +1614,6 @@ function render() {
 
 $("home-btn").addEventListener("click", render);
 $("settings-btn").addEventListener("click", showProfilePanel);
-
-// â"€â"€ Name-Schritt â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-function renderNameStep() {
-  const draft = { name: state.name || "" };
-  app.innerHTML = "";
-  const wrap = document.createElement("div");
-  wrap.className = "onb-step";
-  wrap.innerHTML = `
-    <div class="eyebrow">Welcome to Nouri</div>
-    <h1 class="onb-title" style="margin-top:8px;">What's your name?</h1>
-    <p class="onb-sub">Your first name — so Architect can speak to you personally.</p>
-    <div style="max-width:360px;margin:32px auto 0;">
-      <input id="name-input" type="text" placeholder="Enter your first name…"
-        maxlength="50" autocomplete="given-name"
-        value="${escapeHtml(draft.name)}"
-        style="width:100%;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;
-               border:0;border-bottom:2px solid var(--line);padding:10px 0;
-               background:transparent;color:var(--ink);outline:none;text-align:center;
-               transition:border-color .2s;">
-    </div>
-    <div class="onb-nav" style="justify-content:flex-end;margin-top:40px;">
-      <button class="btn gold" id="name-next" ${draft.name.trim() ? "" : "disabled"}>Continue →</button>
-    </div>
-  `;
-  const inp  = wrap.querySelector("#name-input");
-  const btn  = wrap.querySelector("#name-next");
-  const sync = () => {
-    draft.name = inp.value.trim();
-    btn.disabled = !draft.name;
-    inp.style.borderBottomColor = draft.name ? "var(--gold)" : "var(--line)";
-  };
-  inp.addEventListener("input", sync);
-  inp.addEventListener("keydown", e => { if (e.key === "Enter" && draft.name) btn.click(); });
-  btn.addEventListener("click", () => {
-    state.name = draft.name;
-    persist();
-    render();
-  });
-  app.appendChild(wrap);
-  setTimeout(() => inp.focus(), 50);
-}
 
 // â"€â"€ Mini-Onboarding (Geschmack) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const CUISINES = [
@@ -1765,167 +1729,6 @@ function renderTasteGoalStep() {
     renderDashboard();
   });
   return node;
-}
-
-// â"€â"€ Onboarding â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-const onbDraft = { goal: null, sex: null, age: 30, weight_kg: 75, height_cm: 178, activity: null };
-
-function renderOnboarding(step) {
-  app.innerHTML = "";
-  const wrap = document.createElement("div");
-  wrap.className = "onb-step";
-  wrap.innerHTML = `
-    <div class="onb-progress">
-      ${[0, 1, 2].map(i => `<span class="${i <= step ? "active" : ""}"></span>`).join("")}
-    </div>
-  `;
-  if (step === 0) wrap.appendChild(stepGoal());
-  if (step === 1) wrap.appendChild(stepStats());
-  if (step === 2) wrap.appendChild(stepActivity());
-  app.appendChild(wrap);
-}
-
-function stepGoal() {
-  const goals = [
-    ["lose",     "Cut",    "Calorie deficit, focus on protein."],
-    ["maintain", "Maintain", "Balanced, maintenance calories."],
-    ["gain",     "Build",  "Slight surplus, high protein."],
-  ];
-  const node = document.createElement("div");
-  node.innerHTML = `
-    <div class="eyebrow">Step 01 — Goal</div>
-    <h1 class="onb-title">What do you want to achieve?</h1>
-    <p class="onb-sub">We calibrate your daily targets based on your goal.</p>
-    <div class="option-grid">
-      ${goals.map(([k, t, d]) => `
-        <button class="option ${onbDraft.goal === k ? "selected" : ""}" data-goal="${k}">
-          <div>
-            <div class="option-title">${t}</div>
-            <div class="option-desc">${d}</div>
-          </div>
-          <div class="option-mark">✓</div>
-        </button>
-      `).join("")}
-    </div>
-    <div class="onb-nav">
-      <button class="btn" id="next-1" ${onbDraft.goal ? "" : "disabled"}>Continue</button>
-    </div>
-  `;
-  node.querySelectorAll(".option").forEach(o => o.addEventListener("click", () => {
-    onbDraft.goal = o.dataset.goal;
-    renderOnboarding(0);
-  }));
-  node.querySelector("#next-1").addEventListener("click", () => renderOnboarding(1));
-  return node;
-}
-
-function stepStats() {
-  const node = document.createElement("div");
-  node.innerHTML = `
-    <div class="eyebrow">Step 02 — Profile</div>
-    <h1 class="onb-title">About you</h1>
-    <p class="onb-sub">These values determine your base metabolic rate.</p>
-    <div style="max-width:420px;margin:0 auto;">
-      <div class="field">
-        <span class="field-label">Sex</span>
-        <div class="toggle-row">
-          <button data-sex="m" class="${onbDraft.sex === "m" ? "active" : ""}">Male</button>
-          <button data-sex="f" class="${onbDraft.sex === "f" ? "active" : ""}">Female</button>
-        </div>
-      </div>
-      <div class="field">
-        <label class="field-label" for="age">Age</label>
-        <input id="age" type="number" min="14" max="100" value="${onbDraft.age}">
-      </div>
-      <div class="field">
-        <label class="field-label" for="weight">Weight (kg)</label>
-        <input id="weight" type="number" min="30" max="300" step="0.1" value="${onbDraft.weight_kg}">
-      </div>
-      <div class="field">
-        <label class="field-label" for="height">Height (cm)</label>
-        <input id="height" type="number" min="120" max="230" value="${onbDraft.height_cm}">
-      </div>
-    </div>
-    <div class="onb-nav">
-      <button class="btn ghost" id="back-1">Back</button>
-      <button class="btn" id="next-2">Continue</button>
-    </div>
-  `;
-  node.querySelectorAll("[data-sex]").forEach(b => b.addEventListener("click", () => {
-    onbDraft.sex = b.dataset.sex;
-    renderOnboarding(1);
-  }));
-  node.querySelector("#back-1").addEventListener("click", () => renderOnboarding(0));
-  node.querySelector("#next-2").addEventListener("click", () => {
-    const age = +node.querySelector("#age").value;
-    const weight = +node.querySelector("#weight").value;
-    const height = +node.querySelector("#height").value;
-    if (!onbDraft.sex)          return;
-    if (age < 14 || age > 100)  return;
-    if (weight < 30 || weight > 300) return;
-    if (height < 120 || height > 230) return;
-    onbDraft.age = age;
-    onbDraft.weight_kg = weight;
-    onbDraft.height_cm = height;
-    renderOnboarding(2);
-  });
-  return node;
-}
-
-function stepActivity() {
-  const levels = [
-    ["sedentary",   "Sedentary",       "Desk job, minimal movement."],
-    ["light",       "Lightly Active",  "1–3× exercise per week."],
-    ["moderate",    "Moderately Active","3–5× exercise per week."],
-    ["active",      "Very Active",     "6–7× exercise per week."],
-    ["very_active", "Athlete",         "Intense daily training."],
-  ];
-  const node = document.createElement("div");
-  node.innerHTML = `
-    <div class="eyebrow">Step 03 — Activity</div>
-    <h1 class="onb-title">How active are you?</h1>
-    <p class="onb-sub">Estimate your typical weekly rhythm.</p>
-    <div class="option-grid">
-      ${levels.map(([k, t, d]) => `
-        <button class="option ${onbDraft.activity === k ? "selected" : ""}" data-activity="${k}">
-          <div>
-            <div class="option-title">${t}</div>
-            <div class="option-desc">${d}</div>
-          </div>
-          <div class="option-mark">✓</div>
-        </button>
-      `).join("")}
-    </div>
-    <div class="onb-nav">
-      <button class="btn ghost" id="back-2">Back</button>
-      <button class="btn gold" id="finish" ${onbDraft.activity ? "" : "disabled"}>Save Profile</button>
-    </div>
-  `;
-  node.querySelectorAll("[data-activity]").forEach(b => b.addEventListener("click", () => {
-    onbDraft.activity = b.dataset.activity;
-    renderOnboarding(2);
-  }));
-  node.querySelector("#back-2").addEventListener("click", () => renderOnboarding(1));
-  node.querySelector("#finish").addEventListener("click", finishOnboarding);
-  return node;
-}
-
-async function finishOnboarding() {
-  const profile = { ...onbDraft };
-  if (!profile.goal || !profile.sex || !profile.activity) return;
-  try {
-    const targets = await api("/api/profile/targets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
-    });
-    state.profile = profile;
-    state.targets = targets;
-    persist();
-    if (!state.taste) renderTaste(0);
-    else renderDashboard();
-  } catch (e) {
-  }
 }
 
 // â"€â"€ Dashboard â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -2424,6 +2227,7 @@ function renderAIOnboarding() {
   }
 }
 
+// Renders the SVG calorie ring (animated via CSS stroke-dashoffset)
 function ringSvg(progress) {
   const r = 108, c = 2 * Math.PI * r;
   const outerR = 118;
@@ -2439,6 +2243,7 @@ function ringSvg(progress) {
   `;
 }
 
+// Renders a single macro bar (protein/carbs/fat) with progress indicator
 function macroBlock(name, current, target) {
   const pct = target > 0 ? Math.min(current / target, 1) * 100 : 0;
   return `
@@ -2454,7 +2259,7 @@ function macroBlock(name, current, target) {
 
 function renderDashboard() {
   const t = todayTotals();
-  const tgt = state.targets;
+  const tgt = state.targets || { protein_g: 0, carbs_g: 0, fat_g: 0, calories: 0 };
   const calTarget = effectiveCalTarget();
   const entries = state.log[today()] || [];
 
@@ -2920,7 +2725,6 @@ function renderFridge() {
 
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">
       <button class="btn" id="scan-fridge">Scan Fridge</button>
-      <!-- PRO: Barcode-Scan via Open Food Facts — gate with isProUser() when ready -->
       <button class="btn ghost" id="add-manual">Add Ingredient</button>
       <button class="btn ghost" id="inspire-me">Inspiration</button>
     </div>
@@ -3043,14 +2847,8 @@ async function makeRecipe() {
 }
 
 function renderRecipe(r) {
-  const imgQuery = encodeURIComponent(r.title + ',food,gericht');
   $("recipe-slot").innerHTML = `
     <div class="recipe">
-      <img class="recipe-img"
-           src="https://source.unsplash.com/800x400/?${imgQuery}"
-           alt="${escapeHtml(r.title)}"
-           loading="lazy"
-           onerror="this.style.display='none'">
       <div class="recipe-head">
         <div class="eyebrow">Recipe</div>
         <h2>${escapeHtml(r.title)}</h2>
@@ -3124,7 +2922,7 @@ function renderRecipe(r) {
     state.fridge = [];           // Korb leert sich nach erfasstem Rezept
     persist();
     renderDashboard();
-    checkButler([{ name: r.title, portion: "1 Portion",
+    checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
       carbs_g: r.carbs_g, fat_g: r.fat_g }]);
   });
@@ -3748,6 +3546,8 @@ function showButlerMessage(text) {
 }
 
 async function proactiveCheck() {
+  // Only run when the dashboard is visible (section-hero exists in DOM)
+  if (!document.getElementById("section-hero")) return;
   if (!state.onboardingComplete || !state.targets) return;
 
   const d = today();
@@ -3888,11 +3688,8 @@ function renderFavorites() {
 
     <div class="fav-grid">
       ${state.favorites.map(fav => {
-        const q = encodeURIComponent(fav.title + ',food,gericht');
         return `
           <div class="fav-card" data-fav-id="${escapeHtml(fav.id)}">
-            <img class="fav-card-img" src="https://source.unsplash.com/400x280/?${q}"
-                 alt="${escapeHtml(fav.title)}" loading="lazy" onerror="this.style.display='none'">
             <div class="fav-card-body">
               <div class="fav-card-title">${escapeHtml(fav.title)}</div>
               <div class="fav-card-meta">${fav.duration_min} min · ${fav.calories_per_serving} kcal · ${fav.protein_g}g P</div>
@@ -3930,13 +3727,10 @@ function renderFavorites() {
 
 function renderFavRecipe(r, backFn, backLabel) {
   backFn    = backFn    || renderFavorites;
-  backLabel = backLabel || "← Meine Rezepte";
-  const imgQuery = encodeURIComponent(r.title + ',food,gericht');
+  backLabel = backLabel || "← My Recipes";
   const isSaved = state.favorites.some(f => f.id === r.id);
   app.innerHTML = `
     <div class="recipe" style="margin-top:0;">
-      <img class="recipe-img" src="https://source.unsplash.com/800x400/?${imgQuery}"
-           alt="${escapeHtml(r.title)}" loading="lazy" onerror="this.style.display='none'">
       <div class="recipe-head">
         <div class="eyebrow">Recipe</div>
         <h2>${escapeHtml(r.title)}</h2>
@@ -4019,8 +3813,8 @@ function renderChat() {
         <div class="chat-bubble bot">${escapeHtml(welcome)}</div>
       </div>
       <div class="chat-input-row">
-        <textarea id="chat-input" class="chat-input" placeholder="Nachricht eingeben…" rows="1"></textarea>
-        <button class="btn gold" id="chat-send" style="padding:0 20px;flex-shrink:0;align-self:flex-end;">Senden</button>
+        <textarea id="chat-input" class="chat-input" placeholder="Message…" rows="1"></textarea>
+        <button class="btn gold" id="chat-send" style="padding:0 20px;flex-shrink:0;align-self:flex-end;">Send</button>
       </div>
     </div>
 
@@ -4101,7 +3895,6 @@ function renderChat() {
 // â"€â"€ Auth Screen â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function renderAuth() {
   setChrome(false);
-  if ($("logout-btn")) $("logout-btn").style.display = "none";
   app.innerHTML = `
     <section class="hero-block">
       <div class="hero-eyebrow">Nouri</div>
@@ -4235,7 +4028,9 @@ function renderAuth() {
     clearState();
     $("auth-forgot-link").disabled = true;
     if ($("auth-dup-forgot")) $("auth-dup-forgot").disabled = true;
-    await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    try {
+      await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    } catch { /* network error — still show success to avoid email enumeration */ }
     showSuccess("We've sent a reset link to your email. Check your inbox.");
     $("auth-forgot-link").disabled = false;
     if ($("auth-dup-forgot")) $("auth-dup-forgot").disabled = false;
@@ -4260,7 +4055,6 @@ function renderAuth() {
 
 function renderPasswordReset() {
   setChrome(false);
-  if ($("logout-btn")) $("logout-btn").style.display = "none";
   app.innerHTML = `
     <section class="hero-block">
       <div class="hero-eyebrow">Nouri</div>
@@ -4330,11 +4124,13 @@ function renderPasswordReset() {
     okEl.textContent = "Password updated. You're now signed in.";
     okEl.style.opacity = "1";
     setTimeout(async () => {
-      const { data: { session } } = await _sb.auth.getSession();
-      _session = session;
-      _showLogout();
-      await loadFromCloud();
-      render();
+      try {
+        const { data: { session } } = await _sb.auth.getSession();
+        _session = session;
+        _showLogout();
+        await loadFromCloud();
+        render();
+      } catch { renderAuth(); }
     }, 1500);
   };
 
@@ -4354,7 +4150,7 @@ function renderPasswordReset() {
   eyeToggle("reset-pw2-toggle", "reset-pw2-eye", pw2);
 }
 
-function _showLogout() { /* logout moved to profile panel */ }
+function _showLogout() { /* no-op: logout is in profile panel */ }
 
 function smoothScrollTo(targetY, duration) {
   duration = duration || 700;
@@ -4410,18 +4206,23 @@ $("arch-dismiss").addEventListener("click", () => {
 initBottomNav();
 
 async function boot() {
-  const hash = window.location.hash;
-  if (hash && hash.includes("type=recovery")) {
-    await _sb.auth.getSession(); // lets Supabase exchange the recovery token
-    renderPasswordReset();
-    return;
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.includes("type=recovery")) {
+      await _sb.auth.getSession(); // lets Supabase exchange the recovery token
+      renderPasswordReset();
+      return;
+    }
+    const { data: { session } } = await _sb.auth.getSession();
+    _session = session;
+    if (!session) { renderAuth(); return; }
+    _showLogout();
+    await loadFromCloud();
+    render();
+  } catch {
+    // Network or Supabase error at boot — fall back to auth screen
+    renderAuth();
   }
-  const { data: { session } } = await _sb.auth.getSession();
-  _session = session;
-  if (!session) { renderAuth(); return; }
-  _showLogout();
-  await loadFromCloud();
-  render();
 }
 
 boot();
