@@ -860,7 +860,22 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .pill.high { color: var(--gold-deep); border-color: var(--gold); }
 .pill.low { color: var(--danger); border-color: var(--danger); opacity: .6; }
 
-/* Toast */
+/* Reconnect notice */
+#reconnect-notice {
+  position: fixed;
+  top: 70px;
+  left: 0; right: 0;
+  text-align: center;
+  font: 400 11px/1 'Inter', sans-serif;
+  letter-spacing: .08em;
+  color: var(--ink-mute);
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+#reconnect-notice.show { opacity: 1; }
+@media (max-width: 540px) { #reconnect-notice { top: 57px; } }
 
 /* Loader */
 .loader {
@@ -1325,6 +1340,7 @@ const defaultState = () => ({
   sleepQuality: null,
   goalDetails: null,
   onboardingTemp: null,
+  location: null,
 });
 
 let state = (() => {
@@ -1344,6 +1360,7 @@ let state = (() => {
     if (!s.hasOwnProperty("sleepQuality"))          s.sleepQuality           = null;
     if (!s.hasOwnProperty("goalDetails"))           s.goalDetails            = null;
     if (!s.hasOwnProperty("onboardingTemp"))        s.onboardingTemp         = null;
+    if (!s.hasOwnProperty("location"))              s.location               = null;
     return s;
   } catch { return defaultState(); }
 })();
@@ -1491,11 +1508,44 @@ function pickFile(handler) {
   fileInput.click();
 }
 
+let _reconnectEl = null;
+function _showReconnect() {
+  if (!_reconnectEl) {
+    _reconnectEl = document.createElement("div");
+    _reconnectEl.id = "reconnect-notice";
+    _reconnectEl.textContent = "Reconnecting…";
+    document.body.appendChild(_reconnectEl);
+  }
+  requestAnimationFrame(() => _reconnectEl.classList.add("show"));
+}
+function _hideReconnect() {
+  if (_reconnectEl) _reconnectEl.classList.remove("show");
+}
+
+async function apiFetch(url, options = {}, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) {
+        if (i > 0) _hideReconnect();
+        return res;
+      }
+      if (i === retries) { _hideReconnect(); return res; }
+      _showReconnect();
+      await new Promise(r => setTimeout(r, 3000));
+    } catch (err) {
+      if (i === retries) { _hideReconnect(); throw err; }
+      _showReconnect();
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
+
 async function api(path, opts = {}) {
   if (_session?.access_token) {
     opts.headers = { ...opts.headers, "Authorization": `Bearer ${_session.access_token}` };
   }
-  const res  = await fetch(path, opts);
+  const res  = await apiFetch(path, opts);
   if (res.status === 401) {
     _session = null;
     renderAuth();
