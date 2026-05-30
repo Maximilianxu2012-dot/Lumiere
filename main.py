@@ -23,6 +23,7 @@ if not API_KEY:
 SUPABASE_URL        = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "").strip()
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()  # legacy fallback
+OPENWEATHER_KEY     = os.getenv("OPENWEATHER_API_KEY", "").strip()
 
 MODEL = "gemini-2.5-flash"
 ROOT  = Path(__file__).parent
@@ -735,6 +736,28 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_curren
         return {"triggered": True, "type": trigger, "severity": _BUTLER_SEVERITY[trigger], "message": msg}
     except Exception:
         return {"triggered": False, "type": None, "message": None}
+
+
+@app.get("/api/weather")
+async def get_weather(lat: float, lon: float, _user: dict = Depends(get_current_user)) -> dict:
+    if not OPENWEATHER_KEY:
+        return {"temp": None}
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(
+                "https://api.openweathermap.org/data/2.5/weather",
+                params={"lat": lat, "lon": lon, "appid": OPENWEATHER_KEY, "units": "metric"},
+            )
+        if r.status_code != 200:
+            return {"temp": None}
+        d = r.json()
+        return {
+            "temp":      round(d["main"]["temp"], 1),
+            "condition": d["weather"][0]["main"],
+            "humidity":  d["main"]["humidity"],
+        }
+    except Exception:
+        return {"temp": None}
 
 
 if __name__ == "__main__":

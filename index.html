@@ -2570,6 +2570,7 @@ function renderDashboard() {
     });
   });
   setBottomTab("home");
+  startProactiveSystem();
 }
 
 // â"€â"€ The Ledger â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -3682,6 +3683,129 @@ async function checkButler(mealItems = null) {
       showArchitectBriefing(result);
     }
   } catch { /* lautlos */ }
+}
+
+// ── Proactive Interval System ──────────────────────────────────────────
+let _weatherCache      = null;
+let _locationRequested = false;
+let _proactiveInterval = null;
+
+async function initLocation() {
+  if (_locationRequested) return;
+  _locationRequested = true;
+
+  // If we have coords from a previous session, fetch weather right away
+  if (state.location) {
+    try {
+      _weatherCache = await api(`/api/weather?lat=${state.location.lat}&lon=${state.location.lon}`);
+    } catch { _weatherCache = { temp: null }; }
+  }
+
+  if (!navigator.geolocation) {
+    if (!_weatherCache) _weatherCache = { temp: null };
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      state.location = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      persist();
+      // Re-fetch only if no cache yet (previous session coords already fetched above)
+      if (!_weatherCache || _weatherCache.temp === null) {
+        try {
+          _weatherCache = await api(`/api/weather?lat=${state.location.lat}&lon=${state.location.lon}`);
+        } catch { _weatherCache = { temp: null }; }
+      }
+    },
+    () => { if (!_weatherCache) _weatherCache = { temp: null }; },
+    { maximumAge: 300000, timeout: 10000 }
+  );
+}
+
+function showButlerMessage(text) {
+  const existing = document.getElementById("butler-hint");
+  if (existing) {
+    existing.classList.remove("show");
+    existing.remove();
+  }
+  const hint = document.createElement("div");
+  hint.id        = "butler-hint";
+  hint.className = "butler-hint";
+  hint.innerHTML = `
+    <button class="butler-hint-close" id="hint-close" aria-label="Close">×</button>
+    <div class="butler-hint-eyebrow">${escapeHtml((state.butlerName || "Architect").toUpperCase())}</div>
+    <p class="butler-hint-text">${escapeHtml(text)}</p>
+  `;
+  document.body.appendChild(hint);
+  requestAnimationFrame(() => requestAnimationFrame(() => hint.classList.add("show")));
+  const dismiss = () => {
+    hint.classList.remove("show");
+    hint.addEventListener("transitionend", () => hint.remove(), { once: true });
+    clearTimeout(_t);
+  };
+  const _t = setTimeout(dismiss, 9000);
+  hint.querySelector("#hint-close").addEventListener("click", dismiss);
+}
+
+async function proactiveCheck() {
+  if (!state.onboardingComplete || !state.targets) return;
+
+  const d = today();
+  if (!state.butlerFired || state.butlerFired.date !== d) {
+    state.butlerFired = { date: d, types: [] };
+  }
+  const fired   = state.butlerFired.types;
+  const t       = todayTotals();
+  const hour    = new Date().getHours();
+  const calGoal = effectiveCalTarget();
+  const pctCal  = t.calories / calGoal;
+  const w       = _weatherCache;
+
+  let msg  = null;
+  let type = null;
+
+  if (w && w.temp !== null) {
+    if (w.temp > 27 && !fired.includes("hydration")) {
+      msg  = `It's ${Math.round(w.temp)}°C outside. Stay hydrated — aim for at least 2.5L today.`;
+      type = "hydration";
+    } else if (w.temp < 5 && !fired.includes("cold_weather")) {
+      msg  = "Cold day ahead. Your body burns more calories keeping warm.";
+      type = "cold_weather";
+    }
+  }
+
+  if (!msg && hour >= 15 && pctCal < 0.4 && !fired.includes("calories_behind")) {
+    msg  = "You've barely eaten today. Don't skip meals — it works against your goals.";
+    type = "calories_behind";
+  }
+
+  if (!msg && hour >= 18 && (t.protein / (state.targets.protein_g || 1)) < 0.5 && !fired.includes("protein_low_interval")) {
+    msg  = "Protein is low for today. Add a high-protein snack before the day ends.";
+    type = "protein_low_interval";
+  }
+
+  if (!msg && pctCal > 0.9 && !fired.includes("calorie_limit")) {
+    msg  = "You're close to your daily limit. Be mindful of your next meal.";
+    type = "calorie_limit";
+  }
+
+  if (!msg && hour >= 21 && pctCal < 0.7 && !fired.includes("end_of_day")) {
+    msg  = "You've significantly under-eaten today. Consider a light meal before bed.";
+    type = "end_of_day";
+  }
+
+  if (msg && type) {
+    state.butlerFired.types.push(type);
+    persist();
+    showButlerMessage(msg);
+  }
+}
+
+function startProactiveSystem() {
+  if (_proactiveInterval) return;
+  initLocation();
+  setTimeout(() => proactiveCheck(), 30 * 1000);
+  _proactiveInterval = setInterval(() => proactiveCheck(), 15 * 60 * 1000);
 }
 
 // â"€â"€ Inspiration â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
