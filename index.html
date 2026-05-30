@@ -117,6 +117,37 @@ html, body {
   opacity: 0;
   animation: fadeIn .5s ease forwards;
 }
+
+/* Sofia — subtle ring pulse when there's lots of room left (under 50%) */
+@keyframes ringPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.02); }
+}
+.ring-wrap.pulse { animation: ringPulse 3s ease-in-out infinite; }
+
+/* Sofia — scan result reveal: spring up from below, 300ms ease-out */
+@keyframes scanReveal {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.scan-reveal { animation: scanReveal .3s cubic-bezier(.16,.84,.44,1) both; }
+
+/* Sofia — tactile bottom-nav pop on the newly active tab */
+@keyframes navPop {
+  0%   { transform: scale(1); }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.bottom-nav-item svg { transition: transform .15s ease; }
+.bottom-nav-item.nav-pop svg { animation: navPop .15s ease-out; }
+
+/* Sofia — Butler chat words fade in one by one */
+.chat-word { opacity: 0; animation: fadeIn .28s ease forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .ring-wrap.pulse { animation: none; }
+  .chat-word { opacity: 1; animation: none; }
+}
+
 .serif { font-family: 'Cormorant Garamond', serif; font-weight: 400; }
 .eyebrow {
   font-size: var(--fs-micro); letter-spacing: .22em; text-transform: uppercase;
@@ -267,6 +298,20 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   width: 28px; height: 1px; background: var(--line);
 }
 .onb-progress span.active { background: var(--gold); }
+
+/* Lucas — thin gold progress bar pinned at the top of onboarding */
+.onb-progressbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px;
+  background: rgba(184,153,104,.15); z-index: 50;
+}
+.onb-progressbar-fill {
+  height: 100%; width: 0; background: var(--gold);
+  transition: width .4s cubic-bezier(.2,.7,.2,1);
+}
+/* selected state for multi-field onboarding choices (sex, activity, sleep) */
+.onb-choice.selected {
+  background: var(--ink); color: var(--surface); border-color: var(--ink);
+}
 
 .option-grid { display: grid; gap: 10px; max-width: 480px; margin: 0 auto; }
 .option {
@@ -1345,6 +1390,8 @@ const defaultState = () => ({
   onboardingTemp: null,
   location: null,
   logsMigratedV2: false,  // set true once food log is moved to per-day daily_logs rows
+  logStreak: 0,           // consecutive days with at least one logged meal
+  lastLogDate: null,      // YYYY-MM-DD of the most recent logging day
 });
 
 let state = (() => {
@@ -1376,6 +1423,33 @@ const _dirtyDays = new Set();
 function markLogDirty(date) {
   if (date) _dirtyDays.add(date);
   persist();
+}
+
+// Alex — quiet streak: consecutive days with at least one logged meal.
+function recordMealForStreak() {
+  const d = today();
+  if (state.lastLogDate === d) return;          // already counted today
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yKey = y.toLocaleDateString('en-CA');
+  state.logStreak = (state.lastLogDate === yKey) ? (state.logStreak || 0) + 1 : 1;
+  state.lastLogDate = d;
+}
+
+// Alex — short, specific affirmation after a genuinely good meal. Silence when
+// the meal is problematic (pushes over budget). Never generic, never > 6 words.
+function maybeAffirm(mealTotals) {
+  if (!state.targets || !mealTotals) return;
+  const t = todayTotals();
+  const target = effectiveCalTarget();
+  if (t.calories > target) return;              // over budget → silence
+  let pool = null;
+  if (mealTotals.protein_g > 25) {
+    pool = ["Good protein hit.", "Solid protein.", "Strong protein choice."];
+  } else if (t.calories <= target) {
+    pool = ["That keeps you on track.", "Right on target.", "Clean choice."];
+  }
+  if (!pool) return;
+  showButlerMessage(pool[Math.floor(Math.random() * pool.length)]);
 }
 
 let _syncTimer = null;
@@ -1428,6 +1502,8 @@ function _applyStateMigrations() {
   if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
   if (!state.hasOwnProperty("onboardingTemp"))     state.onboardingTemp     = null;
   if (!state.hasOwnProperty("location"))           state.location           = null;
+  if (!state.hasOwnProperty("logStreak"))          state.logStreak          = 0;
+  if (!state.hasOwnProperty("lastLogDate"))        state.lastLogDate        = null;
   if (!state.log)                                  state.log                = {};
 }
 
@@ -1788,6 +1864,7 @@ function renderAIOnboarding() {
   const MIC = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
 
   app.innerHTML = `
+    <div class="onb-progressbar"><div class="onb-progressbar-fill" id="onb-bar"></div></div>
     <div class="onb-ai-wrap" id="onb-ai-wrap">
       <div class="onb-ai-messages" id="onb-msgs"></div>
       <div class="onb-ai-actions" id="onb-acts"></div>
@@ -1797,6 +1874,13 @@ function renderAIOnboarding() {
   const msgs = $("onb-msgs");
   const acts = $("onb-acts");
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // Lucas — visible progress on every step. 9 meaningful steps to the dashboard.
+  const TOTAL_STEPS = 9;
+  function setStep(n) {
+    const bar = $("onb-bar");
+    if (bar) bar.style.width = `${Math.round((n / TOTAL_STEPS) * 100)}%`;
+  }
 
   const d = {
     butlerName: null, userTitle: null, name: null,
@@ -1850,7 +1934,9 @@ function renderAIOnboarding() {
 
   // ── Step 1: Butler name ──────────────────────────────────────────
   async function s1() {
-    await say(`Hey. I'm your personal nutrition guide. You can call me <em>Architect</em> — or give me a different name if you prefer.`);
+    setStep(1);
+    await say(`Before we start — I need to know a few things about you. This takes under two minutes.`);
+    await say(`First, what would you like to call me? <em>Architect</em>, or a name of your own.`, 350);
     show(`
       <div class="onb-choices" style="margin-bottom:14px;">
         <button class="onb-choice" data-n="Architect">Architect</button>
@@ -1875,6 +1961,7 @@ function renderAIOnboarding() {
 
   // ── Step 2: User title ───────────────────────────────────────────
   async function s2() {
+    setStep(2);
     await say(`And how should I address you?`);
     show(`
       <div class="onb-choices">
@@ -1891,6 +1978,7 @@ function renderAIOnboarding() {
 
   // ── Step 3: Name ─────────────────────────────────────────────────
   async function s3() {
+    setStep(3);
     await say(`What's your name?`);
     show(`
       <div class="onb-input-row">
@@ -1901,138 +1989,103 @@ function renderAIOnboarding() {
     `);
     submitOn("nm", "nm-sub", () => {
       const v = $("nm").value.trim(); if (!v) return;
-      d.name = v; echo(v); clear(); s4a();
+      d.name = v; echo(v); clear(); s4();
     });
     mic("nm");
     setTimeout(() => { const i = $("nm"); if (i) i.focus(); }, 120);
   }
 
-  // ── Step 4a: Age ─────────────────────────────────────────────────
-  async function s4a() {
-    await say(`How old are you?`);
+  // ── Step 4: Vitals — age, height, weight, sex on ONE screen ──────
+  async function s4() {
+    setStep(4);
+    await say(`A few quick numbers — all on one screen.`);
     show(`
-      <div class="onb-input-row">
-        <input id="ag" class="onb-text-input" type="number" min="10" max="100" placeholder="Age" style="max-width:110px;">
-        <button id="ag-mic" class="onb-mic">${MIC}</button>
-        <button id="ag-sub" class="onb-submit">→</button>
-      </div>
-    `);
-    submitOn("ag", "ag-sub", () => {
-      const v = parseInt($("ag").value);
-      if (!v || v < 10 || v > 100) return;
-      d.age = v; echo(`${v} years old`); clear(); s4b();
-    });
-    mic("ag");
-    setTimeout(() => { const i = $("ag"); if (i) i.focus(); }, 120);
-  }
-
-  // ── Step 4b: Height + Weight ──────────────────────────────────────
-  async function s4b() {
-    await say(`Your height and weight?`);
-    show(`
-      <div class="onb-input-row">
+      <div class="onb-input-row" style="flex-wrap:wrap;gap:10px;">
+        <input id="ag" class="onb-text-input" type="number" min="10" max="100" placeholder="Age" style="max-width:84px;">
         <input id="ht" class="onb-text-input" type="number" min="120" max="230" placeholder="Height (cm)">
         <input id="wt" class="onb-text-input" type="number" min="30" max="300" step="0.1" placeholder="Weight (kg)">
-        <button id="hw-sub" class="onb-submit">→</button>
       </div>
-    `);
-    const go = () => {
-      const h = parseFloat($("ht").value), w = parseFloat($("wt").value);
-      if (!h || h < 120 || h > 230) return;
-      if (!w || w < 30 || w > 300) return;
-      d.height = h; d.weight = w; echo(`${h} cm · ${w} kg`); clear(); s4c();
-    };
-    $("hw-sub").addEventListener("click", go);
-    $("ht").addEventListener("keydown", e => { if (e.key === "Enter") $("wt").focus(); });
-    $("wt").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
-    setTimeout(() => { const i = $("ht"); if (i) i.focus(); }, 120);
-  }
-
-  // ── Step 4c: Sex ─────────────────────────────────────────────────
-  async function s4c() {
-    await say(`Male or female?`);
-    show(`
-      <div class="onb-choices">
+      <div class="onb-choices" style="margin-top:14px;">
         <button class="onb-choice" data-s="m">Male</button>
         <button class="onb-choice" data-s="f">Female</button>
       </div>
+      <div class="onb-input-row" style="margin-top:14px;justify-content:flex-end;">
+        <button id="vit-sub" class="onb-submit">→</button>
+      </div>
     `);
     acts.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
-      d.sex = b.dataset.s; echo(b.textContent); clear(); s5();
+      d.sex = b.dataset.s;
+      acts.querySelectorAll("[data-s]").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
     }));
+    const go = () => {
+      const a = parseInt($("ag").value), h = parseFloat($("ht").value), w = parseFloat($("wt").value);
+      if (!a || a < 10 || a > 100)   { $("ag").focus(); return; }
+      if (!h || h < 120 || h > 230)  { $("ht").focus(); return; }
+      if (!w || w < 30 || w > 300)   { $("wt").focus(); return; }
+      if (!d.sex) return;
+      d.age = a; d.height = h; d.weight = w;
+      echo(`${a} yrs · ${h} cm · ${w} kg · ${d.sex === "m" ? "Male" : "Female"}`);
+      clear(); s5();
+    };
+    $("vit-sub").addEventListener("click", go);
+    $("ag").addEventListener("keydown", e => { if (e.key === "Enter") $("ht").focus(); });
+    $("ht").addEventListener("keydown", e => { if (e.key === "Enter") $("wt").focus(); });
+    setTimeout(() => { const i = $("ag"); if (i) i.focus(); }, 120);
   }
 
-  // ── Step 5: Activity ─────────────────────────────────────────────
+  // ── Step 5: Lifestyle — activity + sleep + optional note, ONE screen ──
   async function s5() {
-    await say(`How active are you on a typical week?`);
+    setStep(5);
+    await say(`How active are you, and how's your sleep?`);
+    const lbl = `font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-mute);margin:0 0 8px;`;
     show(`
-      <div class="onb-choices onb-choices-col">
+      <div style="${lbl}">Activity</div>
+      <div class="onb-choices onb-choices-col" id="act-group">
         <button class="onb-choice" data-a="sedentary">Mostly sitting</button>
         <button class="onb-choice" data-a="light">Light movement</button>
         <button class="onb-choice" data-a="moderate">Regular training</button>
         <button class="onb-choice" data-a="very_active">Intense training daily</button>
       </div>
-    `);
-    acts.querySelectorAll("[data-a]").forEach(b => b.addEventListener("click", () => {
-      d.activity = b.dataset.a; echo(b.textContent); clear(); s5notes();
-    }));
-  }
-
-  async function s5notes() {
-    await say(`Anything to add? Starting a sport soon, recovering from an injury — anything I should know.`, 350);
-    show(`
-      <div class="onb-input-row">
-        <input id="an" class="onb-text-input" placeholder="Optional…">
-        <button id="an-mic" class="onb-mic">${MIC}</button>
-        <button id="an-sub" class="onb-submit">→</button>
-      </div>
-      <button class="onb-skip" id="an-skip">Skip</button>
-    `);
-    const go = () => {
-      const v = $("an").value.trim(); d.activityNotes = v || null;
-      if (v) echo(v); clear(); s6();
-    };
-    submitOn("an", "an-sub", go);
-    $("an-skip").addEventListener("click", go);
-    mic("an");
-  }
-
-  // ── Step 6: Sleep ────────────────────────────────────────────────
-  async function s6() {
-    await say(`How's your sleep usually?`);
-    show(`
-      <div class="onb-choices onb-choices-col">
+      <div style="${lbl}margin-top:18px;">Sleep</div>
+      <div class="onb-choices onb-choices-col" id="sleep-group">
         <button class="onb-choice" data-sl="good">Solid 7–8h</button>
         <button class="onb-choice" data-sl="medium">Around 6h</button>
         <button class="onb-choice" data-sl="poor">Often under 6h</button>
       </div>
-    `);
-    acts.querySelectorAll("[data-sl]").forEach(b => b.addEventListener("click", () => {
-      d.sleep = b.dataset.sl; echo(b.textContent); clear(); s6notes();
-    }));
-  }
-
-  async function s6notes() {
-    await say(`Anything affecting your sleep I should know about?`, 350);
-    show(`
-      <div class="onb-input-row">
-        <input id="sn" class="onb-text-input" placeholder="Optional…">
-        <button id="sn-mic" class="onb-mic">${MIC}</button>
-        <button id="sn-sub" class="onb-submit">→</button>
+      <div class="onb-input-row" style="margin-top:18px;">
+        <input id="ln" class="onb-text-input" placeholder="Anything I should know? (injuries, training, sleep)">
+        <button id="ln-mic" class="onb-mic">${MIC}</button>
+        <button id="ls-sub" class="onb-submit">→</button>
       </div>
-      <button class="onb-skip" id="sn-skip">Skip</button>
+      <button class="onb-skip" id="ls-skip">Skip for now</button>
     `);
-    const go = () => {
-      const v = $("sn").value.trim(); d.sleepNotes = v || null;
-      if (v) echo(v); clear(); s7();
+    acts.querySelectorAll("[data-a]").forEach(b => b.addEventListener("click", () => {
+      d.activity = b.dataset.a;
+      acts.querySelectorAll("[data-a]").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+    }));
+    acts.querySelectorAll("[data-sl]").forEach(b => b.addEventListener("click", () => {
+      d.sleep = b.dataset.sl;
+      acts.querySelectorAll("[data-sl]").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+    }));
+    const go = (skipNote) => {
+      if (!d.activity || !d.sleep) return;   // both selectors required
+      const v = skipNote ? "" : $("ln").value.trim();
+      d.activityNotes = v || null;
+      const note = `${d.activity === "sedentary" ? "Mostly sitting" : d.activity === "light" ? "Light movement" : d.activity === "moderate" ? "Regular training" : "Intense daily"} · sleep ${d.sleep}`;
+      echo(v ? `${note} · ${v}` : note);
+      clear(); s7();
     };
-    submitOn("sn", "sn-sub", go);
-    $("sn-skip").addEventListener("click", go);
-    mic("sn");
+    submitOn("ln", "ls-sub", () => go(false));
+    $("ls-skip").addEventListener("click", () => go(true));
+    mic("ln");
   }
 
-  // ── Step 7: Goal ─────────────────────────────────────────────────
+  // ── Step 6: Goal ─────────────────────────────────────────────────
   async function s7() {
+    setStep(6);
     await say(`What are you here for?`);
     show(`
       <div class="onb-choices onb-choices-col">
@@ -2057,7 +2110,7 @@ function renderAIOnboarding() {
         <input id="gt" class="onb-text-input" placeholder="Timeline (e.g. 3 months)">
         <button id="gd-sub" class="onb-submit">→</button>
       </div>
-      <button class="onb-skip" id="gd-skip">Skip</button>
+      <button class="onb-skip" id="gd-skip">Skip for now</button>
     `);
     const go = (skip) => {
       if (skip) { clear(); s7diet(); return; }
@@ -2130,8 +2183,9 @@ function renderAIOnboarding() {
     }));
   }
 
-  // ── Step 7.5: Dietary preferences ───────────────────────────────
+  // ── Step 7: Dietary preferences (optional) ──────────────────────
   async function s7diet() {
+    setStep(7);
     await say(`Want to set up your dietary preferences now? It helps me give better recommendations.`, 400);
     show(`
       <div class="onb-choices">
@@ -2166,6 +2220,7 @@ function renderAIOnboarding() {
 
   // ── Step 8: Health notes ─────────────────────────────────────────
   async function s8() {
+    setStep(8);
     await say(`Anything else I should factor in? Allergies, health conditions, injuries — completely optional.`);
     show(`
       <div class="onb-input-row">
@@ -2173,7 +2228,7 @@ function renderAIOnboarding() {
         <button id="hn-mic" class="onb-mic">${MIC}</button>
         <button id="hn-sub" class="onb-submit">→</button>
       </div>
-      <button class="onb-skip" id="hn-skip">Skip</button>
+      <button class="onb-skip" id="hn-skip">Skip for now</button>
     `);
     const go = () => {
       const v = $("hn").value.trim(); d.healthNotes = v || null;
@@ -2186,6 +2241,7 @@ function renderAIOnboarding() {
 
   // ── Step 9: Plan offer ───────────────────────────────────────────
   async function s9() {
+    setStep(9);
     await say(`I can build you a personalized nutrition plan right now — or you can explore first and set it up later in settings.`);
     show(`
       <div class="onb-choices onb-choices-col">
@@ -2224,8 +2280,15 @@ function renderAIOnboarding() {
 
   // ── Step 10: Finish ──────────────────────────────────────────────
   async function finish() {
-    const name = d.name || "there";
-    await say(`You're all set, ${escapeHtml(name)}. Let's get to work.`, 400);
+    setStep(TOTAL_STEPS);
+    const name = escapeHtml(d.name || "there");
+    // Lucas — personalized closing line keyed to the primary goal.
+    const goalLines = {
+      lose:     `Let's get you there, ${name}. No noise, just results.`,
+      gain:     `Fuel the work, ${name}. We'll make every gram count.`,
+      maintain: `You're set, ${name}. Clean and consistent from here.`,
+    };
+    await say(goalLines[d.goal] || `You're all set, ${name}. Let's get to work.`, 400);
 
     state.name            = d.name || state.name;
     state.butlerName      = d.butlerName || "Architect";
@@ -2263,6 +2326,8 @@ function renderAIOnboarding() {
     if (wrap) { wrap.style.transition = "opacity .5s ease"; wrap.style.opacity = "0"; }
     await sleep(500);
     renderDashboard();
+    // Lucas — a single Butler bubble already waiting on the fresh dashboard.
+    setTimeout(() => showButlerMessage("All set. Scan your first meal when you're ready."), 600);
   }
 
   // Resume after allergies detour, or start fresh
@@ -2324,6 +2389,9 @@ function renderDashboard() {
   app.innerHTML = `
     <section class="hero-block" id="section-hero">
       <div style="font-size:var(--fs-meta);letter-spacing:.1em;color:var(--ink-mute);margin-bottom:var(--space-2);">${dateStr}</div>
+      ${state.logStreak > 0
+        ? `<div style="font-family:'Inter',sans-serif;font-size:12px;letter-spacing:.08em;color:var(--gold);margin-bottom:var(--space-2);">Day ${state.logStreak}</div>`
+        : ""}
       <h1 class="hero-display">${greeting}</h1>
       <p class="hero-sub">Scan a meal or your fridge — we take care of the rest.</p>
       <div class="hero-cta">
@@ -2339,7 +2407,7 @@ function renderDashboard() {
     </section>
 
     <section class="hero anim-up" id="section-ring" style="animation-delay:80ms;text-align:center;">
-      <div class="ring-wrap">
+      <div class="ring-wrap${progress < 0.5 ? " pulse" : ""}">
         ${ringSvg(progress)}
         <div class="ring-center">
           <div class="ring-num">${remaining}</div>
@@ -2489,7 +2557,7 @@ function renderLedger(entries, target) {
         balance -= e.calories;  // still tracked for the footer summary
         return ledgerRow(e);
       }).join("")
-    : `<div class="ledger-empty">No entries yet — the day is an empty page.</div>`;
+    : `<div class="ledger-empty">Nothing logged yet. Start with a scan.</div>`;
 
   const status = balance < 0
     ? { cls: "over", text: `${Math.abs(balance)} kcal over budget` }
@@ -2646,6 +2714,7 @@ function renderFoodReview(scan) {
   const isLow = scan.confidence === "low";
 
   app.innerHTML = `
+    <div class="scan-reveal">
     <div class="eyebrow">Scan Result</div>
     <div style="display:flex;align-items:center;gap:12px;margin:10px 0 24px;">
       <input id="meal-name" value="${escapeHtml(mealName)}"
@@ -2683,6 +2752,7 @@ function renderFoodReview(scan) {
       <button class="btn ghost" id="cancel">Discard</button>
       <button class="btn gold" id="save">Add to Journal</button>
     </div>
+    </div>
   `;
 
   $("meal-name").addEventListener("input", e => { mealName = e.target.value; });
@@ -2716,6 +2786,11 @@ function renderFoodReview(scan) {
             <label style="display:flex;align-items:center;gap:4px;">C ${macroField(idx, "carbs_g", item.carbs_g)}</label>
             <label style="display:flex;align-items:center;gap:4px;">F ${macroField(idx, "fat_g", item.fat_g)}</label>
           </div>
+          ${item.confidence === "low" && item.calories_range
+            ? `<div style="font-family:'Inter',sans-serif;font-size:11px;opacity:.5;margin-top:6px;">
+                 Low confidence — likely ${escapeHtml(item.calories_range)} kcal.
+               </div>`
+            : ""}
         </div>
         <div class="scan-item-right">
           <button class="scan-item-del" data-rm="${idx}" aria-label="Remove">×</button>
@@ -2789,8 +2864,10 @@ function renderFoodReview(scan) {
         fat_g: +i.fat_g || 0,
       })),
     });
+    recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
+    maybeAffirm({ protein_g: t.protein_g });
     checkButler(items.map(i => ({
       name: i.name, portion: i.portion,
       calories: +i.calories || 0, protein_g: +i.protein_g || 0,
@@ -3003,8 +3080,10 @@ function renderRecipe(r) {
       fat_g: r.fat_g,
     });
     state.fridge = [];           // basket clears after the recipe is logged
+    recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
+    maybeAffirm({ protein_g: r.protein_g });
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
       carbs_g: r.carbs_g, fat_g: r.fat_g }]);
@@ -3651,7 +3730,13 @@ async function proactiveCheck() {
   let msg  = null;
   let type = null;
 
-  if (w && w.temp !== null) {
+  // Alex — morning nudge: 6–10 AM, nothing logged yet, once per morning.
+  if (hour >= 6 && hour < 10 && t.calories === 0 && !fired.includes("morning_breakfast")) {
+    msg  = "Morning. Don't skip breakfast today.";
+    type = "morning_breakfast";
+  }
+
+  if (!msg && w && w.temp !== null) {
     if (w.temp > 27 && !fired.includes("hydration")) {
       msg  = `It's ${Math.round(w.temp)}°C outside. Stay hydrated — aim for at least 2.5L today.`;
       type = "hydration";
@@ -3872,8 +3957,10 @@ function renderFavRecipe(r, backFn, backLabel) {
       name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
     });
+    recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
+    maybeAffirm({ protein_g: r.protein_g });
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
       carbs_g: r.carbs_g, fat_g: r.fat_g }]);
@@ -3956,6 +4043,25 @@ async function maybeRememberFromMessage(text, anchorEl) {
   } catch { /* offline — kept in cache for this session */ }
 }
 
+// Reveal Butler text word-by-word (fade in, ~20ms apart) — feels alive, not
+// like a database returning a string. User messages stay instant.
+function revealWords(el, text, onTick) {
+  el.textContent = "";
+  const words = String(text).split(/(\s+)/);  // keep whitespace tokens
+  let i = 0;
+  (function step() {
+    if (i >= words.length) return;
+    const tok = words[i++];
+    if (/^\s+$/.test(tok)) { el.appendChild(document.createTextNode(tok)); return step(); }
+    const span = document.createElement("span");
+    span.className = "chat-word";
+    span.textContent = tok;
+    el.appendChild(span);
+    if (onTick) onTick();
+    setTimeout(step, 20);
+  })();
+}
+
 function renderChat() {
   setBottomTab("butler");
   loadMemories();
@@ -4034,12 +4140,13 @@ function renderChat() {
             calories_target: effectiveCalTarget(),
             protein_target:  state.targets?.protein_g ?? null,
             user_name:       state.name || null,
+            today_date:      today(),
             memories:        _memoryCache.slice(0, 12),
           },
         }),
       });
       const reply = data.reply || "—";
-      loadBubble.textContent = reply;
+      revealWords(loadBubble, reply, () => { msgs.scrollTop = msgs.scrollHeight; });
       history.push({ role: "assistant", content: reply });
     } catch (e) {
       loadBubble.textContent = `Error: ${e.message}`;
@@ -4149,6 +4256,7 @@ function renderAuth() {
     }
     _session = data.session;
     await loadFromCloud();
+    cleanupMemoryOnce();
     _showLogout();
     render();
   };
@@ -4346,7 +4454,15 @@ function setChrome(visible) {
 function setBottomTab(tab) {
   ["home","butler","profile"].forEach(id => {
     const btn = document.getElementById("bnav-" + id);
-    if (btn) btn.classList.toggle("active", id === tab);
+    if (!btn) return;
+    const becomingActive = id === tab && !btn.classList.contains("active");
+    btn.classList.toggle("active", id === tab);
+    if (becomingActive) {
+      btn.classList.remove("nav-pop");
+      void btn.offsetWidth;          // restart the animation
+      btn.classList.add("nav-pop");
+      btn.addEventListener("animationend", () => btn.classList.remove("nav-pop"), { once: true });
+    }
   });
 }
 
@@ -4373,6 +4489,17 @@ $("arch-dismiss").addEventListener("click", () => {
 
 initBottomNav();
 
+// Wake the Render dyno the instant the page loads — before the user can scan.
+// Invisible, fire-and-forget; cold start happens in the background.
+fetch("/api/ping").catch(() => {});
+
+let _memoryCleanedThisSession = false;
+async function cleanupMemoryOnce() {
+  if (_memoryCleanedThisSession || !_session) return;
+  _memoryCleanedThisSession = true;
+  try { await api("/api/memory/cleanup", { method: "POST" }); } catch {}
+}
+
 async function boot() {
   try {
     const hash = window.location.hash;
@@ -4386,6 +4513,7 @@ async function boot() {
     if (!session) { renderAuth(); return; }
     _showLogout();
     await loadFromCloud();
+    cleanupMemoryOnce();   // once-per-session prune of stale memories (fire-and-forget)
     render();
   } catch {
     // Network or Supabase error at boot — fall back to auth screen

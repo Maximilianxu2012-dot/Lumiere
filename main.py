@@ -1,5 +1,8 @@
 import json
 import os
+import threading
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,14 +96,48 @@ def _sb_headers(token: str) -> dict:
     }
 
 
+# ── Rate limiting (Priya) ───────────────────────────────────────────
+# Per-user sliding window, in-memory. Single Render instance → adequate.
+# (Multi-worker/horizontal scaling would need a shared store like Redis.)
+_RATE_LIMIT  = 30      # requests
+_RATE_WINDOW = 60.0    # seconds
+_rate_buckets: dict[str, deque] = defaultdict(deque)
+_rate_lock = threading.Lock()
+
+
+def _check_rate(key: str) -> None:
+    now = time.monotonic()
+    with _rate_lock:
+        dq = _rate_buckets[key]
+        while dq and dq[0] <= now - _RATE_WINDOW:
+            dq.popleft()
+        if len(dq) >= _RATE_LIMIT:
+            raise HTTPException(status_code=429, detail="Slow down — try again in a moment.")
+        dq.append(now)
+
+
+def rate_limited(bucket: str):
+    """Dependency that authenticates the user AND enforces a per-user rate limit."""
+    def dep(user: dict = Depends(get_current_user)) -> dict:
+        _check_rate(f"{bucket}:{user['id']}")
+        return user
+    return dep
+
+
 # ── Schemas ─────────────────────────────────────────────────────────
 class FoodItem(BaseModel):
     name: str
     portion: str = Field(description="e.g. '150 g', '1 piece', '1 cup'")
+    # Canonical point estimates — always filled, used for tracking/summing.
     calories: int
     protein_g: float
     carbs_g: float
     fat_g: float
+    # Per-item confidence in the macro estimate.
+    confidence: Literal["low", "medium", "high"] = "medium"
+    # When confidence is "low", a human-readable calorie range like "320–480".
+    # Empty string when confidence is medium/high.
+    calories_range: str = ""
 
 
 class FoodScan(BaseModel):
@@ -206,6 +243,7 @@ class ChatContext(BaseModel):
     calories_target: int | None = None
     protein_target: int | None = None
     user_name: str | None = None
+    today_date: str | None = None  # user's local date, YYYY-MM-DD
     memories: list[str] = []  # short notes the Butler should remember about the user
 
 
@@ -314,7 +352,7 @@ def compute_targets(p: Profile) -> Targets:
 
 
 # ── Gemini wrapper ─────────────────────────────────────────────────
-async def generate_structured(parts: list, schema: type[BaseModel]) -> BaseModel:
+async def generate_structured(parts: list, schema: type[BaseModel], temperature: float = 0.4) -> BaseModel:
     try:
         response = client.models.generate_content(
             model=MODEL,
@@ -322,7 +360,7 @@ async def generate_structured(parts: list, schema: type[BaseModel]) -> BaseModel
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=schema,
-                temperature=0.4,
+                temperature=temperature,
             ),
         )
     except Exception as exc:
@@ -343,6 +381,13 @@ def image_part(image: UploadFile, data: bytes) -> types.Part:
 
 
 # ── Routes ─────────────────────────────────────────────────────────
+@app.get("/api/ping")
+async def ping() -> dict:
+    """Unauthenticated wake-up endpoint — frontend hits it on load to warm the
+    Render dyno before the user tries to scan. Intentionally requires no auth."""
+    return {"status": "ok"}
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(ROOT / "index.html", media_type="text/html; charset=utf-8")
@@ -426,6 +471,25 @@ async def list_memory(
     return {"memories": rows}
 
 
+@app.post("/api/memory/cleanup")
+async def cleanup_memory(
+    _user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    """Delete durable memories (no expires_at) older than 90 days. Called once
+    per session on login. RLS guarantees only the caller's own rows are touched."""
+    from datetime import timedelta
+    token  = (authorization or "").removeprefix("Bearer ").strip()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    async with httpx.AsyncClient() as c:
+        await c.delete(
+            f"{SUPABASE_URL}/rest/v1/butler_memory",
+            headers=_sb_headers(token),
+            params={"expires_at": "is.null", "created_at": f"lt.{cutoff}"},
+        )
+    return {"ok": True}
+
+
 @app.post("/api/memory")
 async def save_memory(
     body: MemoryInput,
@@ -503,28 +567,54 @@ async def save_day_log(
     return {"ok": True}
 
 
+# ── Food scan prompt (Maya / DeepMind) ──────────────────────────────
+# Tuned for portion accuracy and zero hallucinated qualifiers.
+#
+# Internal test cases the prompt is designed to pass (verify manually when editing):
+#   1. Bowl of red liquid with visible lentils → "Red lentil soup", NOT a juice/drink
+#      (container = bowl → dish, never a beverage; red color alone proves nothing).
+#   2. Clear glass of red liquid → "Cherry juice" (container = glass → beverage).
+#   3. Chicken breast filling half a 26 cm plate → ~150–200 g, ~250–330 kcal, high protein,
+#      confidence high; portion stated as grams via plate-fraction reasoning.
+#   4. Blurry/partially-hidden mixed plate → confidence "low" AND calories_range like
+#      "450–700"; still returns single best-estimate numbers for tracking.
+#   5. Unidentifiable dish → name "Unknown dish", confidence "low", conservative numbers.
+SCAN_PROMPT = (
+    "You are a nutrition expert analyzing a photo of a meal. "
+    "Identify each component separately.\n\n"
+    "CONTAINER DETERMINES TYPE — use shape, never color:\n"
+    "- A bowl or deep plate = a soup or dish, NEVER a drink.\n"
+    "- A glass, cup, or mug = a beverage.\n"
+    "- Red/colored liquid in a bowl is soup; the same color in a glass is juice. "
+    "Color alone never decides flavor or type. Use shape, texture, and context.\n\n"
+    "PORTION SIZE — estimate by visual reference, not guesswork:\n"
+    "- A standard dinner plate is 26 cm across; judge each food as a fraction of it.\n"
+    "- A fist ≈ 150–200 ml volume; a cupped hand ≈ 100 g of grains/pasta.\n"
+    "- A palm (no fingers) ≈ 85 g of cooked meat or fish; a thumb ≈ 30 g of cheese or fat.\n"
+    "- Typical restaurant meat portion 150–200 g; pasta 200–250 g.\n"
+    "State the portion in grams or a clear unit (e.g. '180 g', '1 cup', '2 pieces'). "
+    "Be conservative — prefer 10% under rather than over.\n\n"
+    "CONFIDENCE PER ITEM:\n"
+    "- Set each item's 'confidence' to high/medium/low for ITS macro estimate.\n"
+    "- 'high' only when the food and portion are both clearly identifiable.\n"
+    "- When an item's confidence is 'low', ALSO fill 'calories_range' with a realistic "
+    "range string like '320-480' (low-high). For medium/high, leave 'calories_range' empty.\n"
+    "- Always return single best-estimate numbers for calories and all macros, even when "
+    "confidence is low — the app needs a number to track.\n"
+    "Also set the overall scan 'confidence' to the lowest item confidence.\n\n"
+    "FOOD NAMES: English, maximum 3 words, concrete and direct. "
+    "FORBIDDEN anywhere in output: 'probably', 'likely', 'possibly', 'maybe', 'perhaps', "
+    "'flavor', 'wahrscheinlich', 'vermutlich', 'vielleicht'. "
+    "Good examples: 'Beet soup', 'Red lentil soup', 'Grilled chicken', 'Cherry juice'. "
+    "If a dish is genuinely unidentifiable, name it exactly 'Unknown dish'."
+)
+
+
 @app.post("/api/scan/food", response_model=FoodScan)
-async def scan_food(image: UploadFile = File(...), _user: dict = Depends(get_current_user)) -> FoodScan:
+async def scan_food(image: UploadFile = File(...), _user: dict = Depends(rate_limited("scan"))) -> FoodScan:
     data = await image.read()
-    prompt = (
-        "Du bist Ernährungsexperte. Analysiere dieses Foto eines Gerichts. "
-        "Identifiziere jede Komponente einzeln. "
-        "BEHÄLTERTYP bestimmt die Kategorie: Schüssel oder tiefer Teller = Suppe oder Gericht — KEIN Getränk. "
-        "Glas oder Becher = Getränk. Rote Farbe allein bedeutet NICHT Cherry- oder Beerengeschmack. "
-        "Nutze Form, Textur und Kontext — nie nur Farbe. "
-        "LEBENSMITTELNAMEN: maximal 3 Wörter, auf Englisch, konkret und direkt. "
-        "VERBOTEN in Namen und Beschreibungen: 'wahrscheinlich', 'vermutlich', 'möglicherweise', "
-        "'vielleicht', 'probably', 'likely', 'possibly', 'maybe', 'flavor', 'perhaps'. "
-        "Richtige Beispiele: 'Beet soup', 'Red lentil soup', 'Tomato soup', 'Cherry juice'. "
-        "Wenn das Gericht wirklich nicht identifizierbar ist: Name = 'Unknown dish'. "
-        "Schätze Portionsgrößen präzise anhand dieser Referenzen: "
-        "Standard-Essteller = 26 cm Durchmesser; eine Faust ≈ 150–200 ml Volumen; "
-        "eine Handfläche ≈ 85 g Fleisch/Fisch; ein Daumen ≈ 30 g Käse oder Fett; "
-        "typische Restaurantportion Fleisch 150–200 g, Pasta 200–250 g. "
-        "Sei konservativ — lieber 10 % weniger als zu viel. "
-        "Setze 'confidence' auf 'high' nur wenn alles klar erkennbar ist."
-    )
-    return await generate_structured([prompt, image_part(image, data)], FoodScan)
+    # Temperature 0.2 → maximum precision / minimal creative drift for estimates.
+    return await generate_structured([SCAN_PROMPT, image_part(image, data)], FoodScan, temperature=0.2)
 
 
 class BarcodeRequest(BaseModel):
@@ -532,7 +622,7 @@ class BarcodeRequest(BaseModel):
 
 
 @app.post("/api/scan/barcode", response_model=FoodScan)
-async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(get_current_user)) -> FoodScan:
+async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(rate_limited("scan"))) -> FoodScan:
     barcode = req.barcode.strip()
     url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
     async with httpx.AsyncClient(timeout=10) as c:
@@ -567,7 +657,7 @@ async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(get_current_us
 
 
 @app.post("/api/scan/fridge", response_model=FridgeScan)
-async def scan_fridge(image: UploadFile = File(...), _user: dict = Depends(get_current_user)) -> FridgeScan:
+async def scan_fridge(image: UploadFile = File(...), _user: dict = Depends(rate_limited("scan"))) -> FridgeScan:
     data = await image.read()
     prompt = (
         "Erkenne nur die Lebensmittel und Zutaten, die im Bild EINDEUTIG sichtbar sind. "
@@ -606,7 +696,7 @@ _GOAL_LABELS: dict[str, str] = {
 
 
 @app.post("/api/scan/refine", response_model=FoodScan)
-async def refine_scan(req: RefineRequest, _user: dict = Depends(get_current_user)) -> FoodScan:
+async def refine_scan(req: RefineRequest, _user: dict = Depends(rate_limited("scan"))) -> FoodScan:
     if not req.description.strip():
         raise HTTPException(400, "No description provided")
     orig = ", ".join(f"{i.name} ({i.portion}, {i.calories} kcal)" for i in req.original_items) or "nothing detected"
@@ -678,7 +768,7 @@ async def generate_recipe(req: RecipeRequest, _user: dict = Depends(get_current_
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dict:
+async def chat(req: ChatRequest, _user: dict = Depends(rate_limited("butler"))) -> dict:
     mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
     system = BUTLER_PROMPTS[mode]
 
@@ -687,6 +777,22 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
 
     if req.context:
         c = req.context
+
+        # ── MEMORY FIRST ── the Butler always has this context. It must never
+        # claim it lacks access to the user's data.
+        if c.memories:
+            notes = "; ".join(m.strip() for m in c.memories if m.strip())
+            if notes:
+                system += (
+                    f"\n\n[MEMORY — what you know about this user] {notes}. "
+                    "Use it naturally where relevant; do not list it back verbatim."
+                )
+        system += (
+            "\n\nYou ALWAYS have the user's current data and memory below. "
+            "NEVER say you don't have access to their data, history, or numbers — you do."
+        )
+
+        # Identity + addressing
         if c.user_name:
             if is_first:
                 system += (
@@ -698,20 +804,18 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
                     f"\n\nUser's name: {c.user_name}. "
                     "Conversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
                 )
+
+        # Today's date + day status (injected every request)
+        if c.today_date:
+            system += f"\n\nToday's date: {c.today_date}."
         parts = [f"{c.calories_today:.0f} kcal consumed"]
         if c.calories_target:
             remaining = c.calories_target - c.calories_today
             parts.append(f"target {c.calories_target} kcal ({remaining:.0f} remaining)")
         if c.protein_target:
             parts.append(f"protein {c.protein_today:.0f}/{c.protein_target}g")
+        parts.append(f"carbs {c.carbs_today:.0f}g, fat {c.fat_today:.0f}g")
         system += f"\n\nCurrent day status: {', '.join(parts)}."
-        if c.memories:
-            notes = "; ".join(m.strip() for m in c.memories if m.strip())
-            if notes:
-                system += (
-                    f"\n\nUser context you should remember: {notes}. "
-                    "Use it naturally where relevant. Do not list it back verbatim."
-                )
     elif not is_first:
         system += "\n\nConversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
 
@@ -790,7 +894,7 @@ def build_butler_message(trigger: str, mode: str, name: str | None, vals: dict) 
 
 
 @app.post("/api/butler/check")
-async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_current_user)) -> dict:
+async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(rate_limited("butler"))) -> dict:
     fired = set(req.fired_today)
     cal, ptgt, ctgt = req.calories_today, req.protein_target, req.carbs_target
     target = req.calories_target
