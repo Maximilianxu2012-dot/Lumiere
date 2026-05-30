@@ -22,3 +22,6 @@ Thumbs.db
 
 # Claude / lokale Tools
 .claude/
+
+# Lokale Backups
+*.backup

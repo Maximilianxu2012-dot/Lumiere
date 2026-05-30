@@ -1,6 +1,7 @@
 import json
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -205,6 +206,7 @@ class ChatContext(BaseModel):
     calories_target: int | None = None
     protein_target: int | None = None
     user_name: str | None = None
+    memories: list[str] = []  # short notes the Butler should remember about the user
 
 
 class ChatRequest(BaseModel):
@@ -227,6 +229,7 @@ class ButlerCheckRequest(BaseModel):
     fired_today: list[str] = []
     health_context: HealthContextInput | None = None
     last_meal: list[MealItemForCheck] = []
+    memories: list[str] = []
 
 
 BUTLER_PROMPTS: dict[str, str] = {
@@ -323,14 +326,14 @@ async def generate_structured(parts: list, schema: type[BaseModel]) -> BaseModel
             ),
         )
     except Exception as exc:
-        # Volltext der Modellabfrage durchreichen, damit Frontend was Sinnvolles zeigt
-        raise HTTPException(status_code=502, detail=f"Gemini-Aufruf fehlgeschlagen: {exc}") from exc
+        # Pass the model error through so the frontend can show something useful
+        raise HTTPException(status_code=502, detail=f"AI request failed: {exc}") from exc
 
     parsed = response.parsed
     if parsed is None:
-        # Rohtext mitgeben, falls vorhanden — hilft beim Debuggen
+        # Include raw text if present — helps with debugging
         raw = (response.text or "").strip()[:300]
-        detail = "Modellantwort ungültig" + (f" — '{raw}'" if raw else "")
+        detail = "Invalid AI response" + (f" — '{raw}'" if raw else "")
         raise HTTPException(status_code=502, detail=detail)
     return parsed
 
@@ -390,6 +393,113 @@ async def save_state(
             headers={**_sb_headers(token), "Prefer": "resolution=merge-duplicates"},
             json={"user_id": user["id"], "state": state_data},
         )
+    return {"ok": True}
+
+
+# ── Butler memory ───────────────────────────────────────────────────
+class MemoryInput(BaseModel):
+    memory_text: str
+    category: Literal["goal", "event", "preference", "health", "reminder"] = "event"
+    expires_at: str | None = None  # ISO timestamp, optional
+
+
+@app.get("/api/memory")
+async def list_memory(
+    _user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    """Return all non-expired memories for the current user, newest first."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    async with httpx.AsyncClient() as c:
+        r = await c.get(
+            f"{SUPABASE_URL}/rest/v1/butler_memory",
+            headers=_sb_headers(token),
+            params={
+                "select": "id,memory_text,category,created_at,expires_at",
+                "or": f"(expires_at.is.null,expires_at.gt.{now_iso})",
+                "order": "created_at.desc",
+                "limit": "50",
+            },
+        )
+    rows = r.json() if r.status_code == 200 else []
+    return {"memories": rows}
+
+
+@app.post("/api/memory")
+async def save_memory(
+    body: MemoryInput,
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    text = body.memory_text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty memory")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    payload = {"user_id": user["id"], "memory_text": text[:500], "category": body.category}
+    if body.expires_at:
+        payload["expires_at"] = body.expires_at
+    async with httpx.AsyncClient() as c:
+        r = await c.post(
+            f"{SUPABASE_URL}/rest/v1/butler_memory",
+            headers=_sb_headers(token),
+            json=payload,
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Could not save memory")
+    return {"ok": True}
+
+
+# ── Daily food logs (per-day rows, multi-device safe) ───────────────
+class DayLogInput(BaseModel):
+    date: str  # local calendar date, YYYY-MM-DD
+    log_data: list = []
+
+
+@app.get("/api/logs/recent")
+async def load_recent_logs(
+    _user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    """Return the user's last 7 days of food logs — not the entire history."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        r = await c.get(
+            f"{SUPABASE_URL}/rest/v1/daily_logs",
+            headers=_sb_headers(token),
+            params={
+                "select": "date,log_data,updated_at",
+                "order": "date.desc",
+                "limit": "7",
+            },
+        )
+    rows = r.json() if r.status_code == 200 else []
+    return {"days": {row["date"]: row["log_data"] for row in rows}}
+
+
+@app.post("/api/logs/day")
+async def save_day_log(
+    body: DayLogInput,
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(None),
+) -> dict:
+    """Upsert a single day's log. updated_at is refreshed → most recent write wins."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        r = await c.post(
+            f"{SUPABASE_URL}/rest/v1/daily_logs",
+            headers={**_sb_headers(token), "Prefer": "resolution=merge-duplicates"},
+            json={
+                "user_id": user["id"],
+                "date": body.date,
+                "log_data": body.log_data,
+                # explicit timestamp — column default only fires on INSERT, not on
+                # the UPDATE half of an upsert, so we refresh it ourselves every write
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Could not save day log")
     return {"ok": True}
 
 
@@ -595,6 +705,13 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
         if c.protein_target:
             parts.append(f"protein {c.protein_today:.0f}/{c.protein_target}g")
         system += f"\n\nCurrent day status: {', '.join(parts)}."
+        if c.memories:
+            notes = "; ".join(m.strip() for m in c.memories if m.strip())
+            if notes:
+                system += (
+                    f"\n\nUser context you should remember: {notes}. "
+                    "Use it naturally where relevant. Do not list it back verbatim."
+                )
     elif not is_first:
         system += "\n\nConversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
 
@@ -616,10 +733,10 @@ async def chat(req: ChatRequest, _user: dict = Depends(get_current_user)) -> dic
             ),
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Chat-Fehler: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"Chat error: {exc}") from exc
 
     if not response.text:
-        raise HTTPException(status_code=502, detail="Keine Chat-Antwort erhalten")
+        raise HTTPException(status_code=502, detail="No chat response received")
 
     return {"reply": response.text}
 
@@ -638,6 +755,38 @@ _TRIGGER_DESC: dict[str, str] = {
     "protein_low":    "Protein gap: only {prot:.0f} of {ptgt}g protein consumed, but {cpct:.0f}% of calories used.",
     "carbs_routing":  "Carb alert: {carb:.0f} of {ctgt}g carbs consumed before 2 PM.",
 }
+
+# Deterministic, mode-flavoured English messages. These cover macro triggers that
+# fire on every meal / interval — no LLM call needed, which keeps per-user cost
+# flat regardless of how engaged they are. {name} is "" when no name is known.
+_BUTLER_MESSAGES: dict[str, dict[str, str]] = {
+    "calories_over": {
+        "ELITE_BUTLER":      "{name}You're {over:.0f} kcal over your {target} kcal target. Keep any remaining intake to lean protein and vegetables — the balance is still recoverable.",
+        "PERFORMANCE_COACH": "{name}+{over:.0f} kcal over target. That costs results. Next meal: lean protein only, no sugar.",
+        "STRATEGIC_BUDDY":   "{name}You're {over:.0f} kcal past your goal — no drama. Keep tonight light: salad and protein and you're fine.",
+    },
+    "calories_90": {
+        "ELITE_BUTLER":      "{name}90% of your budget is used — {rem:.0f} kcal remain. A high-protein, lower-carb meal is the precise close to the day.",
+        "PERFORMANCE_COACH": "{name}90% gone, {rem:.0f} kcal left. Spend it on protein and vegetables — nothing empty.",
+        "STRATEGIC_BUDDY":   "{name}You're at 90% — {rem:.0f} kcal to play with. Something light and protein-heavy tonight keeps you on track.",
+    },
+    "protein_low": {
+        "ELITE_BUTLER":      "{name}Protein is at {prot:.0f}g of {ptgt}g while {cpct:.0f}% of calories are spent. Prioritise a protein-dense option next.",
+        "PERFORMANCE_COACH": "{name}Only {prot:.0f}g protein and {cpct:.0f}% of calories already gone. Fix it — protein-first on the next meal.",
+        "STRATEGIC_BUDDY":   "{name}Protein's lagging — {prot:.0f}g of {ptgt}g. Worth making the next thing protein-forward.",
+    },
+    "carbs_routing": {
+        "ELITE_BUTLER":      "{name}{carb:.0f}g of {ctgt}g carbs are used before 2 PM. I'd route the evening high-protein and low-carb to keep the day balanced.",
+        "PERFORMANCE_COACH": "{name}Carbs at {carb:.0f}g already and it's not even afternoon. Tonight: protein only.",
+        "STRATEGIC_BUDDY":   "{name}{carb:.0f}g carbs in before 2 PM — easy fix, just lean protein tonight.",
+    },
+}
+
+
+def build_butler_message(trigger: str, mode: str, name: str | None, vals: dict) -> str:
+    mode = mode if mode in _BUTLER_MESSAGES.get(trigger, {}) else "ELITE_BUTLER"
+    name_prefix = f"{name}, " if name else ""
+    return _BUTLER_MESSAGES[trigger][mode].format(name=name_prefix, **vals)
 
 
 @app.post("/api/butler/check")
@@ -677,8 +826,14 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_curren
                 f"{m.name} ({m.portion}, {m.calories} kcal, {m.carbs_g:.0f}g carbs, {m.fat_g:.0f}g fat)"
                 for m in req.last_meal
             )
+            memory_note = ""
+            if req.memories:
+                notes = "; ".join(m.strip() for m in req.memories if m.strip())
+                if notes:
+                    memory_note = f"User context to remember: {notes}.\n\n"
             health_prompt = (
                 f"Health profile: {', '.join(conditions)}.\n\n"
+                f"{memory_note}"
                 f"Meal just logged: {meal_desc}.\n\n"
                 "If any food in this meal is potentially problematic for ONE of the listed health conditions, "
                 "write a single informative note in 1–2 sentences. Be specific — name the food and the concern. "
@@ -706,36 +861,18 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(get_curren
 
     rem  = max(target - cal, 0)
     over = max(cal - target, 0)
-    desc = _TRIGGER_DESC[trigger].format(
-        cal=cal, target=target, over=over, rem=rem,
-        prot=req.protein_today, ptgt=ptgt,
-        cpct=cal / target * 100 if target else 0,
-        carb=req.carbs_today, ctgt=ctgt,
-    )
-    mode = req.mode if req.mode in BUTLER_PROMPTS else "ELITE_BUTLER"
-    name_note = (
-        f"User's name: {req.user_name}. Address them by first name."
-        if req.user_name else "No personal address."
-    )
-    prompt = (
-        f"{BUTLER_PROMPTS[mode]}\n\n"
-        f"{name_note}\n\n"
-        f"Situation: {desc}\n\n"
-        "Write a precise message (max. 2 sentences). "
-        "State concrete numbers. No filler phrases. Give a specific recommendation."
-    )
-    try:
-        r = client.models.generate_content(
-            model=MODEL,
-            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-            config=types.GenerateContentConfig(temperature=0.35),
-        )
-        msg = (r.text or "").strip()
-        if not msg:
-            return {"triggered": False, "type": None, "message": None}
-        return {"triggered": True, "type": trigger, "severity": _BUTLER_SEVERITY[trigger], "message": msg}
-    except Exception:
-        return {"triggered": False, "type": None, "message": None}
+    vals = {
+        "cal": cal, "target": target, "over": over, "rem": rem,
+        "prot": req.protein_today, "ptgt": ptgt,
+        "cpct": cal / target * 100 if target else 0,
+        "carb": req.carbs_today, "ctgt": ctgt,
+    }
+    # Macro triggers are deterministic — build the message locally instead of
+    # paying for a Gemini call to rephrase numbers we already have. Gemini is
+    # reserved for user-initiated chat, food-scan analysis, and the dynamic
+    # health-context check above.
+    msg = build_butler_message(trigger, req.mode, req.user_name, vals)
+    return {"triggered": True, "type": trigger, "severity": _BUTLER_SEVERITY[trigger], "message": msg}
 
 
 @app.get("/api/weather")

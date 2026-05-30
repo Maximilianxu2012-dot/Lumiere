@@ -456,7 +456,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .log-del:hover { color: var(--danger); }
 
-/* Aufklappbare Mahlzeit */
+/* Expandable meal */
 .log-meal { border-bottom: 1px solid var(--line); }
 .log-meal:last-child { border-bottom: none; }
 .log-meal > summary {
@@ -1320,7 +1320,10 @@ _sb.auth.onAuthStateChange((event, session) => {
 
 // â"€â"€ State â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const STORAGE_KEY = "nouri_v1";
-const today = () => new Date().toISOString().slice(0, 10);
+// Local calendar date (YYYY-MM-DD) — NOT UTC. A US user logging dinner at
+// 8 PM Pacific must land on today, not tomorrow's UTC bucket.
+// en-CA locale renders as YYYY-MM-DD in local time.
+const today = () => new Date().toLocaleDateString('en-CA');
 const newId = () => Math.random().toString(36).slice(2, 10);
 
 const defaultState = () => ({
@@ -1345,6 +1348,7 @@ const defaultState = () => ({
   goalDetails: null,
   onboardingTemp: null,
   location: null,
+  logsMigratedV2: false,  // set true once food log is moved to per-day daily_logs rows
 });
 
 let state = (() => {
@@ -1369,6 +1373,15 @@ let state = (() => {
   } catch { return defaultState(); }
 })();
 
+// Days whose food log changed since the last successful cloud sync.
+// Each is upserted as its own daily_logs row → two devices editing different
+// days never clobber each other, and same-day edits resolve by updated_at.
+const _dirtyDays = new Set();
+function markLogDirty(date) {
+  if (date) _dirtyDays.add(date);
+  persist();
+}
+
 let _syncTimer = null;
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
@@ -1380,13 +1393,46 @@ const persist = () => {
 
 async function _syncToCloud() {
   if (!_session) return;
+  // 1. Profile / settings / onboarding — everything EXCEPT the food log.
+  //    The log no longer lives in the giant blob; it lives in daily_logs.
+  const { log, ...stateNoLog } = state;
   try {
     await api("/api/user/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state),
+      body: JSON.stringify(stateNoLog),
     });
-  } catch { /* lautlos — localStorage bleibt als Fallback */ }
+  } catch { /* silent — localStorage remains the fallback */ }
+
+  // 2. Each changed day saves as its own row. Failed days stay dirty for retry.
+  const days = [..._dirtyDays];
+  _dirtyDays.clear();
+  for (const date of days) {
+    try {
+      await api("/api/logs/day", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, log_data: state.log[date] || [] }),
+      });
+    } catch { _dirtyDays.add(date); }
+  }
+}
+
+function _applyStateMigrations() {
+  if (!state.restrictions)                         state.restrictions       = { allergies: [], noGos: [] };
+  if (!state.hasOwnProperty("lastBriefingDate"))   state.lastBriefingDate   = null;
+  if (!state.hasOwnProperty("name"))               state.name               = null;
+  if (!state.hasOwnProperty("disclaimerAccepted")) state.disclaimerAccepted = false;
+  if (!state.hasOwnProperty("healthContext"))      state.healthContext      = null;
+  if (!state.hasOwnProperty("customCalorieGoal"))  state.customCalorieGoal  = null;
+  if (!state.hasOwnProperty("onboardingComplete")) state.onboardingComplete = !!(state.profile && state.name);
+  if (!state.hasOwnProperty("butlerName"))         state.butlerName         = "Architect";
+  if (!state.hasOwnProperty("userTitle"))          state.userTitle          = "first_name";
+  if (!state.hasOwnProperty("sleepQuality"))       state.sleepQuality       = null;
+  if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
+  if (!state.hasOwnProperty("onboardingTemp"))     state.onboardingTemp     = null;
+  if (!state.hasOwnProperty("location"))           state.location           = null;
+  if (!state.log)                                  state.log                = {};
 }
 
 async function loadFromCloud() {
@@ -1394,21 +1440,29 @@ async function loadFromCloud() {
     const cloud = await api("/api/user/state");
     if (cloud && Object.keys(cloud).length > 0) {
       state = { ...defaultState(), ...cloud };
-      // Migrationen für neue Felder
-      if (!state.restrictions)                       state.restrictions     = { allergies: [], noGos: [] };
-      if (!state.hasOwnProperty("lastBriefingDate")) state.lastBriefingDate = null;
-      if (!state.hasOwnProperty("name"))             state.name             = null;
-      if (!state.hasOwnProperty("disclaimerAccepted")) state.disclaimerAccepted = false;
-      if (!state.hasOwnProperty("healthContext"))      state.healthContext      = null;
-      if (!state.hasOwnProperty("customCalorieGoal"))  state.customCalorieGoal  = null;
-      if (!state.hasOwnProperty("onboardingComplete")) state.onboardingComplete = !!(state.profile && state.name);
-      if (!state.hasOwnProperty("butlerName"))         state.butlerName         = "Architect";
-      if (!state.hasOwnProperty("userTitle"))          state.userTitle          = "first_name";
-      if (!state.hasOwnProperty("sleepQuality"))       state.sleepQuality       = null;
-      if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
-      if (!state.hasOwnProperty("onboardingTemp"))     state.onboardingTemp     = null;
     }
-  } catch { /* kein Cloud-State â†’ defaultState bleibt */ }
+    _applyStateMigrations();
+
+    // One-time migration: existing users have their entire log history inside
+    // the legacy user_state blob. Move every day into its own daily_logs row so
+    // nothing is lost when we stop writing the log into user_state.
+    if (!state.logsMigratedV2 && Object.keys(state.log).length > 0) {
+      Object.keys(state.log).forEach(date => _dirtyDays.add(date));
+      state.logsMigratedV2 = true;
+      persist(); // schedules the upsert of all legacy days
+    } else {
+      state.logsMigratedV2 = true;
+    }
+
+    // Authoritative source for recent days: the per-day rows (with conflict
+    // resolution). Overlay them on top of whatever the blob/localStorage had.
+    try {
+      const recent = await api("/api/logs/recent");
+      if (recent && recent.days) {
+        Object.assign(state.log, recent.days);
+      }
+    } catch { /* offline — keep local log */ }
+  } catch { /* no cloud state → defaultState remains */ }
 }
 
 // â"€â"€ DOM helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -1556,7 +1610,7 @@ async function api(path, opts = {}) {
     throw new Error("Session expired — please sign in again.");
   }
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.detail || `Fehler ${res.status}`);
+  if (!res.ok) throw new Error(body.detail || `Error ${res.status}`);
   return body;
 }
 
@@ -2355,7 +2409,7 @@ function renderDashboard() {
     deleteEntry(b.dataset.id);
   }));
 
-  // Aufklappbare Mahlzeit-Zeilen (zeigen Komponenten)
+  // Expandable meal rows (show components)
   document.querySelectorAll('.ledger-row[data-expandable="true"]').forEach(row => {
     const toggle = () => {
       const expanded = row.getAttribute("aria-expanded") === "true";
@@ -2475,7 +2529,7 @@ function renderLedger(entries, target) {
 function deleteEntry(id) {
   const d = today();
   state.log[d] = (state.log[d] || []).filter(e => e.id !== id);
-  persist();
+  markLogDirty(d);
   renderDashboard();
 }
 
@@ -2584,7 +2638,7 @@ function renderFoodReview(scan) {
   // Default-Name: kalorienreichste Komponente — meist das Hauptgericht
   const defaultName = items.length
     ? items.reduce((a, b) => (b.calories > a.calories ? b : a)).name
-    : "Mahlzeit";
+    : "Meal";
   let mealName = defaultName;
 
   const totals = () => items.reduce((s, i) => ({
@@ -2624,9 +2678,12 @@ function renderFoodReview(scan) {
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:baseline;
-                padding:20px 0;border-top:1px solid var(--line);margin-top:16px;">
+                padding:20px 0 6px;border-top:1px solid var(--line);margin-top:16px;">
       <span class="eyebrow">Total</span>
       <span style="font-family:'Cormorant Garamond',serif;font-size:26px;" id="total">${totals().calories} kcal</span>
+    </div>
+    <div style="font-family:'Inter',sans-serif;font-size:11px;opacity:.5;margin:0 0 18px;">
+      Estimates may vary — adjust portions if needed.
     </div>
     <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn ghost" id="cancel">Discard</button>
@@ -2637,24 +2694,56 @@ function renderFoodReview(scan) {
   $("meal-name").addEventListener("input", e => { mealName = e.target.value; });
 
   const listEl = $("scan-list");
+  // Tap-to-edit: each macro number is an inline input the user can correct.
+  const macroFieldStyle =
+    "width:54px;border:0;border-bottom:1px solid var(--line);background:transparent;" +
+    "color:var(--ink);font-family:'Inter',sans-serif;font-size:13px;text-align:right;" +
+    "padding:2px 0;outline:none;-moz-appearance:textfield;";
+  const macroField = (idx, field, val) =>
+    `<input type="number" inputmode="decimal" min="0" step="0.1"
+       data-idx="${idx}" data-field="${field}" value="${val}"
+       style="${macroFieldStyle}" aria-label="${field}">`;
+
+  function refreshTotals() {
+    const t = totals();
+    $("total").textContent = `${Math.round(t.calories)} kcal`;
+  }
+
   function paint() {
     listEl.innerHTML = items.map((item, idx) => `
-      <div class="scan-item">
+      <div class="scan-item" style="align-items:flex-start;">
         <div class="scan-item-info">
           <div class="scan-item-name">${escapeHtml(item.name)}</div>
           <div class="scan-item-portion">${escapeHtml(item.portion)}</div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;
+                      font-family:'Inter',sans-serif;font-size:11px;color:var(--ink-mute);">
+            <label style="display:flex;align-items:center;gap:4px;">${macroField(idx, "calories", item.calories)} kcal</label>
+            <label style="display:flex;align-items:center;gap:4px;">P ${macroField(idx, "protein_g", item.protein_g)}</label>
+            <label style="display:flex;align-items:center;gap:4px;">C ${macroField(idx, "carbs_g", item.carbs_g)}</label>
+            <label style="display:flex;align-items:center;gap:4px;">F ${macroField(idx, "fat_g", item.fat_g)}</label>
+          </div>
         </div>
         <div class="scan-item-right">
-          <span class="scan-item-kcal">${item.calories} kcal</span>
-          <button class="scan-item-del" data-rm="${idx}" aria-label="Entfernen">×</button>
+          <button class="scan-item-del" data-rm="${idx}" aria-label="Remove">×</button>
         </div>
       </div>
     `).join("");
+
     listEl.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => {
       items.splice(+b.dataset.rm, 1);
       paint();
-      $("total").textContent = `${totals().calories} kcal`;
+      refreshTotals();
     }));
+
+    listEl.querySelectorAll("input[data-field]").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const idx = +inp.dataset.idx;
+        const field = inp.dataset.field;
+        const v = parseFloat(inp.value);
+        items[idx][field] = isNaN(v) ? 0 : Math.max(v, 0);
+        refreshTotals();
+      });
+    });
   }
   paint();
 
@@ -2706,7 +2795,7 @@ function renderFoodReview(scan) {
         fat_g: +i.fat_g || 0,
       })),
     });
-    persist();
+    markLogDirty(d);
     renderDashboard();
     checkButler(items.map(i => ({
       name: i.name, portion: i.portion,
@@ -2790,7 +2879,7 @@ function paintFridge() {
     list.innerHTML = `
       <div class="tags">
         ${state.fridge.map((ing, i) => `
-          <span class="tag">${escapeHtml(ing)}<span class="x" data-rm="${i}" aria-label="Entfernen">×</span></span>
+          <span class="tag">${escapeHtml(ing)}<span class="x" data-rm="${i}" aria-label="Remove">×</span></span>
         `).join("")}
       </div>
     `;
@@ -2813,7 +2902,7 @@ async function handleFridgeScan(file) {
     const fd = new FormData();
     fd.append("image", file);
     const data = await api("/api/scan/fridge", { method: "POST", body: fd });
-    // Menge + Name zusammenführen, damit das Modell beim Rezept Mengen respektiert
+    // Merge quantity + name so the model respects amounts in the recipe
     const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
     state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
@@ -2919,8 +3008,8 @@ function renderRecipe(r) {
       carbs_g: r.carbs_g,
       fat_g: r.fat_g,
     });
-    state.fridge = [];           // Korb leert sich nach erfasstem Rezept
-    persist();
+    state.fridge = [];           // basket clears after the recipe is logged
+    markLogDirty(d);
     renderDashboard();
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
@@ -3009,7 +3098,7 @@ async function resetApp() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-  } catch { /* lautlos — local reset happens regardless */ }
+  } catch { /* silent — local reset happens regardless */ }
 
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
   state = defaultState();
@@ -3443,6 +3532,9 @@ async function checkButler(mealItems = null) {
   const t    = todayTotals();
   const hour = new Date().getHours();
 
+  // Ensure memories are available to inject before the Butler responds.
+  if (_memoryCache.length === 0) { try { await loadMemories(); } catch {} }
+
   // PRO: Health-Context Layer — gate with isProUser() when Stripe is live
   const hc = isProUser() ? state.healthContext : null;
   const healthContext = hc ? {
@@ -3471,6 +3563,7 @@ async function checkButler(mealItems = null) {
         fired_today: state.butlerFired.types,
         health_context: healthContext,
         last_meal:   mealItems || [],
+        memories:    _memoryCache.slice(0, 12),
       }),
     });
     if (result.triggered && result.message) {
@@ -3635,7 +3728,8 @@ async function fetchDailyBriefing() {
   state.lastBriefingDate = today();
   persist();
 
-  const yDate  = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const _y = new Date(); _y.setDate(_y.getDate() - 1);
+  const yDate  = _y.toLocaleDateString('en-CA');
   const yCals  = (state.log[yDate] || []).reduce((s, e) => s + (e.calories || 0), 0);
   const calTgt = effectiveCalTarget();
   const msg    = yCals > 0
@@ -3658,7 +3752,7 @@ async function fetchDailyBriefing() {
       }),
     });
     showArchitectBriefing({ triggered: true, type: "daily_briefing", severity: "info", message: data.reply });
-  } catch { /* lautlos ignorieren */ }
+  } catch { /* silently ignore */ }
 }
 
 // â"€â"€ Favorites â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -3784,7 +3878,7 @@ function renderFavRecipe(r, backFn, backLabel) {
       name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
     });
-    persist();
+    markLogDirty(d);
     renderDashboard();
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
@@ -3793,8 +3887,84 @@ function renderFavRecipe(r, backFn, backLabel) {
 }
 
 // â"€â"€ Butler Chat â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Butler memory (client) ─────────────────────────────────────────
+let _memoryCache = [];   // array of memory_text strings injected into prompts
+
+async function loadMemories() {
+  try {
+    const data = await api("/api/memory");
+    _memoryCache = (data.memories || []).map(m => m.memory_text).filter(Boolean);
+  } catch { /* offline — keep whatever we have */ }
+  return _memoryCache;
+}
+
+// Lightweight client-side detection of time-sensitive / durable info worth
+// remembering. Returns { memory_text, category, expires_at } or null.
+function detectMemory(text) {
+  const t = text.trim();
+  if (t.length < 6) return null;
+  const low = t.toLowerCase();
+  const days = (n) => new Date(Date.now() + n * 864e5).toISOString();
+
+  // Events with a time horizon → set an expiry so they self-clean.
+  let m;
+  if ((m = low.match(/\bin\s+(\d+)\s+days?\b/)))   return { memory_text: t, category: "event", expires_at: days(parseInt(m[1]) + 1) };
+  if ((m = low.match(/\bin\s+(\d+)\s+weeks?\b/)))  return { memory_text: t, category: "event", expires_at: days(parseInt(m[1]) * 7 + 1) };
+  if (/\b(tomorrow|tonight)\b/.test(low))          return { memory_text: t, category: "event", expires_at: days(2) };
+  if (/\bnext week\b/.test(low))                   return { memory_text: t, category: "event", expires_at: days(8) };
+  if (/\bnext month\b/.test(low))                  return { memory_text: t, category: "event", expires_at: days(32) };
+  if (/\bon (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/.test(low))
+    return { memory_text: t, category: "event", expires_at: days(8) };
+
+  // Health — durable, no expiry.
+  if (/\b(allergic to|i'?m allergic|intolerant|lactose|gluten|celiac|diabet|hypertension|high blood pressure)\b/.test(low))
+    return { memory_text: t, category: "health", expires_at: null };
+
+  // Reminders.
+  if (/\bremind me\b/.test(low)) return { memory_text: t, category: "reminder", expires_at: null };
+
+  // Goals.
+  if (/\b(my goal|i want to|i'?m trying to|trying to|i plan to|aiming to|i'?d like to|i need to)\b/.test(low))
+    return { memory_text: t, category: "goal", expires_at: null };
+
+  // Preferences.
+  if (/\b(i (love|hate|prefer|dislike|don'?t like|can'?t stand)|i'?m (vegan|vegetarian|pescatarian))\b/.test(low))
+    return { memory_text: t, category: "preference", expires_at: null };
+
+  return null;
+}
+
+function showRememberedIndicator(anchorEl) {
+  const tag = document.createElement("div");
+  tag.textContent = "💭 remembered";
+  tag.style.cssText =
+    "font-family:'Inter',sans-serif;font-size:11px;opacity:0;color:var(--ink-mute);" +
+    "margin:4px 2px 0;transition:opacity .25s ease;text-align:right;";
+  anchorEl.appendChild(tag);
+  requestAnimationFrame(() => { tag.style.opacity = ".7"; });
+  setTimeout(() => {
+    tag.style.opacity = "0";
+    tag.addEventListener("transitionend", () => tag.remove(), { once: true });
+  }, 1000);
+}
+
+async function maybeRememberFromMessage(text, anchorEl) {
+  const mem = detectMemory(text);
+  if (!mem) return;
+  _memoryCache.unshift(mem.memory_text);   // available to this same conversation immediately
+  try {
+    await api("/api/memory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mem),
+    });
+    if (anchorEl) showRememberedIndicator(anchorEl);
+  } catch { /* offline — kept in cache for this session */ }
+}
+
 function renderChat() {
   setBottomTab("butler");
+  loadMemories();
   const welcome = {
     ELITE_BUTLER:      "Good day. I have your current day's numbers ready — what would you like to address?",
     PERFORMANCE_COACH: "Let's go. What's your goal today? I'm direct.",
@@ -3842,6 +4012,9 @@ function renderChat() {
 
     history.push({ role: "user", content: text });
 
+    // Detect & persist anything worth remembering; show a subtle indicator.
+    maybeRememberFromMessage(text, userBubble);
+
     const loadBubble = document.createElement("div");
     loadBubble.className = "chat-bubble bot";
     loadBubble.innerHTML = `<span class="loader"></span>`;
@@ -3867,6 +4040,7 @@ function renderChat() {
             calories_target: effectiveCalTarget(),
             protein_target:  state.targets?.protein_g ?? null,
             user_name:       state.name || null,
+            memories:        _memoryCache.slice(0, 12),
           },
         }),
       });
@@ -3874,7 +4048,7 @@ function renderChat() {
       loadBubble.textContent = reply;
       history.push({ role: "assistant", content: reply });
     } catch (e) {
-      loadBubble.textContent = `Fehler: ${e.message}`;
+      loadBubble.textContent = `Error: ${e.message}`;
     } finally {
       sendBtn.disabled = false;
       msgs.scrollTop = msgs.scrollHeight;
