@@ -99,27 +99,34 @@ def _sb_headers(token: str) -> dict:
 # ── Rate limiting (Priya) ───────────────────────────────────────────
 # Per-user sliding window, in-memory. Single Render instance → adequate.
 # (Multi-worker/horizontal scaling would need a shared store like Redis.)
-_RATE_LIMIT  = 30      # requests
 _RATE_WINDOW = 60.0    # seconds
+# Per-bucket request ceilings (per user, per window). Scan is most sensitive.
+_RATE_LIMITS: dict[str, int] = {
+    "scan":   30,
+    "butler": 30,
+    "memory": 120,
+    "goals":  60,
+}
 _rate_buckets: dict[str, deque] = defaultdict(deque)
 _rate_lock = threading.Lock()
 
 
-def _check_rate(key: str) -> None:
+def _check_rate(key: str, limit: int) -> None:
     now = time.monotonic()
     with _rate_lock:
         dq = _rate_buckets[key]
         while dq and dq[0] <= now - _RATE_WINDOW:
             dq.popleft()
-        if len(dq) >= _RATE_LIMIT:
+        if len(dq) >= limit:
             raise HTTPException(status_code=429, detail="Slow down — try again in a moment.")
         dq.append(now)
 
 
 def rate_limited(bucket: str):
     """Dependency that authenticates the user AND enforces a per-user rate limit."""
+    limit = _RATE_LIMITS.get(bucket, 60)
     def dep(user: dict = Depends(get_current_user)) -> dict:
-        _check_rate(f"{bucket}:{user['id']}")
+        _check_rate(f"{bucket}:{user['id']}", limit)
         return user
     return dep
 
@@ -271,27 +278,34 @@ class ButlerCheckRequest(BaseModel):
     memories: list[str] = []
 
 
+# Shared character spine — every mode inherits this. Tone is layered on top.
+_BUTLER_CORE = (
+    "You are 'Architect', the nutrition companion inside Nouri — not a chatbot, a companion who knows this person.\n"
+    "CHARACTER: calm, direct, genuinely attentive. You remember what matters and reason from it.\n"
+    "LANGUAGE: always respond in English (US launch).\n"
+    "NEVER use sycophantic filler — no 'Great question!', 'Absolutely!', 'I'm happy to help', "
+    "'Of course!', or empty enthusiasm. No exclamation-mark cheerleading.\n"
+    "NEVER claim a capability you do not have. NEVER say you lack access to the user's data, "
+    "history, or numbers — the relevant context is always provided to you below; use it.\n"
+    "NEVER give generic encouragement ('keep it up!', 'you've got this') without a specific, "
+    "number-backed reason drawn from their actual data.\n"
+    "Lead with substance: a fact, a status read, or one concrete recommendation. Be brief. "
+    "When you cite numbers, use the ones provided. Address the user by first name when known, "
+    "never with titles like 'Sir' or 'Mr.'."
+)
+
 BUTLER_PROMPTS: dict[str, str] = {
     "ELITE_BUTLER": (
-        "You are the Performance Intelligence Core 'Architect' for Nouri. "
-        "Mode: Elite Butler. "
-        "ABSOLUTE PROHIBITION: NEVER use 'Sir', 'Mr.', or other formal titles. "
-        "If the user's name is known, address them by first name only (e.g. 'Max.'). "
-        "If no name is known, begin directly with the content — no greeting. "
-        "Tone: polite, analytically precise, Quiet-Luxury. "
-        "Facts only, brief recommendations, no filler phrases. "
-        "Respond in 2–4 sentences in English."
+        _BUTLER_CORE + "\n\nTONE — Elite Butler: formal, precise, quietly luxurious. "
+        "Measured and composed; understatement over emphasis. 2–4 sentences."
     ),
     "PERFORMANCE_COACH": (
-        "You are the Performance Intelligence Core 'Architect' for Nouri. "
-        "Mode: Performance Coach. Direct language, second person, no excuses. "
-        "Focus on hard metrics and results. Short, clear, demanding. "
-        "Respond in English."
+        _BUTLER_CORE + "\n\nTONE — Performance Coach: direct and motivating, second person, no excuses. "
+        "Hard metrics, clear demands, short. Push without insulting."
     ),
     "STRATEGIC_BUDDY": (
-        "You are the Performance Intelligence Core 'Architect' for Nouri. "
-        "Mode: Strategic Buddy. Relaxed, on equal footing, intelligent — no bro-talk. "
-        "Short, smart responses, no nonsense. Respond in English."
+        _BUTLER_CORE + "\n\nTONE — Strategic Buddy: casual, honest, on equal footing — intelligent, no bro-talk. "
+        "Plain and warm, still specific. Short."
     ),
 }
 
@@ -445,13 +459,13 @@ async def save_state(
 # ── Butler memory ───────────────────────────────────────────────────
 class MemoryInput(BaseModel):
     memory_text: str
-    category: Literal["goal", "event", "preference", "health", "reminder"] = "event"
+    category: Literal["goal", "event", "preference", "health", "reminder", "reflection"] = "event"
     expires_at: str | None = None  # ISO timestamp, optional
 
 
 @app.get("/api/memory")
 async def list_memory(
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(rate_limited("memory")),
     authorization: str = Header(None),
 ) -> dict:
     """Return all non-expired memories for the current user, newest first."""
@@ -474,11 +488,14 @@ async def list_memory(
 
 @app.post("/api/memory/cleanup")
 async def cleanup_memory(
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(rate_limited("memory")),
     authorization: str = Header(None),
 ) -> dict:
     """Delete durable memories (no expires_at) older than 90 days. Called once
-    per session on login. RLS guarantees only the caller's own rows are touched."""
+    per session on login. RLS guarantees only the caller's own rows are touched.
+    The 90-day prune is category-agnostic — it matches any durable memory
+    (goal/preference/health/reflection) with no expiry, so new categories are
+    covered automatically."""
     from datetime import timedelta
     token  = (authorization or "").removeprefix("Bearer ").strip()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
@@ -494,7 +511,7 @@ async def cleanup_memory(
 @app.post("/api/memory")
 async def save_memory(
     body: MemoryInput,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(rate_limited("memory")),
     authorization: str = Header(None),
 ) -> dict:
     text = body.memory_text.strip()

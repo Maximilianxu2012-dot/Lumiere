@@ -125,6 +125,11 @@ html, body {
 }
 .ring-wrap.pulse { animation: ringPulse 3s ease-in-out infinite; }
 
+/* Isabel — one urgent amber pulse after a heavy meal (silence is the words). */
+@keyframes ringAmber { 0%,100% { transform: scale(1); } 35% { transform: scale(1.045); } }
+.ring-wrap.amber-pulse { animation: ringAmber .6s ease-out; }
+.ring-wrap.amber-pulse .ring-fg { stroke: #C58A3A; transition: stroke .3s ease; }
+
 /* Sofia — scan result reveal: spring up from below, 300ms ease-out */
 @keyframes scanReveal {
   from { opacity: 0; transform: translateY(40px); }
@@ -442,6 +447,27 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   font-size: 62px; line-height: 1; font-weight: 300; letter-spacing: -0.02em;
 }
 .ring-cap { color: var(--ink-soft); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+
+/* Round 3a — 7-day streak dots */
+.streak-dots { display: flex; gap: 9px; justify-content: center; margin: 18px 0 2px; }
+.streak-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1px solid var(--ink-mute); background: transparent;
+}
+.streak-dot.filled { background: var(--gold); border-color: var(--gold); }
+.streak-dot.today { animation: dotPulse 2.4s ease-in-out infinite; }
+@keyframes dotPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .streak-dot.today { animation: none; } }
+
+/* Round 2a — goal progress bar */
+.goal-progress { margin: 22px auto 0; max-width: 280px; }
+.goal-bar { height: 3px; background: var(--line); width: 100%; overflow: hidden; }
+.goal-bar-fill { height: 100%; background: var(--gold); transition: width .6s ease; }
+.goal-meta {
+  font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: .06em;
+  color: var(--ink-soft); text-align: center; margin-top: 8px;
+}
+
 .hero-target {
   color: var(--ink-soft); font-size: 13px; letter-spacing: .04em; line-height: 1.6;
   text-align: center; max-width: 100%; overflow: hidden; padding: 0 8px;
@@ -575,6 +601,15 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   color: var(--ink-mute);
 }
 .ledger-cols span:nth-child(3) { text-align: right; }
+
+/* Round 2b — meal category label above each time-grouped block */
+.ledger-meal-cat {
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: var(--fs-meta); color: var(--ink-mute);
+  padding: 16px var(--space-3) 2px; letter-spacing: .01em;
+}
+.ledger-meal-cat:first-child { padding-top: 8px; }
+@media (max-width: 540px) { .ledger-meal-cat { padding-inline: 18px; } }
 
 .ledger-empty {
   padding: var(--space-4) var(--space-3);
@@ -809,6 +844,14 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   padding: 9px 0; font-size: 14px; color: var(--ink); outline: none; font-family: inherit;
 }
 
+/* Round 2c — categorized fridge-scan chips */
+.fridge-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fridge-chip {
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 12px; font-size: 13px; line-height: 1.2;
+}
+
 /* Quiet text link — secondary actions that must not compete with a primary */
 .link-quiet {
   background: none; border: none; cursor: pointer; color: var(--ink-soft);
@@ -1040,7 +1083,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 
 .hidden { display: none !important; }
 
-/* â”€â”€ Bottom Navigation (CSS-ready, nicht funktional verdrahtet) â”€â”€â”€â”€ */
+/* ── Bottom Navigation ─────────────────────────────────────────── */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
   background: #1A1614;
@@ -1407,6 +1450,11 @@ const defaultState = () => ({
   logsMigratedV2: false,  // set true once food log is moved to per-day daily_logs rows
   logStreak: 0,           // consecutive days with at least one logged meal
   lastLogDate: null,      // YYYY-MM-DD of the most recent logging day
+  streakAckDate: null,    // YYYY-MM-DD a streak-break was last acknowledged
+  goals: null,            // { type, targetWeight, targetDate, startWeight, startDate,
+                          //   weeklyTarget, dailyCalorieAdjustment, weeksRemaining }
+  lastMicroFeedback: null,// last post-scan affirmation (avoid immediate repeat)
+  lastReflectionWeek: null,// ISO week key of the last weekly reflection prompt
 });
 
 let state = (() => {
@@ -1450,21 +1498,48 @@ function recordMealForStreak() {
   state.lastLogDate = d;
 }
 
-// Alex — short, specific affirmation after a genuinely good meal. Silence when
-// the meal is problematic (pushes over budget). Never generic, never > 6 words.
-function maybeAffirm(mealTotals) {
-  if (!state.targets || !mealTotals) return;
-  const t = todayTotals();
-  const target = effectiveCalTarget();
-  if (t.calories > target) return;              // over budget → silence
-  let pool = null;
-  if (mealTotals.protein_g > 25) {
-    pool = ["Good protein hit.", "Solid protein.", "Strong protein choice."];
-  } else if (t.calories <= target) {
-    pool = ["That keeps you on track.", "Right on target.", "Clean choice."];
-  }
-  if (!pool) return;
-  showButlerMessage(pool[Math.floor(Math.random() * pool.length)]);
+const _MICRO_FEEDBACK = [
+  "Good protein hit.",
+  "Clean meal.",
+  "That's exactly on target.",
+  "Balanced — nicely done.",
+  "Solid choice.",
+  "Right where you want to be.",
+  "Strong protein, controlled calories.",
+  "That moves you forward.",
+];
+
+// Round 3b — post-scan micro-moment.
+//  • Heavy meal (one meal > 50% of the daily goal) → say nothing; ring pulses amber once.
+//  • Well-balanced (protein > 20g AND calories within ±20% of a quarter-day) → one of 8
+//    lines, never the same one twice in a row.
+//  • Otherwise → silence (the absence of praise is its own signal).
+function maybeAffirm(meal) {
+  if (!meal) return;
+  const dayGoal = effectiveCalTarget();
+  const cals = meal.calories || 0;
+  const prot = meal.protein_g || 0;
+
+  if (cals > dayGoal * 0.5) { pulseRingAmber(); return; }
+
+  const quarter = dayGoal / 4;
+  const balanced = prot > 20 && Math.abs(cals - quarter) <= quarter * 0.2;
+  if (!balanced) return;
+
+  let pick;
+  do { pick = _MICRO_FEEDBACK[Math.floor(Math.random() * _MICRO_FEEDBACK.length)]; }
+  while (pick === state.lastMicroFeedback);
+  state.lastMicroFeedback = pick;
+  persist();
+  showButlerMessage(pick, 6000);
+}
+
+// One urgent amber pulse on the calorie ring — the only signal for a heavy meal.
+function pulseRingAmber() {
+  const ring = document.querySelector(".ring-wrap");
+  if (!ring) return;
+  ring.classList.add("amber-pulse");
+  ring.addEventListener("animationend", () => ring.classList.remove("amber-pulse"), { once: true });
 }
 
 let _syncTimer = null;
@@ -1519,6 +1594,10 @@ function _applyStateMigrations() {
   if (!state.hasOwnProperty("location"))           state.location           = null;
   if (!state.hasOwnProperty("logStreak"))          state.logStreak          = 0;
   if (!state.hasOwnProperty("lastLogDate"))        state.lastLogDate        = null;
+  if (!state.hasOwnProperty("streakAckDate"))      state.streakAckDate      = null;
+  if (!state.hasOwnProperty("goals"))              state.goals              = null;
+  if (!state.hasOwnProperty("lastMicroFeedback"))  state.lastMicroFeedback  = null;
+  if (!state.hasOwnProperty("lastReflectionWeek")) state.lastReflectionWeek = null;
   if (!state.log)                                  state.log                = {};
 }
 
@@ -2457,6 +2536,52 @@ function macroBlock(name, current, target) {
   `;
 }
 
+// Round 3a — last-7-days streak as a row of dots; today's dot pulses.
+function streakDotsHtml() {
+  const dots = [];
+  for (let i = 6; i >= 0; i--) {
+    const dd = new Date(); dd.setDate(dd.getDate() - i);
+    const key = dd.toLocaleDateString('en-CA');
+    const logged = (state.log[key] || []).length > 0;
+    const isToday = i === 0;
+    dots.push(`<span class="streak-dot${logged ? " filled" : ""}${isToday ? " today" : ""}"></span>`);
+  }
+  return `<div class="streak-dots" aria-label="Last 7 days">${dots.join("")}</div>`;
+}
+
+// Round 2a — minimal goal progress: thin gold bar + "Week X of Y · status".
+// With no weight log available, status falls back to recent calorie adherence.
+function goalProgressHtml() {
+  const g = state.goals;
+  if (!g || !g.startDate || !g.weeksRemaining) return "";
+  const start = new Date(g.startDate);
+  const week  = Math.max(1, Math.floor((Date.now() - start.getTime()) / (7 * 864e5)) + 1);
+  const total = g.weeksRemaining;
+  const weekShown = Math.min(week, total);
+  const pct = Math.min(week / total, 1) * 100;
+
+  // Adherence over the last 7 logged days vs. the daily calorie target.
+  const target = effectiveCalTarget();
+  let logged = 0, adherent = 0;
+  for (let i = 1; i <= 7; i++) {
+    const dd = new Date(); dd.setDate(dd.getDate() - i);
+    const day = state.log[dd.toLocaleDateString('en-CA')] || [];
+    if (!day.length) continue;
+    logged++;
+    const cal = day.reduce((s, e) => s + (e.calories || 0), 0);
+    const ok = g.type === "gain" ? cal >= target * 0.9 : cal <= target * 1.05;
+    if (ok) adherent++;
+  }
+  const status = logged === 0 ? "Just started"
+    : (adherent / logged) >= 0.6 ? "On track" : "Behind — tighten this week";
+
+  return `
+    <div class="goal-progress" id="goal-progress">
+      <div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+      <div class="goal-meta">Week ${weekShown} of ${total} · ${status}</div>
+    </div>`;
+}
+
 function renderDashboard() {
   const t = todayTotals();
   const tgt = state.targets || { protein_g: 0, carbs_g: 0, fat_g: 0, calories: 0 };
@@ -2499,6 +2624,8 @@ function renderDashboard() {
       <div class="hero-target">
         <b>${t.calories}</b> of <b>${calTarget}</b> kcal today
       </div>
+      ${streakDotsHtml()}
+      ${goalProgressHtml()}
     </section>
 
     <div class="macros anim-up" id="section-macros" style="animation-delay:160ms;">
@@ -2625,17 +2752,45 @@ function ledgerRow(entry) {
   `;
 }
 
+// Round 2b — meal name from time of day.
+function mealCategory(ts) {
+  const dt = new Date(ts);
+  const m = dt.getHours() * 60 + dt.getMinutes();
+  if (m >= 300 && m < 630)  return "Breakfast";        // 05:00–10:30
+  if (m >= 630 && m < 840)  return "Lunch";            // 10:30–14:00
+  if (m >= 840 && m < 1020) return "Afternoon snack";  // 14:00–17:00
+  if (m >= 1020 && m < 1260) return "Dinner";          // 17:00–21:00
+  return "Evening snack";                              // 21:00–05:00
+}
+
 function renderLedger(entries, target) {
   const sorted = [...entries].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
   const dateLabel = new Date().toLocaleDateString("en-US", {
     day: "numeric", month: "long", year: "numeric"
   });
 
+  // Group into meals: a new group starts when the gap from the previous entry
+  // exceeds 45 minutes. Each group is labelled by its first entry's time slot.
+  const GAP = 45 * 60 * 1000;
+  const groups = [];
+  sorted.forEach(e => {
+    const last = groups[groups.length - 1];
+    if (last && (e.timestamp || 0) - last.lastTs <= GAP) {
+      last.entries.push(e); last.lastTs = e.timestamp || 0;
+    } else {
+      groups.push({ entries: [e], lastTs: e.timestamp || 0, cat: mealCategory(e.timestamp) });
+    }
+  });
+
   let balance = target;
   const rowsHtml = sorted.length
-    ? sorted.map(e => {
-        balance -= e.calories;  // still tracked for the footer summary
-        return ledgerRow(e);
+    ? groups.map(g => {
+        const label = `<div class="ledger-meal-cat">${g.cat}</div>`;
+        const rows = g.entries.map(e => {
+          balance -= e.calories;  // still tracked for the footer summary
+          return ledgerRow(e);
+        }).join("");
+        return label + rows;
       }).join("")
     : `<div class="ledger-empty">Nothing logged yet. Start with a scan.</div>`;
 
@@ -2977,7 +3132,7 @@ function renderFoodReview(scan) {
     recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
-    maybeAffirm({ protein_g: t.protein_g });
+    maybeAffirm({ protein_g: t.protein_g, calories: t.calories });
     checkButler(items.map(i => ({
       name: i.name, portion: i.portion,
       calories: +i.calories || 0, protein_g: +i.protein_g || 0,
@@ -3098,24 +3253,95 @@ async function clearBasket() {
 
 async function handleFridgeScan(file) {
   const slot = $("fridge-list");
-  slot.innerHTML = `<div class="log-empty" style="text-align:center;"><span class="loader"></span>Scanning contents…</div>`;
+  if (slot) slot.innerHTML = `<div class="log-empty" style="text-align:center;"><span class="loader"></span>Scanning contents…</div>`;
   try {
     const fd = new FormData();
     fd.append("image", file);
     const data = await api("/api/scan/fridge", { method: "POST", body: fd });
-    // Merge quantity + name so the model respects amounts in the recipe
+    // Merge quantity + name into the basket so makeRecipe respects amounts.
     const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
     state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
-    paintFridge();
+    renderFridgeResults(data.items || []);
   } catch (e) {
-    const slot = $("fridge-list");
-    if (slot) slot.innerHTML = `<div class="log-empty" style="text-align:center;">${
+    const s = $("fridge-list");
+    if (s) s.innerHTML = `<div class="log-empty" style="text-align:center;">${
       navigator.onLine
         ? "I couldn't read that photo. Try a clearer shot — or add items by hand."
         : "You're offline. Reconnect, or add items by hand for now."
     }</div>`;
   }
+}
+
+// Round 2c — sort detected ingredients into 5 buckets.
+function fridgeBucket(cat, name) {
+  const c = (cat || "").toLowerCase(), n = (name || "").toLowerCase();
+  const has = (s, arr) => arr.some(w => s.includes(w));
+  if (has(c, ["protein", "meat", "fish", "poultry", "egg"]) ||
+      has(n, ["chicken", "beef", "pork", "egg", "fish", "salmon", "tuna", "tofu", "turkey", "shrimp", "ham", "bacon"])) return "Protein";
+  if (has(c, ["veg", "vegetable", "produce", "fruit", "green"]) ||
+      has(n, ["tomato", "lettuce", "spinach", "carrot", "pepper", "onion", "broccoli", "cucumber", "apple", "banana", "berry", "avocado", "garlic", "potato"])) return "Vegetables";
+  if (has(c, ["dairy", "milk", "cheese"]) ||
+      has(n, ["milk", "cheese", "yogurt", "yoghurt", "butter", "cream"])) return "Dairy";
+  if (has(c, ["grain", "carb", "bread", "pasta", "rice", "cereal", "starch"]) ||
+      has(n, ["rice", "pasta", "bread", "oats", "quinoa", "noodle", "flour", "tortilla", "cereal"])) return "Grains";
+  return "Other";
+}
+
+const _FRIDGE_ICONS = {
+  Protein:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14a5 5 0 0 1 7-7l4 4a5 5 0 0 1-7 7z"/><path d="M5 19l3-3"/></svg>`,
+  Vegetables: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 22c5-3 7-7 7-11a7 7 0 0 0-14 0c0 4 2 8 7 11z"/><path d="M12 22V8"/></svg>`,
+  Dairy:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 3h8l-1 4v13a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V7z"/></svg>`,
+  Grains:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3v18"/><path d="M12 7c-3 0-4-2-4-2M12 7c3 0 4-2 4-2M12 12c-3 0-4-2-4-2M12 12c3 0 4-2 4-2M12 17c-3 0-4-2-4-2M12 17c3 0 4-2 4-2"/></svg>`,
+  Other:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>`,
+};
+
+function renderFridgeResults(items) {
+  const order = ["Protein", "Vegetables", "Dairy", "Grains", "Other"];
+  const buckets = {}; order.forEach(k => buckets[k] = []);
+  items.forEach(it => {
+    const label = it.portion ? `${it.portion} ${it.name}` : it.name;
+    buckets[fridgeBucket(it.category, it.name)].push(label);
+  });
+
+  const hasP = buckets.Protein.length, hasV = buckets.Vegetables.length, hasG = buckets.Grains.length;
+  const summary = !items.length ? "I couldn't make out clear ingredients — add a few by hand."
+    : (hasP && hasV) ? "You have enough for a solid, high-protein meal."
+    : hasP ? "Good protein on hand — add a vegetable and you're set."
+    : (hasV && hasG) ? "Plenty for a light, plant-forward plate."
+    : "A few things to work with — let's see what I can make.";
+
+  const sections = order.filter(k => buckets[k].length).map(k => `
+    <div style="margin-top:18px;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--ink-soft);
+                  font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:10px;">
+        <span style="color:var(--ink);display:inline-flex;">${_FRIDGE_ICONS[k]}</span>${k}
+      </div>
+      <div class="fridge-chips">
+        ${buckets[k].map(x => `<span class="fridge-chip">${escapeHtml(x)}</span>`).join("")}
+      </div>
+    </div>`).join("");
+
+  app.innerHTML = `
+    <section class="hero anim-up" style="text-align:left;align-items:flex-start;padding:8px 0 8px;">
+      <div class="eyebrow">Sous-Chef</div>
+      <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(20px,4.5vw,28px);
+                line-height:1.3;color:var(--ink);margin:14px 0 0;max-width:24ch;">${escapeHtml(summary)}</p>
+    </section>
+
+    ${sections}
+
+    <div id="recipe-slot" style="margin-top:8px;"></div>
+
+    <div style="margin-top:28px;">
+      <button class="btn gold full" id="fr-create">Create Recipe</button>
+      <div style="display:flex;justify-content:center;margin-top:14px;">
+        <button class="link-quiet" id="fr-add">Add more ingredients</button>
+      </div>
+    </div>
+  `;
+  $("fr-create").addEventListener("click", makeRecipe);
+  $("fr-add").addEventListener("click", renderFridge);
 }
 
 async function makeRecipe() {
@@ -3223,7 +3449,7 @@ function renderRecipe(r) {
     recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
-    maybeAffirm({ protein_g: r.protein_g });
+    maybeAffirm({ protein_g: r.protein_g, calories: r.calories_per_serving });
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
       carbs_g: r.carbs_g, fat_g: r.fat_g }]);
@@ -3319,6 +3545,15 @@ async function resetApp() {
 }
 
 // â"€â"€ Profile Panel â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// Short label for the profile "My Goal" row.
+function goalSummaryLabel() {
+  const g = state.goals;
+  if (!g || !g.type) return "Not set";
+  const label = _GOAL_LABEL[g.type] || "Set";
+  if (g.targetWeight && g.targetDate) return `${label} · ${g.targetWeight}kg`;
+  return label;
+}
+
 function showProfilePanel() {
   hideProfilePanel();
 
@@ -3339,6 +3574,10 @@ function showProfilePanel() {
         <button class="panel-row" id="panel-mode-btn">
           <span class="panel-row-label">Butler Mode</span>
           <span class="panel-row-value">${escapeHtml(ARCHITECT.getModeLabel())}</span>
+        </button>
+        <button class="panel-row" id="panel-goal-btn">
+          <span class="panel-row-label">My Goal</span>
+          <span class="panel-row-value">${escapeHtml(goalSummaryLabel())}</span>
         </button>
         <button class="panel-row" id="panel-health-btn">
           <span class="panel-row-label">Health Profile</span>
@@ -3383,6 +3622,9 @@ function showProfilePanel() {
 
   panel.querySelector("#panel-mode-btn").addEventListener("click", () => {
     hideProfilePanel(); renderModeSelect(showProfilePanel);
+  });
+  panel.querySelector("#panel-goal-btn").addEventListener("click", () => {
+    hideProfilePanel(); renderGoalScreen(showProfilePanel);
   });
   panel.querySelector("#panel-health-btn").addEventListener("click", () => {
     hideProfilePanel(); renderHealthScreen(showProfilePanel);
@@ -3733,6 +3975,145 @@ function renderCalorieGoalScreen(backFn) {
   app.appendChild(wrap);
 }
 
+// ── Goals (Round 2a) ───────────────────────────────────────────────
+const _GOAL_TYPES = [
+  { key: "lose",    label: "Lose weight" },
+  { key: "gain",    label: "Build muscle" },
+  { key: "maintain",label: "Maintain" },
+  { key: "clean",   label: "Eat cleaner" },
+];
+const _GOAL_LABEL = Object.fromEntries(_GOAL_TYPES.map(g => [g.key, g.label]));
+
+function renderGoalScreen(backFn) {
+  const g = state.goals || {};
+  // Default type from saved goal, else from onboarding profile goal.
+  const profGoal = state.profile?.goal;
+  let selType = g.type || (profGoal === "lose" ? "lose" : profGoal === "gain" ? "gain" : "maintain");
+  const curWeight = state.profile?.weight_kg || "";
+  const preWeight = g.targetWeight || state.goalDetails?.weight || "";
+  const preDate   = g.targetDate || "";
+  const minDate   = new Date(Date.now() + 7 * 864e5).toLocaleDateString('en-CA');
+  const maxDate   = new Date(Date.now() + 5 * 365 * 864e5).toLocaleDateString('en-CA');
+
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:6px;">My Goal</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 24px;line-height:1.7;">
+      Set the target and the timeline. I'll work out the daily numbers and keep track.
+    </p>
+
+    <div class="field-label" style="margin-bottom:8px;">Goal</div>
+    <div class="onb-choices" id="goal-types" style="margin-bottom:24px;">
+      ${_GOAL_TYPES.map(o => `<button class="onb-choice${o.key === selType ? " selected" : ""}" data-g="${o.key}">${o.label}</button>`).join("")}
+    </div>
+
+    <div id="goal-weight-wrap">
+      <div class="field" style="margin-bottom:18px;">
+        <label class="field-label" for="goal-weight">Target weight (kg)</label>
+        <input type="number" id="goal-weight" min="30" max="300" step="0.1" placeholder="e.g. 72" value="${preWeight}" style="font-size:20px;">
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label class="field-label" for="goal-date">Target date</label>
+        <input type="date" id="goal-date" min="${minDate}" max="${maxDate}" value="${preDate}" style="font-size:18px;">
+      </div>
+    </div>
+
+    <div id="goal-err" class="onb-err" style="min-height:0;margin-bottom:16px;"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px;">
+      <button class="btn gold" id="goal-save">Save Goal</button>
+    </div>
+    <div style="text-align:center;padding-top:8px;border-top:1px solid var(--line-soft);">
+      <button class="btn ghost" id="goal-back">← Profile</button>
+    </div>
+  `;
+
+  const err = wrap.querySelector("#goal-err");
+  const weightWrap = wrap.querySelector("#goal-weight-wrap");
+  const syncWeightVisibility = () => {
+    // Maintain / Eat cleaner don't need a weight target.
+    weightWrap.style.display = (selType === "lose" || selType === "gain") ? "" : "none";
+  };
+  syncWeightVisibility();
+
+  wrap.querySelectorAll("[data-g]").forEach(b => b.addEventListener("click", () => {
+    selType = b.dataset.g;
+    wrap.querySelectorAll("[data-g]").forEach(x => x.classList.toggle("selected", x === b));
+    syncWeightVisibility();
+    err.textContent = "";
+  }));
+
+  wrap.querySelector("#goal-save").addEventListener("click", () => {
+    err.textContent = "";
+    const label = _GOAL_LABEL[selType];
+
+    // Maintain / clean: no weight math, just save the intent.
+    if (selType === "maintain" || selType === "clean") {
+      state.goals = { type: selType, targetWeight: null, targetDate: null,
+        startWeight: state.profile?.weight_kg || null, startDate: new Date().toISOString(),
+        weeklyTarget: 0, dailyCalorieAdjustment: 0, weeksRemaining: null };
+      persist();
+      (backFn || renderDashboard)();
+      setTimeout(() => showButlerMessage(
+        selType === "clean"
+          ? "Eat cleaner it is. I'll flag the meals that drift and keep you honest."
+          : "Maintenance mode. I'll keep you steady around your target.", 8000), 400);
+      return;
+    }
+
+    const tw = parseFloat(wrap.querySelector("#goal-weight").value);
+    const dateStr = wrap.querySelector("#goal-date").value;
+    if (!tw || tw < 30 || tw > 300) { err.textContent = "Enter a target weight between 30 and 300 kg."; return; }
+    if (tw < 40) { err.textContent = "That target weight isn't healthy. Pick a realistic goal."; return; }
+    if (!dateStr) { err.textContent = "Pick a target date."; return; }
+    const target = new Date(dateStr + "T00:00:00");
+    const now = new Date();
+    if (isNaN(target) || target <= now) { err.textContent = "Pick a future date."; return; }
+    if (target.getTime() - now.getTime() > 5 * 365 * 864e5) { err.textContent = "Pick a date within the next 5 years."; return; }
+
+    const cur = state.profile?.weight_kg;
+    if (!cur) { err.textContent = "Add your current weight in setup first."; return; }
+    if ((selType === "lose" && tw >= cur) || (selType === "gain" && tw <= cur)) {
+      err.textContent = selType === "lose"
+        ? "Target is at or above your current weight — did you mean Build muscle?"
+        : "Target is at or below your current weight — did you mean Lose weight?";
+      return;
+    }
+
+    const days  = (target.getTime() - now.getTime()) / 864e5;
+    const weeks = days / 7;
+    const diff  = Math.abs(cur - tw);
+    const weeklyChange = diff / weeks;
+    const cap = selType === "lose" ? 0.75 : 0.25;
+    if (weeklyChange > cap) {
+      const realisticWeeks = Math.ceil(diff / cap);
+      err.textContent = `That's ${weeklyChange.toFixed(2)} kg/week — too fast. Give it about ${realisticWeeks} weeks.`;
+      return;
+    }
+
+    const sign = selType === "lose" ? -1 : 1;
+    const weeklyTarget = +(sign * weeklyChange).toFixed(2);
+    const dailyCalorieAdjustment = Math.round(sign * weeklyChange * 7700 / 7); // ~7700 kcal per kg
+    const weeksRemaining = Math.max(1, Math.ceil(weeks));
+
+    state.goals = {
+      type: selType, targetWeight: tw, targetDate: dateStr,
+      startWeight: cur, startDate: new Date().toISOString(),
+      weeklyTarget, dailyCalorieAdjustment, weeksRemaining,
+    };
+    persist();
+    (backFn || renderDashboard)();
+    const dailyKcal = Math.round(effectiveCalTarget());
+    setTimeout(() => showButlerMessage(
+      `${weeksRemaining} weeks to ${label.toLowerCase()}. That means staying around ${dailyKcal} kcal daily. I'll keep track.`,
+      9000), 400);
+  });
+
+  wrap.querySelector("#goal-back").addEventListener("click", backFn || renderDashboard);
+  app.innerHTML = "";
+  app.appendChild(wrap);
+}
+
 // â"€â"€ Proactive Butler Check â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 async function checkButler(mealItems = null) {
   if (!state.targets) return;
@@ -3746,7 +4127,7 @@ async function checkButler(mealItems = null) {
   const hour = new Date().getHours();
 
   // Ensure memories are available to inject before the Butler responds.
-  if (_memoryCache.length === 0) { try { await loadMemories(); } catch {} }
+  if (_memories.length === 0) { try { await loadMemories(); } catch {} }
 
   // PRO: Health-Context Layer — gate with isProUser() when Stripe is live
   const hc = isProUser() ? state.healthContext : null;
@@ -3776,7 +4157,7 @@ async function checkButler(mealItems = null) {
         fired_today: state.butlerFired.types,
         health_context: healthContext,
         last_meal:   mealItems || [],
-        memories:    _memoryCache.slice(0, 12),
+        memories:    memoriesForPrompt(),
       }),
     });
     if (result.triggered && result.message) {
@@ -3826,7 +4207,73 @@ async function initLocation() {
   );
 }
 
-function showButlerMessage(text) {
+// ISO-8601 week key (e.g. "2026-W22") — for once-per-week gating.
+function isoWeekKey(d = new Date()) {
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (dt.getUTCDay() + 6) % 7;
+  dt.setUTCDate(dt.getUTCDate() - dayNum + 3);
+  const firstThu = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((dt - firstThu) / 864e5 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
+  return `${dt.getUTCFullYear()}-W${week}`;
+}
+
+// Round 3c — Sunday reflection. Two paths; "harder" saves a reflection memory.
+function showWeeklyReflection() {
+  const existing = document.getElementById("butler-hint");
+  if (existing) existing.remove();
+  const card = document.createElement("div");
+  card.id = "butler-hint";
+  card.className = "butler-hint";
+  card.innerHTML = `
+    <button class="butler-hint-close" aria-label="Close">×</button>
+    <div class="butler-hint-eyebrow">${escapeHtml((state.butlerName || "Architect").toUpperCase())}</div>
+    <p class="butler-hint-text">How did this week feel — on track, or harder than expected?</p>
+    <div id="refl-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="butler-hint-link" data-r="ontrack">On track</button>
+      <button class="butler-hint-link" data-r="hard">Harder than expected</button>
+    </div>
+  `;
+  document.body.appendChild(card);
+  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add("show")));
+  const close = () => {
+    card.classList.remove("show");
+    card.addEventListener("transitionend", () => card.remove(), { once: true });
+  };
+  card.querySelector(".butler-hint-close").addEventListener("click", close);
+
+  card.querySelectorAll("[data-r]").forEach(b => b.addEventListener("click", () => {
+    const txt = card.querySelector(".butler-hint-text");
+    const acts = card.querySelector("#refl-actions");
+    if (b.dataset.r === "ontrack") {
+      txt.textContent = "Good. Keep the same approach next week.";
+      acts.remove();
+      setTimeout(close, 4000);
+    } else {
+      txt.textContent = "What got in the way?";
+      acts.innerHTML = `
+        <input id="refl-input" type="text" placeholder="A sentence is enough…"
+          style="flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(201,169,97,.3);
+                 color:#EDE5D8;padding:9px 10px;font:400 13px/1 'Inter';outline:none;">
+        <button class="butler-hint-link" id="refl-save">Save</button>`;
+      const inp = acts.querySelector("#refl-input");
+      inp.focus();
+      const save = async () => {
+        const v = inp.value.trim();
+        if (!v) { close(); return; }
+        const mem = { memory_text: `Weekly reflection: ${v}`, category: "reflection", expires_at: null };
+        _memories.unshift({ ...mem, created_at: new Date().toISOString() });
+        try { await api("/api/memory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mem) }); } catch {}
+        txt.textContent = "Noted. We'll work around that next week.";
+        acts.remove();
+        setTimeout(close, 3500);
+      };
+      acts.querySelector("#refl-save").addEventListener("click", save);
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+    }
+  }));
+}
+
+function showButlerMessage(text, duration = 9000) {
   const existing = document.getElementById("butler-hint");
   if (existing) {
     existing.classList.remove("show");
@@ -3847,8 +4294,57 @@ function showButlerMessage(text) {
     hint.addEventListener("transitionend", () => hint.remove(), { once: true });
     clearTimeout(_t);
   };
-  const _t = setTimeout(dismiss, 9000);
-  hint.querySelector("#hint-close").addEventListener("click", dismiss);
+  const _t = setTimeout(dismiss, duration);
+  // Tap anywhere on the bubble (or the close button) to dismiss.
+  hint.addEventListener("click", dismiss);
+}
+
+// Round 1c — personalized morning briefing (2–3 sentences).
+function buildMorningBriefing() {
+  const tgtCal  = effectiveCalTarget();
+  const protTgt = state.targets?.protein_g || 0;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yEntries = state.log[y.toLocaleDateString('en-CA')] || [];
+
+  const greet = state.name ? `Morning, ${state.name}.` : "Morning.";
+  let perf;
+  if (yEntries.length) {
+    const yCal  = yEntries.reduce((s, e) => s + (e.calories || 0), 0);
+    const yProt = yEntries.reduce((s, e) => s + (e.protein_g || 0), 0);
+    if (yCal <= tgtCal && protTgt && yProt >= protTgt * 0.9)
+      perf = `Yesterday landed clean — ${Math.round(yCal)} kcal with protein on target.`;
+    else if (yCal > tgtCal)
+      perf = `Yesterday ran ${Math.round(yCal - tgtCal)} kcal over; today's a reset.`;
+    else if (protTgt && yProt < protTgt * 0.7)
+      perf = `Protein fell short yesterday (${Math.round(yProt)}g) — front-load it today.`;
+    else
+      perf = `Yesterday: ${Math.round(yCal)} kcal logged.`;
+  } else {
+    perf = "Nothing logged yesterday — fresh start.";
+  }
+  const ev = _memories.find(m => m.category === "event");
+  const tail = ev
+    ? `Don't forget: ${ev.memory_text}.`
+    : (state.logStreak > 1 ? `Day ${state.logStreak} of your streak — keep it going.` : "");
+  return [greet, perf, tail].filter(Boolean).join(" ");
+}
+
+// Round 1d — one-sentence evening summary from real numbers.
+function buildEveningSummary() {
+  const t = todayTotals();
+  const tgtCal  = effectiveCalTarget();
+  const protTgt = state.targets?.protein_g || 0;
+  const carbTgt = state.targets?.carbs_g || 0;
+  const under   = t.calories <= tgtCal;
+  if (protTgt && t.protein >= protTgt * 0.9 && under)
+    return `Strong day — protein at ${Math.round(t.protein)}g and you stayed under your limit.`;
+  if (carbTgt && t.carbs > carbTgt * 1.1)
+    return `Carbs ran high today (${Math.round(t.carbs)}g). Keep tomorrow leaner in the morning.`;
+  if (!under)
+    return `You're ${Math.round(t.calories - tgtCal)} kcal over today — lighter tomorrow and you're fine.`;
+  if (protTgt && t.protein < protTgt * 0.9)
+    return `Protein came up short (${Math.round(t.protein)}g of ${protTgt}g). Worth fixing tomorrow.`;
+  return `${Math.round(t.calories)} kcal logged today — steady.`;
 }
 
 async function proactiveCheck() {
@@ -3860,9 +4356,10 @@ async function proactiveCheck() {
   if (!state.butlerFired || state.butlerFired.date !== d) {
     state.butlerFired = { date: d, types: [] };
   }
-  const fired   = state.butlerFired.types;
-  const t       = todayTotals();
-  const hour    = new Date().getHours();
+  const fired       = state.butlerFired.types;
+  const t           = todayTotals();
+  const entriesToday = (state.log[d] || []).length;
+  const hour        = new Date().getHours();
   const calGoal = effectiveCalTarget();
   const pctCal  = t.calories / calGoal;
   const w       = _weatherCache;
@@ -3870,8 +4367,56 @@ async function proactiveCheck() {
   let msg  = null;
   let type = null;
 
-  // Alex — morning nudge: 6–10 AM, nothing logged yet, once per morning.
-  if (hour >= 6 && hour < 10 && t.calories === 0 && !fired.includes("morning_breakfast")) {
+  // Round 1c — morning briefing (6–9 AM, once). Richer than the breakfast nudge.
+  if (hour >= 6 && hour < 9 && !fired.includes("morning_briefing")) {
+    state.butlerFired.types.push("morning_briefing");
+    persist();
+    showButlerMessage(buildMorningBriefing(), 8000);
+    return;
+  }
+
+  // Round 1d — evening summary (20–22, ≥2 meals, once).
+  if (hour >= 20 && hour < 22 && !fired.includes("evening_summary") && entriesToday >= 2) {
+    state.butlerFired.types.push("evening_summary");
+    persist();
+    showButlerMessage(buildEveningSummary(), 9000);
+    return;
+  }
+
+  // Round 3c — weekly reflection (Sunday 18:00–20:00, once per week).
+  if (new Date().getDay() === 0 && hour >= 18 && hour < 20) {
+    const wk = isoWeekKey();
+    if (state.lastReflectionWeek !== wk) {
+      state.lastReflectionWeek = wk;
+      persist();
+      showWeeklyReflection();
+      return;
+    }
+  }
+
+  // Round 3a — streak-break acknowledgment: shown once the first time they
+  // reopen after missing a day (and before they log again today).
+  if (state.lastLogDate && state.lastLogDate !== d && state.streakAckDate !== d && entriesToday === 0) {
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const missedYesterday = state.lastLogDate !== y.toLocaleDateString('en-CA');
+    if (missedYesterday && state.logStreak > 0) {
+      state.streakAckDate = d;
+      persist();
+      showButlerMessage("Yesterday broke the streak. Today starts a new one.", 8000);
+      return;
+    }
+  }
+
+  // Round 3a — lunch nudge: not logged by 13:00, only for established streaks.
+  if (hour >= 13 && entriesToday === 0 && state.logStreak > 2 && !fired.includes("lunch_nudge")) {
+    state.butlerFired.types.push("lunch_nudge");
+    persist();
+    showButlerMessage("You haven't logged yet today. Don't break the streak.", 8000);
+    return;
+  }
+
+  // Alex — morning nudge: 9–10 AM, nothing logged yet, once per morning.
+  if (hour >= 9 && hour < 10 && t.calories === 0 && !fired.includes("morning_breakfast")) {
     msg  = "Morning. Don't skip breakfast today.";
     type = "morning_breakfast";
   }
@@ -4100,7 +4645,7 @@ function renderFavRecipe(r, backFn, backLabel) {
     recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
-    maybeAffirm({ protein_g: r.protein_g });
+    maybeAffirm({ protein_g: r.protein_g, calories: r.calories_per_serving });
     checkButler([{ name: r.title, portion: "1 serving",
       calories: r.calories_per_serving, protein_g: r.protein_g,
       carbs_g: r.carbs_g, fat_g: r.fat_g }]);
@@ -4109,14 +4654,32 @@ function renderFavRecipe(r, backFn, backLabel) {
 
 // â"€â"€ Butler Chat â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 // ── Butler memory (client) ─────────────────────────────────────────
-let _memoryCache = [];   // array of memory_text strings injected into prompts
+let _memories = [];   // full memory objects { memory_text, category, created_at, expires_at }
 
 async function loadMemories() {
   try {
     const data = await api("/api/memory");
-    _memoryCache = (data.memories || []).map(m => m.memory_text).filter(Boolean);
+    _memories = (data.memories || []).filter(m => m && m.memory_text);
   } catch { /* offline — keep whatever we have */ }
-  return _memoryCache;
+  return _memories;
+}
+
+// Round 1b — grouped + recency-weighted list for prompt injection.
+// Order: goals → events → preferences → health → reminders → reflections.
+// Memories from the last 7 days get a "recent:" prefix so the Butler leans on them.
+const _MEM_ORDER = ["goal", "event", "preference", "health", "reminder", "reflection"];
+function memoriesForPrompt(limit = 14) {
+  const recentCutoff = Date.now() - 7 * 864e5;
+  const rank = c => { const i = _MEM_ORDER.indexOf(c || "event"); return i < 0 ? 99 : i; };
+  const sorted = [..._memories].sort((a, b) => {
+    const d = rank(a.category) - rank(b.category);
+    if (d !== 0) return d;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+  return sorted.slice(0, limit).map(m => {
+    const recent = m.created_at && new Date(m.created_at).getTime() >= recentCutoff;
+    return (recent ? "recent: " : "") + m.memory_text;
+  });
 }
 
 // Lightweight client-side detection of time-sensitive / durable info worth
@@ -4155,31 +4718,32 @@ function detectMemory(text) {
   return null;
 }
 
-function showRememberedIndicator(anchorEl) {
+function showNoted(anchorEl) {
   const tag = document.createElement("div");
-  tag.textContent = "💭 remembered";
+  tag.textContent = "💭 noted";
   tag.style.cssText =
     "font-family:'Inter',sans-serif;font-size:11px;opacity:0;color:var(--ink-mute);" +
-    "margin:4px 2px 0;transition:opacity .25s ease;text-align:right;";
+    "margin:4px 2px 0;transition:opacity .3s ease;text-align:right;";
   anchorEl.appendChild(tag);
-  requestAnimationFrame(() => { tag.style.opacity = ".7"; });
+  requestAnimationFrame(() => { tag.style.opacity = ".65"; });
   setTimeout(() => {
     tag.style.opacity = "0";
     tag.addEventListener("transitionend", () => tag.remove(), { once: true });
-  }, 1000);
+  }, 2000);
 }
 
 async function maybeRememberFromMessage(text, anchorEl) {
   const mem = detectMemory(text);
   if (!mem) return;
-  _memoryCache.unshift(mem.memory_text);   // available to this same conversation immediately
+  // available to this same conversation immediately
+  _memories.unshift({ ...mem, created_at: new Date().toISOString() });
   try {
     await api("/api/memory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(mem),
     });
-    if (anchorEl) showRememberedIndicator(anchorEl);
+    if (anchorEl) showNoted(anchorEl);
   } catch { /* offline — kept in cache for this session */ }
 }
 
@@ -4277,7 +4841,7 @@ function renderChat() {
             protein_target:  state.targets?.protein_g ?? null,
             user_name:       state.name || null,
             today_date:      today(),
-            memories:        _memoryCache.slice(0, 12),
+            memories:        memoriesForPrompt(),
           },
         }),
       });
