@@ -2102,6 +2102,22 @@ function renderAIOnboarding() {
     }));
   }
 
+  // Parse a free-text timeline ("1 day", "6 weeks", "3 months", "1 year", or a
+  // bare number → assumed weeks) into a number of days. Returns null if unparseable.
+  function parseTimelineToDays(tl) {
+    if (!tl) return null;
+    const low = tl.toLowerCase();
+    const m = low.match(/(\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    if (!n) return null;
+    if (/day/.test(low))   return n;
+    if (/week/.test(low))  return n * 7;
+    if (/month/.test(low)) return n * 30.44;
+    if (/year/.test(low))  return n * 365;
+    return n * 7;  // no unit → assume weeks
+  }
+
   async function s7details() {
     await say(`Got a specific target? Tell me your goal weight and timeline.`);
     show(`
@@ -2119,24 +2135,33 @@ function renderAIOnboarding() {
       d.goalWeight = kg; d.goalTimeline = tl;
       echo(`${kg} kg · ${tl || "no timeline"}`);
 
-      // Realistic rate check
-      if (tl) {
-        const m = tl.match(/(\d+)/);
-        if (m) {
-          const rawNum = parseInt(m[1]);
-          const tlLow  = tl.toLowerCase();
-          const weeks  = tlLow.includes("month") ? rawNum * 4.33
-                       : tlLow.includes("year")  ? rawNum * 52
-                       : rawNum; // assume weeks if no unit
-
-          if (d.goal === "lose" && d.weight && kg < d.weight) {
-            const diff = d.weight - kg;
-            if (diff / weeks > 0.75) { clear(); s7validate("lose", diff, weeks); return; }
+      // Realistic rate check — days-based, honest, never blocking.
+      const days = parseTimelineToDays(tl);
+      if (days && days > 0) {
+        if (d.goal === "lose" && d.weight && kg < d.weight) {
+          const diff = d.weight - kg;                  // kg to lose
+          const weeklyLoss = diff / (days / 7);
+          if (weeklyLoss > 0.75) {
+            const sugWeeks = Math.ceil(diff / 0.75);
+            clear();
+            s7validate(
+              `That's more than 0.75kg per week — that's not safe or sustainable. ` +
+              `I'd suggest ${sugWeeks} weeks for a realistic timeline. Want to adjust?`
+            );
+            return;
           }
-          if (d.goal === "gain" && d.weight && kg > d.weight) {
-            const diff = kg - d.weight;
-            const months = weeks / 4.33;
-            if (diff / months > 1) { clear(); s7validate("gain", diff, Math.ceil(diff)); return; }
+        }
+        if (d.goal === "gain" && d.weight && kg > d.weight) {
+          const diff = kg - d.weight;                  // kg to gain
+          const monthlyGain = diff / (days / 30.44);
+          if (monthlyGain > 1) {
+            const sugMonths = Math.ceil(diff);          // ~1 kg muscle / month ceiling
+            clear();
+            s7validate(
+              `Building ${diff.toFixed(1)}kg of muscle that fast isn't realistic — ` +
+              `about 1kg per month is the ceiling. I'd suggest ${sugMonths} months. Want to adjust?`
+            );
+            return;
           }
         }
       }
@@ -2149,36 +2174,21 @@ function renderAIOnboarding() {
     setTimeout(() => { const i = $("gw"); if (i) i.focus(); }, 120);
   }
 
-  async function s7validate(type, diff, rawWeeksOrMonths) {
-    let msg, suggestedTimeline;
-    if (type === "lose") {
-      const sugWeeks = Math.ceil(diff / 0.75);
-      const sugMonths = Math.ceil(sugWeeks / 4.33);
-      suggestedTimeline = sugWeeks <= 8 ? `${sugWeeks} weeks` : `${sugMonths} months`;
-      msg = `To lose ${diff.toFixed(1)} kg safely, you'd need at least ${sugWeeks} weeks. I'd recommend ${suggestedTimeline} for sustainable results. Want to adjust?`;
-    } else {
-      const sugMonths = Math.ceil(diff); // max 1 kg/month
-      suggestedTimeline = `${sugMonths} months`;
-      msg = `Building ${diff.toFixed(1)} kg of muscle takes time — realistically at least ${sugMonths} months. Want to adjust your timeline?`;
-    }
+  // Honest flag for an unrealistic target. Never blocks — informs, then lets the
+  // user re-enter ("Adjust") or proceed with the goal logged as-is ("Keep it anyway").
+  async function s7validate(msg) {
     await say(msg);
     show(`
       <div class="onb-choices onb-choices-col">
-        <button class="onb-choice" data-v="timeline">Adjust timeline</button>
-        <button class="onb-choice" data-v="weight">Adjust goal weight</button>
-        <button class="onb-choice" data-v="keep">Keep my plan</button>
+        <button class="onb-choice" data-v="adjust">Adjust</button>
+        <button class="onb-choice" data-v="keep">Keep it anyway</button>
       </div>
     `);
     acts.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", async () => {
       echo(b.textContent); clear();
-      if (b.dataset.v === "timeline") {
-        d.goalTimeline = suggestedTimeline;
-        await say(`Got it — I've set your timeline to ${suggestedTimeline}.`, 300);
-      } else if (b.dataset.v === "weight") {
-        // Let user re-enter goal weight
-        await s7details();
-        return;
-      }
+      if (b.dataset.v === "adjust") { await s7details(); return; }
+      // Keep it anyway → goal stays exactly as the user set it (already in d).
+      await say(`Understood — I've logged your goal as you set it.`, 250);
       s7diet();
     }));
   }
