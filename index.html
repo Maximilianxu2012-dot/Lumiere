@@ -88,7 +88,7 @@ html, body {
   padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 8px);
   background: var(--bg);
   color: var(--ink);
-  font: 400 var(--fs-body)/1.8 'Inter', system-ui, sans-serif;
+  font: 400 var(--fs-body)/1.6 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   /* Subtle paper noise — almost invisible, just felt */
@@ -216,7 +216,7 @@ header {
 .header-right { display: flex; gap: 12px; align-items: center; }
 .icon-btn {
   background: transparent; border: 1px solid var(--line);
-  width: 36px; height: 36px; cursor: pointer;
+  width: 44px; height: 44px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-soft); transition: all .2s;
   user-select: none; -webkit-user-select: none;
@@ -442,10 +442,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   font-size: 62px; line-height: 1; font-weight: 300; letter-spacing: -0.02em;
 }
 .ring-cap { color: var(--ink-soft); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
-.ring-pct {
-  font-size: 11px; color: var(--ink-mute); letter-spacing: .1em; margin-top: 4px;
-  font-variant-numeric: tabular-nums;
-}
 .hero-target {
   color: var(--ink-soft); font-size: 13px; letter-spacing: .04em; line-height: 1.6;
   text-align: center; max-width: 100%; overflow: hidden; padding: 0 8px;
@@ -489,7 +485,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   display: flex; justify-content: space-between; align-items: baseline;
   margin: 72px 0 24px;
 }
-.section-title { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; letter-spacing: -0.01em; }
+.section-title { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; letter-spacing: 0.01em; }
 
 /* Log */
 .log-empty { color: var(--ink-soft); font-style: italic; padding: 16px 0; }
@@ -663,9 +659,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   background: var(--surface-2);
   border: 1px solid var(--line);
   color: var(--ink-mute);
-  width: 24px; height: 24px;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  font-size: 14px; line-height: 1;
+  font-size: 16px; line-height: 1;
   opacity: 0;
   transition: opacity .2s, color .2s, border-color .2s;
 }
@@ -744,6 +741,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   .ledger-head, .ledger-foot { padding-inline: 18px; }
   .ledger-children { padding-left: 44px; padding-right: 18px; }
 }
+/* No hover on touch — keep the delete affordance reachable, not hidden. */
+@media (hover: none) {
+  .ledger-del { opacity: .55; }
+}
 
 /* Tag list */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
@@ -784,7 +785,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .scan-item-del {
   background: none; border: none; cursor: pointer;
-  color: var(--ink-mute); font-size: 18px; line-height: 1; padding: 0 4px;
+  color: var(--ink-mute); font-size: 20px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; margin: -8px -8px -8px 0;
 }
 .scan-item-del:hover { color: var(--danger); }
 
@@ -805,6 +808,15 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   flex: 1; background: transparent; border: 0; border-bottom: 1px solid var(--line);
   padding: 9px 0; font-size: 14px; color: var(--ink); outline: none; font-family: inherit;
 }
+
+/* Quiet text link — secondary actions that must not compete with a primary */
+.link-quiet {
+  background: none; border: none; cursor: pointer; color: var(--ink-soft);
+  font: 400 13px/1 'Inter', sans-serif; letter-spacing: .02em;
+  padding: 10px 4px; min-height: 44px;
+  border-bottom: 1px solid transparent; transition: color .2s, border-color .2s;
+}
+.link-quiet:hover { color: var(--ink); border-bottom-color: var(--gold); }
 
 /* Inline add in fridge */
 .fridge-add-row {
@@ -833,7 +845,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .recipe-meta-cell { padding: 22px 12px; text-align: center; border-right: 1px solid var(--line); }
 .recipe-meta-cell:last-child { border-right: none; }
 .recipe-meta-val { font-family: 'Cormorant Garamond', serif; font-size: 22px; }
-.recipe-meta-cap { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+.recipe-meta-cap { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
 .recipe-body { padding: 36px 40px; }
 .recipe-block + .recipe-block { margin-top: 32px; }
 .recipe-block h4 {
@@ -872,10 +884,10 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .fav-card-img { width:100%; height:130px; object-fit:cover; display:block; background:var(--surface-2); }
 .fav-card-body { padding: 16px 18px 18px; }
 .fav-card-title { font-family:'Cormorant Garamond',serif; font-size:19px; margin-bottom:5px; }
-.fav-card-meta { font-size:11.5px; color:var(--ink-mute); letter-spacing:.05em; }
+.fav-card-meta { font-size:11px; color:var(--ink-mute); letter-spacing:.05em; }
 .fav-del {
-  position:absolute; top:7px; right:7px;
-  width:26px; height:26px;
+  position:absolute; top:8px; right:8px;
+  width:32px; height:32px;
   background:rgba(26,22,20,.7); border:none; border-radius:50%;
   color:#EDE5D8; font-size:15px; cursor:pointer;
   display:flex; align-items:center; justify-content:center; line-height:1;
@@ -1011,7 +1023,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .butler-hint-close:hover { color: #EDE5D8; }
 .butler-hint-eyebrow {
-  font-size: 9px; letter-spacing: .32em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .32em; text-transform: uppercase;
   color: var(--gold-glow); font-weight: 500; margin-bottom: 10px;
 }
 .butler-hint-text {
@@ -1251,8 +1263,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-choices-col { flex-direction: column; align-items: flex-start; }
 .onb-choice {
   background: transparent; border: 1px solid var(--line);
-  padding: 12px 22px; cursor: pointer; color: var(--ink);
-  font: 400 14px/1 'Inter', sans-serif; letter-spacing: .06em;
+  padding: 13px 22px; min-height: 44px; cursor: pointer; color: var(--ink);
+  display: inline-flex; align-items: center;
+  font: 400 15px/1.2 'Inter', sans-serif; letter-spacing: 0;
   transition: border-color .2s, background .2s, color .2s;
 }
 .onb-choice:hover { border-color: var(--gold); }
@@ -1267,7 +1280,8 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-text-input:focus { border-bottom-color: var(--gold); }
 .onb-mic {
   background: transparent; border: none; color: var(--ink-mute);
-  cursor: pointer; padding: 8px 6px; display: flex; align-items: center;
+  cursor: pointer; min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: color .2s;
 }
 .onb-mic:hover { color: var(--gold); }
@@ -1293,14 +1307,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 <body>
 <header>
   <div class="brand">NOURI</div>
-  <div class="header-right" id="header-right" style="display:none">
-    <button class="icon-btn" id="home-btn" title="Dashboard" aria-label="Dashboard">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
-    </button>
-    <button class="icon-btn" id="settings-btn" title="Profile" aria-label="Profile">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
-    </button>
-  </div>
+  <!-- Navigation lives in the bottom bar (Home / Butler / Profile); the header
+       stays a quiet brand mark. Duplicate header icons removed. -->
+  <div class="header-right" id="header-right" style="display:none"></div>
 </header>
 
 <main id="app"></main>
@@ -1744,8 +1753,6 @@ function render() {
   renderDashboard();
 }
 
-$("home-btn").addEventListener("click", render);
-$("settings-btn").addEventListener("click", showProfilePanel);
 
 // â"€â"€ Mini-Onboarding (Geschmack) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const CUISINES = [
@@ -1941,8 +1948,8 @@ function renderAIOnboarding() {
   // ── Step 1: Butler name ──────────────────────────────────────────
   async function s1() {
     setStep(1);
-    await say(`Before we start — I need to know a few things about you. This takes under two minutes.`);
-    await say(`First, what would you like to call me? <em>Architect</em>, or a name of your own.`, 350);
+    await say(`Most apps wait for you to log, then add it up. I work the other way — I look ahead and say something before the day gets away from you.`);
+    await say(`Two minutes of setup and I'll begin. First — what should you call me? <em>Architect</em>, or a name of your own.`, 400);
     show(`
       <div class="onb-choices" style="margin-bottom:14px;">
         <button class="onb-choice" data-n="Architect">Architect</button>
@@ -2471,16 +2478,13 @@ function renderDashboard() {
         ? `<div style="font-family:'Inter',sans-serif;font-size:12px;letter-spacing:.08em;color:var(--gold);margin-bottom:var(--space-2);">Day ${state.logStreak}</div>`
         : ""}
       <h1 class="hero-display">${greeting}</h1>
-      <p class="hero-sub">Scan a meal or your fridge — we take care of the rest.</p>
+      <p class="hero-sub">Scan a meal. I'll handle the math — and tell you what matters.</p>
       <div class="hero-cta">
         <button class="btn gold full" id="hero-scan">Scan Meal</button>
         <div style="display:flex;gap:12px;width:100%;">
           <button class="btn ghost" id="hero-barcode" style="flex:1;">Barcode</button>
           <button class="btn ghost" id="hero-fridge" style="flex:1;">Fridge Scan</button>
         </div>
-        <button id="hero-chat" style="background:none;border:none;color:rgba(237,229,216,.55);
-          font:400 13px/1 ‘Inter’,sans-serif;letter-spacing:.08em;cursor:pointer;padding:6px 0;
-          -webkit-appearance:none;">Ask Architect →</button>
       </div>
     </section>
 
@@ -2490,7 +2494,6 @@ function renderDashboard() {
         <div class="ring-center">
           <div class="ring-num">${remaining}</div>
           <div class="ring-cap">REMAINING</div>
-          <div class="ring-pct">${pct}% consumed</div>
         </div>
       </div>
       <div class="hero-target">
@@ -2526,7 +2529,6 @@ function renderDashboard() {
     renderBarcodeScanner();
   });
   $("hero-fridge").addEventListener("click", () => renderFridge());
-  $("hero-chat").addEventListener("click", renderChat);
   if ($("hero-favorites")) $("hero-favorites").addEventListener("click", renderFavorites);
 
   // Daily briefing only fires when there's log data (skip on first-ever visit)
@@ -2769,8 +2771,38 @@ async function handleFoodScan(file) {
     const data = await api("/api/scan/food", { method: "POST", body: fd });
     renderFoodReview(data);
   } catch (e) {
-    renderDashboard();
+    // Julie — never dump the user back with no explanation. Calm, helpful, in Butler's voice.
+    const offline = !navigator.onLine;
+    renderScanError(
+      offline
+        ? "You're offline right now. Reconnect and I'll read your meal."
+        : "I couldn't quite read that one. A clearer, well-lit photo usually does it.",
+      () => pickFile(handleFoodScan)
+    );
   }
+}
+
+// Calm, on-brand failure state — not a technical error, not an alert.
+function renderScanError(message, retryFn) {
+  setChrome(true);
+  app.innerHTML = `
+    <section class="hero anim-up" style="text-align:center;padding-top:18px;">
+      <div class="eyebrow" style="margin-bottom:18px;">Scan</div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+                 font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 auto 16px;max-width:16ch;">
+        Let's try that again.
+      </h1>
+      <p style="color:var(--ink-soft);font-size:var(--fs-body);line-height:1.6;max-width:34ch;margin:0 auto 32px;">
+        ${escapeHtml(message)}
+      </p>
+      <div style="display:flex;flex-direction:column;gap:12px;max-width:300px;margin:0 auto;">
+        <button class="btn gold full" id="scan-retry">Take another photo</button>
+        <button class="btn ghost full" id="scan-back">Back to dashboard</button>
+      </div>
+    </section>
+  `;
+  $("scan-retry").addEventListener("click", retryFn);
+  $("scan-back").addEventListener("click", renderDashboard);
 }
 
 function renderFoodReview(scan) {
@@ -2957,73 +2989,35 @@ function renderFoodReview(scan) {
 // â"€â"€ Fridge & recipe â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function renderFridge() {
   app.innerHTML = `
-    <div class="eyebrow">Sous-Chef</div>
-    <h1 class="onb-title" style="margin-top:8px;">What do you have?</h1>
-    <p class="onb-sub">Scan your fridge or add ingredients manually.</p>
-
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">
-      <button class="btn" id="scan-fridge">Scan Fridge</button>
-      <button class="btn ghost" id="add-manual">Add Ingredient</button>
-      <button class="btn ghost" id="inspire-me">Inspiration</button>
-    </div>
+    <section class="hero anim-up" style="text-align:left;align-items:flex-start;padding:8px 0 24px;">
+      <div class="eyebrow">Sous-Chef</div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+                 font-size:clamp(30px,6vw,44px);line-height:1.1;letter-spacing:-0.01em;margin:14px 0 10px;">
+        Your kitchen.
+      </h1>
+      <p style="color:var(--ink-soft);font-size:var(--fs-body);line-height:1.6;max-width:36ch;margin:0;">
+        Scan what you have — I'll turn it into something worth eating.
+      </p>
+    </section>
 
     <div id="fridge-list"></div>
+    <div id="fridge-cta" style="margin-top:24px;"></div>
+    <div id="recipe-slot" style="margin-top:8px;"></div>
 
-    <div style="margin-top:32px;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
-      <button class="btn ghost" id="cancel-fridge">Back</button>
-      <button class="btn ghost" id="clear-fridge" ${state.fridge.length ? "" : "disabled"}>Clear Basket</button>
-      <button class="btn gold" id="make-recipe" ${state.fridge.length ? "" : "disabled"}>Create Recipe</button>
+    <div style="margin-top:40px;">
+      <button class="link-quiet" id="cancel-fridge">← Back</button>
     </div>
-
-    <div id="recipe-slot"></div>
   `;
-
-  $("scan-fridge").addEventListener("click", () => {
-    if (!isProUser()) return;
-    pickFile(handleFridgeScan);
-  });
-  $("add-manual").addEventListener("click", () => {
-    const list = $("fridge-list");
-    if (list.querySelector(".fridge-add-row")) return; // already open
-    const addRow = document.createElement("div");
-    addRow.className = "fridge-add-row";
-    addRow.innerHTML = `
-      <input type="text" class="fridge-add-input" id="fridge-manual-input"
-        placeholder="z.B. 4 Äpfel, 200g Reis, 2 Eier…" autocomplete="off">
-      <button class="btn ghost" id="fridge-manual-add" style="flex-shrink:0;padding:0 18px;">+</button>
-    `;
-    list.appendChild(addRow);
-    const inp = addRow.querySelector("#fridge-manual-input");
-    inp.focus();
-    const doAdd = () => {
-      const val = inp.value.trim();
-      if (!val) return;
-      val.split(",").map(v => v.trim()).filter(Boolean).forEach(v => state.fridge.push(v));
-      persist();
-      paintFridge();
-    };
-    addRow.querySelector("#fridge-manual-add").addEventListener("click", doAdd);
-    inp.addEventListener("keydown", e => { if (e.key === "Enter") doAdd(); });
-  });
   $("cancel-fridge").addEventListener("click", renderDashboard);
-  $("clear-fridge").addEventListener("click", () => {
-    if (!state.fridge.length) return;
-    if (!confirm("Remove all ingredients from basket?")) return;
-    state.fridge = [];
-    persist();
-    paintFridge();
-    $("recipe-slot").innerHTML = "";
-  });
-  $("make-recipe").addEventListener("click", makeRecipe);
-  $("inspire-me").addEventListener("click", () => makeInspiredRecipe(renderFridge, "← Sous-Chef"));
-
   paintFridge();
 }
 
 function paintFridge() {
   const list = $("fridge-list");
+  if (!list) return;
   if (!state.fridge.length) {
-    list.innerHTML = `<div class="log-empty" style="text-align:center;">No ingredients yet.</div>`;
+    list.innerHTML = `<p style="font-family:'Cormorant Garamond',serif;font-style:italic;
+      font-size:var(--fs-h3);color:var(--ink-mute);margin:4px 0 0;">Your basket is empty.</p>`;
   } else {
     list.innerHTML = `
       <div class="tags">
@@ -3036,12 +3030,70 @@ function paintFridge() {
       state.fridge.splice(+x.dataset.rm, 1);
       persist();
       paintFridge();
-      const btn = $("make-recipe");
-      if (btn) btn.disabled = state.fridge.length === 0;
     }));
   }
-  const btn = $("make-recipe");
-  if (btn) btn.disabled = state.fridge.length === 0;
+  paintFridgeCta();
+}
+
+// One primary action at a time: Scan when the basket is empty, Create once it
+// has ingredients. Everything else is a quiet link, never a competing button.
+function paintFridgeCta() {
+  const cta = $("fridge-cta");
+  if (!cta) return;
+  cta.innerHTML = state.fridge.length
+    ? `
+      <button class="btn gold full" id="make-recipe">Create Recipe</button>
+      <div style="display:flex;justify-content:center;gap:24px;margin-top:14px;flex-wrap:wrap;">
+        <button class="link-quiet" id="scan-fridge">Scan more</button>
+        <button class="link-quiet" id="add-manual">Add by hand</button>
+        <button class="link-quiet" id="clear-fridge">Clear basket</button>
+      </div>`
+    : `
+      <button class="btn gold full" id="scan-fridge">Scan Fridge</button>
+      <div style="display:flex;justify-content:center;gap:24px;margin-top:14px;flex-wrap:wrap;">
+        <button class="link-quiet" id="add-manual">Add by hand</button>
+        <button class="link-quiet" id="inspire-me">Need inspiration?</button>
+      </div>`;
+
+  const sc = $("scan-fridge"); if (sc) sc.addEventListener("click", () => { if (isProUser()) pickFile(handleFridgeScan); });
+  const mr = $("make-recipe"); if (mr) mr.addEventListener("click", makeRecipe);
+  const am = $("add-manual");  if (am) am.addEventListener("click", openManualAdd);
+  const im = $("inspire-me");  if (im) im.addEventListener("click", () => makeInspiredRecipe(renderFridge, "← Sous-Chef"));
+  const cf = $("clear-fridge"); if (cf) cf.addEventListener("click", clearBasket);
+}
+
+function openManualAdd() {
+  const list = $("fridge-list");
+  if (!list || list.querySelector(".fridge-add-row")) return;
+  const addRow = document.createElement("div");
+  addRow.className = "fridge-add-row";
+  addRow.innerHTML = `
+    <input type="text" class="fridge-add-input" id="fridge-manual-input"
+      placeholder="e.g. 4 apples, 200g rice, 2 eggs…" autocomplete="off">
+    <button class="btn ghost" id="fridge-manual-add" style="flex-shrink:0;padding:0 18px;">Add</button>
+  `;
+  list.appendChild(addRow);
+  const inp = addRow.querySelector("#fridge-manual-input");
+  inp.focus();
+  const doAdd = () => {
+    const val = inp.value.trim();
+    if (!val) return;
+    val.split(",").map(v => v.trim()).filter(Boolean).forEach(v => state.fridge.push(v));
+    persist();
+    paintFridge();
+  };
+  addRow.querySelector("#fridge-manual-add").addEventListener("click", doAdd);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") doAdd(); });
+}
+
+async function clearBasket() {
+  if (!state.fridge.length) return;
+  const ok = await showConfirmDialog("Clear basket?", "This removes every ingredient you've added.", "Clear", "Keep");
+  if (!ok) return;
+  state.fridge = [];
+  persist();
+  paintFridge();
+  const slot = $("recipe-slot"); if (slot) slot.innerHTML = "";
 }
 
 async function handleFridgeScan(file) {
@@ -3057,7 +3109,12 @@ async function handleFridgeScan(file) {
     persist();
     paintFridge();
   } catch (e) {
-    paintFridge();
+    const slot = $("fridge-list");
+    if (slot) slot.innerHTML = `<div class="log-empty" style="text-align:center;">${
+      navigator.onLine
+        ? "I couldn't read that photo. Try a clearer shot — or add items by hand."
+        : "You're offline. Reconnect, or add items by hand for now."
+    }</div>`;
   }
 }
 
@@ -3066,13 +3123,14 @@ async function makeRecipe() {
   slot.innerHTML = `<div class="skeleton-card"><span class="loader"></span>Composing recipe…</div>`;
   try {
     const t = todayTotals();
-    const remaining = Math.max(state.targets.calories - t.calories, 300);
+    // Guard: a user who skipped plan-building has no state.targets.
+    const remaining = Math.max(effectiveCalTarget() - t.calories, 300);
     const recipe = await api("/api/recipe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ingredients: state.fridge,
-        targets: state.targets,
+        targets: state.targets || null,
         remaining_calories: remaining,
         restrictions: state.restrictions,
         taste: state.taste,
@@ -3080,7 +3138,11 @@ async function makeRecipe() {
     });
     renderRecipe(recipe);
   } catch (e) {
-    slot.innerHTML = "";
+    slot.innerHTML = `<div class="skeleton-card">${
+      navigator.onLine
+        ? "I couldn't compose a recipe just now. Give it another moment and try again."
+        : "You're offline — reconnect and I'll compose your recipe."
+    }</div>`;
   }
 }
 
@@ -3181,7 +3243,7 @@ function showWelcomeHint() {
   hint.id        = "butler-hint";
   hint.className = "butler-hint";
   hint.innerHTML = `
-    <button class="butler-hint-close" id="hint-close" aria-label="Schließen">×</button>
+    <button class="butler-hint-close" id="hint-close" aria-label="Close">×</button>
     <div class="butler-hint-eyebrow">ARCHITECT</div>
     <p class="butler-hint-text">If you have allergies or foods you avoid, add them in Settings — I'll factor them into every recipe.</p>
     <button class="butler-hint-link" id="hint-settings">Open Settings â†’</button>
@@ -4143,16 +4205,16 @@ function revealWords(el, text, onTick) {
 function renderChat() {
   setBottomTab("butler");
   loadMemories();
+  const nm = state.name ? `, ${state.name}` : "";
   const welcome = {
-    ELITE_BUTLER:      "Good day. I have your current day's numbers ready — what would you like to address?",
-    PERFORMANCE_COACH: "Let's go. What's your goal today? I'm direct.",
-    STRATEGIC_BUDDY:   "Hey — what's on your mind? Food, macros, decisions?",
+    ELITE_BUTLER:      `Good to see you${nm}. I have today's numbers in front of me — where would you like to begin?`,
+    PERFORMANCE_COACH: `Let's work${nm}. I've got your day's numbers. What are we fixing?`,
+    STRATEGIC_BUDDY:   `Hey${nm} — I'm caught up on your day. What's on your mind?`,
   }[ARCHITECT.getMode()] || "Ready when you are.";
 
   app.innerHTML = `
     <section class="hero-block" style="padding-bottom:20px;">
-      <div class="hero-eyebrow">Performance Intelligence Core</div>
-      <h1 class="hero-display" style="font-size:clamp(26px,3.5vw,42px);">Architect</h1>
+      <h1 class="hero-display" style="font-size:clamp(26px,3.5vw,42px);">${escapeHtml(state.butlerName || "Architect")}</h1>
       <p class="hero-sub" style="font-size:12px;letter-spacing:.1em;margin:0;">${escapeHtml(ARCHITECT.getModeLabel())}</p>
     </section>
 
@@ -4164,10 +4226,6 @@ function renderChat() {
         <textarea id="chat-input" class="chat-input" placeholder="Message…" rows="1"></textarea>
         <button class="btn gold" id="chat-send" style="padding:0 20px;flex-shrink:0;align-self:flex-end;">Send</button>
       </div>
-    </div>
-
-    <div style="text-align:center;margin-top:16px;">
-      <button class="btn ghost" id="chat-back" style="font-size:13px;padding:0 16px;height:36px;">Dashboard</button>
     </div>
   `;
 
@@ -4242,7 +4300,6 @@ function renderChat() {
     input.style.height = "44px";
     input.style.height = Math.min(input.scrollHeight, 110) + "px";
   });
-  $("chat-back").addEventListener("click", renderDashboard);
 }
 
 // â"€â"€ Auth Screen â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
