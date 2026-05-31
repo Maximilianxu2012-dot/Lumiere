@@ -312,6 +312,12 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .onb-choice.selected {
   background: var(--ink); color: var(--surface); border-color: var(--ink);
 }
+/* inline field validation — red-tinted small text below a vitals field */
+.onb-err {
+  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.3;
+  color: #b5544e; margin-top: 5px; min-height: 13px;
+}
+.onb-submit:disabled { opacity: .35; cursor: not-allowed; }
 
 .option-grid { display: grid; gap: 10px; max-width: 480px; margin: 0 auto; }
 .option {
@@ -1999,38 +2005,76 @@ function renderAIOnboarding() {
   async function s4() {
     setStep(4);
     await say(`A few quick numbers — all on one screen.`);
+    const fld = `display:block;width:100%;`;
     show(`
-      <div class="onb-input-row" style="flex-wrap:wrap;gap:10px;">
-        <input id="ag" class="onb-text-input" type="number" min="10" max="100" placeholder="Age" style="max-width:84px;">
-        <input id="ht" class="onb-text-input" type="number" min="120" max="230" placeholder="Height (cm)">
-        <input id="wt" class="onb-text-input" type="number" min="30" max="300" step="0.1" placeholder="Weight (kg)">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <input id="ag" class="onb-text-input" type="number" min="10" max="100" placeholder="Age" style="${fld}">
+          <div class="onb-err" id="ag-err"></div>
+        </div>
+        <div>
+          <input id="ht" class="onb-text-input" type="number" min="100" max="250" placeholder="Height (cm)" style="${fld}">
+          <div class="onb-err" id="ht-err"></div>
+        </div>
+        <div>
+          <input id="wt" class="onb-text-input" type="number" min="30" max="300" step="0.1" placeholder="Weight (kg)" style="${fld}">
+          <div class="onb-err" id="wt-err"></div>
+        </div>
       </div>
       <div class="onb-choices" style="margin-top:14px;">
         <button class="onb-choice" data-s="m">Male</button>
         <button class="onb-choice" data-s="f">Female</button>
       </div>
       <div class="onb-input-row" style="margin-top:14px;justify-content:flex-end;">
-        <button id="vit-sub" class="onb-submit">→</button>
+        <button id="vit-sub" class="onb-submit" disabled>→</button>
       </div>
     `);
+
+    const setErr = (id, txt) => { const e = $(id); if (e) e.textContent = txt; };
+    // Live validation: red-tinted inline message below each field, Continue
+    // stays disabled until every field is valid and a sex is chosen.
+    function validate() {
+      const agV = $("ag").value, htV = $("ht").value, wtV = $("wt").value;
+      const a = parseInt(agV), h = parseFloat(htV), w = parseFloat(wtV);
+      let ok = true;
+
+      if (agV === "") { setErr("ag-err", ""); ok = false; }
+      else if (!(a >= 10 && a <= 100)) { setErr("ag-err", "Please enter a valid age."); ok = false; }
+      else setErr("ag-err", "");
+
+      if (htV === "") { setErr("ht-err", ""); ok = false; }
+      else if (!(h >= 100 && h <= 250)) { setErr("ht-err", "Please enter a valid height between 100 and 250 cm."); ok = false; }
+      else setErr("ht-err", "");
+
+      if (wtV === "") { setErr("wt-err", ""); ok = false; }
+      else if (!(w >= 30 && w <= 300)) { setErr("wt-err", "Please enter a valid weight between 30 and 300 kg."); ok = false; }
+      else setErr("wt-err", "");
+
+      if (!d.sex) ok = false;
+      const btn = $("vit-sub"); if (btn) btn.disabled = !ok;
+      return ok;
+    }
+
     acts.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
       d.sex = b.dataset.s;
       acts.querySelectorAll("[data-s]").forEach(x => x.classList.remove("selected"));
       b.classList.add("selected");
+      validate();
     }));
+    ["ag", "ht", "wt"].forEach(id => $(id).addEventListener("input", validate));
+
     const go = () => {
-      const a = parseInt($("ag").value), h = parseFloat($("ht").value), w = parseFloat($("wt").value);
-      if (!a || a < 10 || a > 100)   { $("ag").focus(); return; }
-      if (!h || h < 120 || h > 230)  { $("ht").focus(); return; }
-      if (!w || w < 30 || w > 300)   { $("wt").focus(); return; }
-      if (!d.sex) return;
-      d.age = a; d.height = h; d.weight = w;
-      echo(`${a} yrs · ${h} cm · ${w} kg · ${d.sex === "m" ? "Male" : "Female"}`);
+      if (!validate()) return;
+      d.age = parseInt($("ag").value);
+      d.height = parseFloat($("ht").value);
+      d.weight = parseFloat($("wt").value);
+      echo(`${d.age} yrs · ${d.height} cm · ${d.weight} kg · ${d.sex === "m" ? "Male" : "Female"}`);
       clear(); s5();
     };
     $("vit-sub").addEventListener("click", go);
     $("ag").addEventListener("keydown", e => { if (e.key === "Enter") $("ht").focus(); });
     $("ht").addEventListener("keydown", e => { if (e.key === "Enter") $("wt").focus(); });
+    $("wt").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
     setTimeout(() => { const i = $("ag"); if (i) i.focus(); }, 120);
   }
 
@@ -2128,6 +2172,7 @@ function renderAIOnboarding() {
       </div>
       <button class="onb-skip" id="gd-skip">Skip for now</button>
     `);
+    const fmtKg = n => Number.isInteger(n) ? `${n}` : n.toFixed(1);
     const go = (skip) => {
       if (skip) { clear(); s7diet(); return; }
       const kg = parseFloat($("gw").value), tl = $("gt").value.trim();
@@ -2135,34 +2180,50 @@ function renderAIOnboarding() {
       d.goalWeight = kg; d.goalTimeline = tl;
       echo(`${kg} kg · ${tl || "no timeline"}`);
 
-      // Realistic rate check — days-based, honest, never blocking.
+      const current = d.weight, target = kg;
+
+      // ── 3. Nonsense detection (weight-based, no timeline needed) ──
+      if (target < 40) {
+        clear(); s7nonsense("That target weight isn't healthy. Please enter a realistic goal weight."); return;
+      }
+      if (current && target === current) {
+        clear(); s7nonsense("Your target weight is the same as your current weight. What's your actual goal?"); return;
+      }
+      if (d.goal === "lose" && current && target > current) {
+        clear(); s7nonsense("Your target is higher than your current weight. Did you mean to select 'Build muscle' instead?"); return;
+      }
+
+      // ── 2. Realistic-rate check (needs a timeline) ──
       const days = parseTimelineToDays(tl);
-      if (days && days > 0) {
-        if (d.goal === "lose" && d.weight && kg < d.weight) {
-          const diff = d.weight - kg;                  // kg to lose
-          const weeklyLoss = diff / (days / 7);
-          if (weeklyLoss > 0.75) {
-            const sugWeeks = Math.ceil(diff / 0.75);
-            clear();
-            s7validate(
-              `That's more than 0.75kg per week — that's not safe or sustainable. ` +
-              `I'd suggest ${sugWeeks} weeks for a realistic timeline. Want to adjust?`
-            );
-            return;
-          }
+      if (days && days > 0 && current) {
+        const diff = Math.abs(current - target);
+        const weeklyChange = diff / (days / 7);
+        const Y = Math.round(days);
+        const Z = weeklyChange.toFixed(1);
+
+        // Physically impossible (> 2 kg/week, either direction) — no "keep" option.
+        if (weeklyChange > 2) {
+          clear();
+          s7validate("That's not physically possible. Let's set a goal that actually works for you.", false);
+          return;
         }
-        if (d.goal === "gain" && d.weight && kg > d.weight) {
-          const diff = kg - d.weight;                  // kg to gain
-          const monthlyGain = diff / (days / 30.44);
-          if (monthlyGain > 1) {
-            const sugMonths = Math.ceil(diff);          // ~1 kg muscle / month ceiling
-            clear();
-            s7validate(
-              `Building ${diff.toFixed(1)}kg of muscle that fast isn't realistic — ` +
-              `about 1kg per month is the ceiling. I'd suggest ${sugMonths} months. Want to adjust?`
-            );
-            return;
-          }
+        if (d.goal === "lose" && target < current && weeklyChange > 0.75) {
+          const wk = Math.ceil(diff / 0.75);
+          clear();
+          s7validate(
+            `Losing ${fmtKg(diff)}kg in ${Y} days means ${Z}kg per week — that's not safe or sustainable. ` +
+            `A realistic timeline for your goal is ${wk} weeks. Want to adjust?`, true
+          );
+          return;
+        }
+        if (d.goal === "gain" && target > current && weeklyChange > 0.25) {
+          const wk = Math.ceil(diff / 0.25);   // ~1 kg muscle / month = 0.25 kg / week
+          clear();
+          s7validate(
+            `Gaining ${fmtKg(diff)}kg in ${Y} days isn't realistic — muscle builds slowly. ` +
+            `A realistic timeline is ${wk} weeks. Want to adjust?`, true
+          );
+          return;
         }
       }
       clear(); s7diet();
@@ -2174,20 +2235,27 @@ function renderAIOnboarding() {
     setTimeout(() => { const i = $("gw"); if (i) i.focus(); }, 120);
   }
 
-  // Honest flag for an unrealistic target. Never blocks — informs, then lets the
-  // user re-enter ("Adjust") or proceed with the goal logged as-is ("Keep it anyway").
-  async function s7validate(msg) {
+  // Nonsense goal → Butler names it, then re-opens the entry to correct it.
+  async function s7nonsense(msg) {
+    await say(msg);
+    await sleep(250);
+    s7details();
+  }
+
+  // Unrealistic target. Never blocks. allowKeep=false for physically-impossible
+  // goals (only "Adjust timeline"); true otherwise ("Adjust timeline" / "Keep my goal").
+  async function s7validate(msg, allowKeep) {
     await say(msg);
     show(`
       <div class="onb-choices onb-choices-col">
-        <button class="onb-choice" data-v="adjust">Adjust</button>
-        <button class="onb-choice" data-v="keep">Keep it anyway</button>
+        <button class="onb-choice" data-v="adjust">Adjust timeline</button>
+        ${allowKeep ? `<button class="onb-choice" data-v="keep">Keep my goal</button>` : ``}
       </div>
     `);
     acts.querySelectorAll("[data-v]").forEach(b => b.addEventListener("click", async () => {
       echo(b.textContent); clear();
       if (b.dataset.v === "adjust") { await s7details(); return; }
-      // Keep it anyway → goal stays exactly as the user set it (already in d).
+      // Keep my goal → logged exactly as the user set it (already in d).
       await say(`Understood — I've logged your goal as you set it.`, 250);
       s7diet();
     }));

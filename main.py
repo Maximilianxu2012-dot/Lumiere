@@ -162,9 +162,10 @@ Goal = Literal["lose", "maintain", "gain"]
 
 
 class Profile(BaseModel):
-    age: int = Field(ge=14, le=100)
-    weight_kg: float = Field(gt=30, lt=300)
-    height_cm: float = Field(gt=120, lt=230)
+    # Bounds kept in sync with the onboarding input validation in index.html.
+    age: int = Field(ge=10, le=100)
+    weight_kg: float = Field(ge=30, le=300)
+    height_cm: float = Field(ge=100, le=250)
     sex: Sex
     activity: Activity
     goal: Goal
