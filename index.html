@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 <style>
 :root {
   --bg: #F5F1EA;
@@ -20,7 +20,7 @@
 
   --ink: #1F1A15;       /* warm near-black, passt zu Cream/Bronze */
   --ink-soft: #6F665A;  /* warm-grau für sekundären Text */
-  --ink-mute: #A8A39A;
+  --ink-mute: #807A72;  /* darkened from #A8A39A — now ~3.8:1 on cream, passes WCAG */
 
   --gold: #B89968;
   --gold-deep: #94774A;
@@ -130,10 +130,18 @@ html, body {
 .ring-wrap.amber-pulse { animation: ringAmber .6s ease-out; }
 .ring-wrap.amber-pulse .ring-fg { stroke: #C58A3A; transition: stroke .3s ease; }
 
+/* Maya — quiet reward: one soft gold glow when a scan lands. Felt, not seen loudly. */
+@keyframes ringReward {
+  0%   { box-shadow: 0 0 0 0 rgba(184,153,104,0); }
+  50%  { box-shadow: 0 0 0 12px rgba(184,153,104,0.25); }
+  100% { box-shadow: 0 0 0 0 rgba(184,153,104,0); }
+}
+.ring-wrap.reward { border-radius: 50%; animation: ringReward .6s ease-in-out; }
+
 /* Sofia — scan result reveal: spring up from below, 300ms ease-out */
 @keyframes scanReveal {
-  from { opacity: 0; transform: translateY(40px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .scan-reveal { animation: scanReveal .3s cubic-bezier(.16,.84,.44,1) both; }
 
@@ -150,6 +158,7 @@ html, body {
 .chat-word { opacity: 0; animation: fadeIn .28s ease forwards; }
 @media (prefers-reduced-motion: reduce) {
   .ring-wrap.pulse { animation: none; }
+  .ring-wrap.reward { animation: none; }
   .chat-word { opacity: 1; animation: none; }
 }
 
@@ -281,7 +290,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   box-shadow: none;
   outline: none;
 }
-.auth-input::placeholder { color: rgba(26,22,20,0.4); }
+.auth-input::placeholder { color: rgba(26,22,20,0.55); } /* darkened from .4 — passes 3:1 on #FAF7F2 */
 .field { margin-bottom: 24px; text-align: left; }
 .field-label {
   display: block; font-size: 11px; letter-spacing: .18em;
@@ -484,11 +493,17 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .macro-name { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
 .macro-vals { font-family: 'Cormorant Garamond', serif; font-size: 18px; }
 .macro-vals .target { color: var(--ink-mute); font-size: 14px; }
-.macro-bar { height: 1px; background: var(--line); margin-top: 10px; position: relative; overflow: hidden; }
-.macro-bar-fill {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: var(--gold); transition: width .6s ease;
+.macro-bar {
+  height: 2px; background: rgba(26, 22, 20, 0.08); border-radius: 1px;
+  margin-top: 4px; position: relative; overflow: hidden;
 }
+.macro-bar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; max-width: 100%;
+  background: var(--gold); border-radius: 1px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Isabel — over-goal macro: muted gold, never red. The design does not punish. */
+.macro-bar-fill.over { background: rgba(184, 153, 104, 0.45); }
 
 /* Action cards */
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
@@ -907,7 +922,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .recipe-steps li::before {
   content: counter(step, decimal-leading-zero);
   position: absolute; left: 0; top: 14px;
-  font-family: 'Cormorant Garamond', serif; color: var(--gold); font-size: 18px;
+  font-family: 'Cormorant Garamond', serif; color: #6B5A3E; font-size: 18px; /* deepened gold — gold on cream failed 2.39:1 */
 }
 .recipe-foot { padding: 24px 40px 32px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
 
@@ -1400,6 +1415,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 // â"€â"€ Supabase init â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const _sb      = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let   _session = null;  // aktuell eingeloggter User
+let   _appBooted = false; // true once the initial boot() render decision has run
 
 _sb.auth.onAuthStateChange((event, session) => {
   _session = session;
@@ -1411,9 +1427,20 @@ _sb.auth.onAuthStateChange((event, session) => {
     _locationRequested = false;
     _weatherCache = null;
     renderAuth();
+    return;
   }
   if (event === "PASSWORD_RECOVERY") {
     renderPasswordReset();
+    return;
+  }
+  // SIGNED_IN / TOKEN_REFRESHED keep _session fresh (set above) so an expiring or
+  // refreshing token never silently bounces the user to the Welcome screen.
+  // We only re-render here to RECOVER: if boot() has already made its decision
+  // and the user is still on the auth screen while a valid session exists, load
+  // their data and show the app. boot() and doLogin() own the first render, so
+  // this never double-renders or flashes the dashboard before loadFromCloud().
+  if (event === "SIGNED_IN" && _appBooted && session && document.getElementById("auth-login")) {
+    loadFromCloud().then(render);
   }
 });
 
@@ -1540,6 +1567,31 @@ function pulseRingAmber() {
   if (!ring) return;
   ring.classList.add("amber-pulse");
   ring.addEventListener("animationend", () => ring.classList.remove("amber-pulse"), { once: true });
+}
+
+// Maya — quiet reward: one soft gold glow when a scan lands. Felt, not seen loudly.
+function glowRing() {
+  const ring = document.querySelector(".ring-wrap");
+  if (!ring) return;
+  ring.classList.add("reward");
+  ring.addEventListener("animationend", () => ring.classList.remove("reward"), { once: true });
+}
+
+// Isabel — loss-aversion note: one meal that eats >45% of the day's budget.
+// Calm, observational, once per day, and never when we're already near the limit
+// (the calorie_limit trigger owns that case).
+function checkHeavyMeal(mealCalories) {
+  const d = today();
+  if (!state.butlerFired || state.butlerFired.date !== d) state.butlerFired = { date: d, types: [] };
+  if (state.butlerFired.types.includes("heavyMeal")) return;
+  const goal = effectiveCalTarget();
+  if (!goal) return;
+  if (todayTotals().calories / goal > 0.9) return;
+  if (mealCalories > goal * 0.45) {
+    state.butlerFired.types.push("heavyMeal");
+    persist();
+    showButlerMessage("That was a heavy meal. Keep the rest of the day light.");
+  }
 }
 
 let _syncTimer = null;
@@ -1806,7 +1858,7 @@ function showDisclaimer() {
   overlay.className = "disclaimer-overlay";
   overlay.innerHTML = `
     <div class="disclaimer-card anim-up">
-      <div class="eyebrow" style="color:var(--gold);margin-bottom:24px;">Nouri</div>
+      <div class="eyebrow" style="color:#6B5A3E;margin-bottom:24px;">Nouri</div>
       <h2 class="disclaimer-title">Before you begin</h2>
       <p class="disclaimer-text">
         Nouri provides general nutritional information and is not a substitute for
@@ -2525,13 +2577,14 @@ function ringSvg(progress) {
 // Renders a single macro bar (protein/carbs/fat) with progress indicator
 function macroBlock(name, current, target) {
   const pct = target > 0 ? Math.min(current / target, 1) * 100 : 0;
+  const over = target > 0 && current > target;
   return `
     <div class="macro">
       <div class="macro-head">
         <span class="macro-name">${name}</span>
         <span class="macro-vals">${Math.round(current)}<span class="target"> / ${target}g</span></span>
       </div>
-      <div class="macro-bar"><div class="macro-bar-fill" style="width:${pct}%"></div></div>
+      <div class="macro-bar"><div class="macro-bar-fill${over ? " over" : ""}" style="width:${pct}%"></div></div>
     </div>
   `;
 }
@@ -3132,7 +3185,13 @@ function renderFoodReview(scan) {
     recordMealForStreak();
     markLogDirty(d);
     renderDashboard();
+    // Maya — habit-loop closure: short double haptic on every save; gold ring glow
+    // unless this meal alone is heavy (then maybeAffirm pulses the ring amber instead).
+    if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+    const _dayGoal = effectiveCalTarget();
+    if (!(_dayGoal && t.calories > _dayGoal * 0.5)) glowRing();
     maybeAffirm({ protein_g: t.protein_g, calories: t.calories });
+    checkHeavyMeal(t.calories);
     checkButler(items.map(i => ({
       name: i.name, portion: i.portion,
       calories: +i.calories || 0, protein_g: +i.protein_g || 0,
@@ -4446,6 +4505,11 @@ async function proactiveCheck() {
     type = "calorie_limit";
   }
 
+  if (!msg && hour >= 19 && pctCal < 0.3 && !fired.includes("undereatEvening")) {
+    msg  = "You've barely eaten today. Your body needs fuel even in the evening.";
+    type = "undereatEvening";
+  }
+
   if (!msg && hour >= 21 && pctCal < 0.7 && !fired.includes("end_of_day")) {
     msg  = "You've significantly under-eaten today. Consider a light meal before bed.";
     type = "end_of_day";
@@ -5217,6 +5281,10 @@ async function boot() {
   } catch {
     // Network or Supabase error at boot — fall back to auth screen
     renderAuth();
+  } finally {
+    // The initial render decision has now been made. Any later SIGNED_IN event
+    // (re-login, token refresh after offline) may safely trigger a recovery render.
+    _appBooted = true;
   }
 }
 
