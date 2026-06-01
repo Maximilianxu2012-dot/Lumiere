@@ -1,10 +1,12 @@
+import asyncio
 import json
 import os
+import re
 import threading
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -252,7 +254,9 @@ class ChatContext(BaseModel):
     protein_target: int | None = None
     user_name: str | None = None
     today_date: str | None = None  # user's local date, YYYY-MM-DD
-    memories: list[str] = []  # short notes the Butler should remember about the user
+    # Structured [{memory_text, category}] (current frontend) or legacy list[str]
+    # from an older cached build — _normalize_memories() accepts both.
+    memories: list = []
 
 
 class ChatRequest(BaseModel):
@@ -275,7 +279,7 @@ class ButlerCheckRequest(BaseModel):
     fired_today: list[str] = []
     health_context: HealthContextInput | None = None
     last_meal: list[MealItemForCheck] = []
-    memories: list[str] = []
+    memories: list = []  # structured or legacy — see ChatContext.memories
 
 
 # Shared character spine — every mode inherits this. Tone is layered on top.
@@ -459,7 +463,10 @@ async def save_state(
 # ── Butler memory ───────────────────────────────────────────────────
 class MemoryInput(BaseModel):
     memory_text: str
-    category: Literal["goal", "event", "preference", "health", "reminder", "reflection"] = "event"
+    category: Literal[
+        "goal", "event", "preference", "health", "reminder",
+        "reflection", "habit", "habit_candidate",
+    ] = "event"
     expires_at: str | None = None  # ISO timestamp, optional
 
 
@@ -530,6 +537,394 @@ async def save_memory(
     if r.status_code >= 400:
         raise HTTPException(status_code=502, detail="Could not save memory")
     return {"ok": True}
+
+
+# ── Proactive memory extraction (Laure / Chen / Marcus) ─────────────
+# A lightweight second Gemini pass turns raw interactions into durable memory.
+# The frontend fires these endpoints and never awaits them, so the user is never
+# blocked. Scan-derived insights are staged as "habit_candidate"; they only
+# become spoken "habit" memories once the daily pattern analysis confirms them
+# against ≥5 days of data — a single pizza never becomes "user eats unhealthy".
+class ExtractScanInput(BaseModel):
+    items: list[MealItemForCheck] = []
+    time_of_day: str = ""
+
+
+class ExtractChatInput(BaseModel):
+    user_message: str = ""
+    butler_response: str = ""
+
+
+_WORD_RE = re.compile(r"[a-z0-9]+")
+_UUID_RE = re.compile(r"^[0-9a-fA-F-]{16,40}$")
+_MEM_SELECT = "id,memory_text,category,created_at,expires_at"
+
+
+def _words(s: str) -> set[str]:
+    return set(_WORD_RE.findall((s or "").lower()))
+
+
+def _word_overlap(a: str, b: str) -> float:
+    """Fraction of the smaller bag-of-words shared by both strings (0–1).
+    Cheap semantic dedup: >0.70 ⇒ treat as the same memory."""
+    wa, wb = _words(a), _words(b)
+    if not wa or not wb:
+        return 0.0
+    return len(wa & wb) / min(len(wa), len(wb))
+
+
+def _normalize_memories(raw) -> list[dict]:
+    """Accept the structured shape [{memory_text, category}] (current frontend)
+    OR the legacy flat list[str] (older cached builds); return clean dicts."""
+    out: list[dict] = []
+    for m in raw or []:
+        if isinstance(m, dict):
+            txt = str(m.get("memory_text", "")).strip()
+            cat = str(m.get("category", "")).strip() or "general"
+        elif isinstance(m, str):
+            txt, cat = m.strip(), "general"
+        else:
+            continue
+        if txt:
+            out.append({"memory_text": txt, "category": cat})
+    return out
+
+
+def _parse_json_block(text: str):
+    """Best-effort JSON extraction from a model reply (tolerates ``` fences)."""
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t).strip()
+    try:
+        return json.loads(t)
+    except Exception:
+        m = re.search(r"(\[.*\]|\{.*\})", t, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(1))
+            except Exception:
+                return None
+    return None
+
+
+async def _gemini_text(prompt: str, temperature: float = 0.2) -> str:
+    """Plain-text Gemini call, run off the event loop. Returns '' on any error —
+    memory extraction must never surface an error to the user."""
+    def _call() -> str:
+        r = client.models.generate_content(
+            model=MODEL,
+            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+            config=types.GenerateContentConfig(temperature=temperature),
+        )
+        return (r.text or "").strip()
+    try:
+        return await asyncio.to_thread(_call)
+    except Exception:
+        return ""
+
+
+async def _sb_fetch_memories(c, token, category: str | None = None,
+                             only_active: bool = True) -> list[dict]:
+    params = {"select": _MEM_SELECT, "limit": "200"}
+    if category:
+        params["category"] = f"eq.{category}"
+    if only_active:
+        params["or"] = f"(expires_at.is.null,expires_at.gt.{datetime.now(timezone.utc).isoformat()})"
+    r = await c.get(f"{SUPABASE_URL}/rest/v1/butler_memory",
+                    headers=_sb_headers(token), params=params)
+    return r.json() if r.status_code == 200 else []
+
+
+async def _sb_insert_memory(c, token, user_id, text, category, expires_at=None):
+    payload = {"user_id": user_id, "memory_text": text[:500], "category": category}
+    if expires_at:
+        payload["expires_at"] = expires_at
+    await c.post(f"{SUPABASE_URL}/rest/v1/butler_memory",
+                 headers=_sb_headers(token), json=payload)
+
+
+async def _sb_update_memory(c, token, mem_id, text, expires_at=None):
+    # created_at is refreshed so the 90-day prune treats an updated memory as recent.
+    payload = {
+        "memory_text": text[:500],
+        "expires_at": expires_at,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await c.patch(f"{SUPABASE_URL}/rest/v1/butler_memory",
+                  headers=_sb_headers(token),
+                  params={"id": f"eq.{mem_id}"}, json=payload)
+
+
+async def _sb_delete_memory(c, token, mem_id):
+    await c.delete(f"{SUPABASE_URL}/rest/v1/butler_memory",
+                   headers=_sb_headers(token), params={"id": f"eq.{mem_id}"})
+
+
+async def _store_with_dedup(c, token, user_id, text, category, existing, expires_at=None) -> bool:
+    """Insert a memory, or UPDATE an existing same-category one when >70% of the
+    smaller word-bag overlaps. `existing` is mutated so near-duplicates inside a
+    single batch also collapse. Returns True if a new row was inserted."""
+    text = (text or "").strip()
+    if not text:
+        return False
+    for m in existing:
+        if m.get("category") == category and _word_overlap(text, m.get("memory_text", "")) > 0.70:
+            if m.get("id"):
+                await _sb_update_memory(c, token, m["id"], text, expires_at=expires_at)
+            m["memory_text"] = text
+            return False
+    await _sb_insert_memory(c, token, user_id, text, category, expires_at)
+    existing.append({"id": None, "memory_text": text, "category": category})
+    return True
+
+
+EXTRACT_SCAN_PROMPT = """You are a memory extraction system for a nutrition app. Given this food scan result,
+extract 0–2 memory strings worth storing about the user's eating habits or preferences.
+Return a JSON array of strings, or an empty array [] if nothing notable.
+
+Rules:
+- Only extract something that would be genuinely useful to know for future conversations
+- Focus on preferences, patterns, and notable choices — not just "user ate food"
+- Be neutral and factual — no judgments
+- Keep each string under 80 characters
+- Examples of good memories:
+  "User often eats [food] for lunch"
+  "User prefers high-protein meals"
+  "User logged a large pasta dish — possible comfort food pattern"
+- Examples of bad memories (do NOT generate):
+  "User ate today" (not useful)
+  "User is unhealthy" (judgment, over-generalization)
+  "User ate pizza" (single data point, not a pattern)
+
+Food scan data:
+__SCAN_ITEMS__
+Time of day: __TIME_OF_DAY__"""
+
+
+@app.post("/api/memory/extract-scan")
+async def extract_scan_memory(
+    body: ExtractScanInput,
+    user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Stage 0–2 'habit_candidate' memories from a just-logged meal. Candidates
+    expire in 30 days and are NEVER injected into the Butler — only the daily
+    pattern analysis can promote them to confirmed habits."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not body.items:
+        return {"stored": 0}
+    scan_items = "; ".join(
+        f"{i.name} ({i.portion or 'n/a'}, {i.calories} kcal, "
+        f"{i.protein_g:.0f}g protein, {i.carbs_g:.0f}g carbs, {i.fat_g:.0f}g fat)"
+        for i in body.items
+    )
+    prompt = (EXTRACT_SCAN_PROMPT
+              .replace("__SCAN_ITEMS__", scan_items)
+              .replace("__TIME_OF_DAY__", body.time_of_day.strip() or "unknown"))
+    parsed = _parse_json_block(await _gemini_text(prompt, 0.2))
+    if not isinstance(parsed, list):
+        return {"stored": 0}
+    strings = [s.strip()[:80] for s in parsed if isinstance(s, str) and s.strip()][:2]
+    if not strings:
+        return {"stored": 0}
+    expires = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    async with httpx.AsyncClient() as c:
+        existing = await _sb_fetch_memories(c, token, category="habit_candidate")
+        for s in strings:
+            await _store_with_dedup(c, token, user["id"], s, "habit_candidate", existing, expires_at=expires)
+    return {"stored": len(strings)}
+
+
+EXTRACT_CHAT_PROMPT = """You are a memory extraction system. Given this conversation snippet between a user and
+their nutrition butler, extract 0–2 memory strings worth storing long-term.
+Return a JSON array of strings, or [] if nothing notable.
+
+Focus on:
+- Goals the user mentions ("I want to lose 5kg by summer")
+- Health conditions or restrictions mentioned ("I'm lactose intolerant")
+- Personal preferences ("I hate eating breakfast")
+- Emotional context relevant to eating ("I stress-eat at night")
+- Upcoming events that affect eating ("I have a competition next month")
+
+Rules:
+- Single-use phrases like "today I..." → do NOT store
+- Only store things that would still be useful in 2 weeks
+- Keep strings under 100 characters
+- No judgments, no assumptions
+
+Conversation:
+User: __USER_MESSAGE__
+Butler: __BUTLER_RESPONSE__"""
+
+
+def _classify_chat_memory(s: str) -> tuple[str, str | None]:
+    """Map an extracted chat memory to (category, expires_at). Conservative —
+    defaults to a durable 'preference'. Mirrors the frontend detectMemory()."""
+    low = s.lower()
+    if re.search(r"\b(allerg|intoleran|lactose|gluten|celiac|coeliac|diabet|"
+                 r"hypertension|blood pressure|condition|ibs|reflux)\b", low):
+        return "health", None
+    if re.search(r"\b(tomorrow|tonight|next week|next month|competition|wedding|"
+                 r"holiday|vacation|trip|race|marathon|event|on monday|on tuesday|"
+                 r"on wednesday|on thursday|on friday|on saturday|on sunday)\b", low):
+        # Upcoming event — self-cleans after ~60 days if never refreshed.
+        return "event", (datetime.now(timezone.utc) + timedelta(days=60)).isoformat()
+    if re.search(r"\b(goal|want to|trying to|aim|aiming|plan to|lose|gain|reach|"
+                 r"target|cut|bulk|by summer|by christmas|kg|pounds|lbs)\b", low):
+        return "goal", None
+    return "preference", None
+
+
+@app.post("/api/memory/extract-chat")
+async def extract_chat_memory(
+    body: ExtractChatInput,
+    user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Store 0–2 durable memories straight from the user's own words. These come
+    from the user directly, so they skip staging and land as a real category."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not body.user_message.strip():
+        return {"stored": 0}
+    prompt = (EXTRACT_CHAT_PROMPT
+              .replace("__USER_MESSAGE__", body.user_message.strip()[:1000])
+              .replace("__BUTLER_RESPONSE__", body.butler_response.strip()[:1000]))
+    parsed = _parse_json_block(await _gemini_text(prompt, 0.2))
+    if not isinstance(parsed, list):
+        return {"stored": 0}
+    strings = [s.strip()[:100] for s in parsed if isinstance(s, str) and s.strip()][:2]
+    if not strings:
+        return {"stored": 0}
+    async with httpx.AsyncClient() as c:
+        existing = [m for m in await _sb_fetch_memories(c, token)
+                    if m.get("category") != "habit_candidate"]
+        for s in strings:
+            cat, exp = _classify_chat_memory(s)
+            await _store_with_dedup(c, token, user["id"], s, cat, existing, expires_at=exp)
+    return {"stored": len(strings)}
+
+
+@app.delete("/api/memory/{memory_id}")
+async def delete_memory(
+    memory_id: str,
+    _user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Delete a single memory. RLS guarantees only the caller's own row is hit."""
+    if not _UUID_RE.match(memory_id):
+        raise HTTPException(status_code=400, detail="Invalid memory id")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        r = await c.delete(
+            f"{SUPABASE_URL}/rest/v1/butler_memory",
+            headers=_sb_headers(token),
+            params={"id": f"eq.{memory_id}"},
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Could not delete memory")
+    return {"ok": True}
+
+
+ANALYZE_PATTERNS_PROMPT = """You are a pattern recognition system for a nutrition app.
+Analyze 30 days of eating data and identify real behavioral patterns.
+
+Rules for promoting a candidate to a real habit:
+- Must appear in ≥60% of relevant days (e.g. skips breakfast 18+ of 30 days)
+- Must have at least 5 data points to draw from
+- Must be genuinely useful for a nutrition coach to know
+- Must NOT be a value judgment ("user is unhealthy")
+- Must be stated as an observation, not a conclusion
+
+Return JSON:
+{
+  "promote": ["string1", "string2"],
+  "reject": ["string1"],
+  "new_patterns": ["string"]
+}
+
+Data:
+__DAILY_LOGS_SUMMARY__
+Existing candidates:
+__HABIT_CANDIDATES__"""
+
+
+@app.post("/api/memory/analyze-patterns")
+async def analyze_patterns(
+    user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Promote candidates that survive a 60%/5-day test into confirmed habits,
+    delete the ones that don't, and stage genuinely new patterns. A hard,
+    code-enforced floor (≥5 logged days) gates every habit write regardless of
+    what the model returns — Chen's guarantee against over-generalization."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        rlog = await c.get(
+            f"{SUPABASE_URL}/rest/v1/daily_logs",
+            headers=_sb_headers(token),
+            params={"select": "date,log_data", "order": "date.desc", "limit": "30"},
+        )
+        logs = rlog.json() if rlog.status_code == 200 else []
+        candidates = await _sb_fetch_memories(c, token, category="habit_candidate")
+
+        n_days = len(logs)
+        if n_days == 0:
+            return {"promoted": 0, "rejected": 0, "days_analyzed": 0}
+
+        summary_lines = []
+        for row in logs:
+            entries = row.get("log_data") or []
+            names = [str(e.get("name", "?")) for e in entries]
+            kcal = sum(int(e.get("calories", 0) or 0) for e in entries)
+            summary_lines.append(
+                f"{row.get('date')}: {len(entries)} meals, {kcal} kcal — "
+                + (", ".join(names[:8]) if names else "nothing logged")
+            )
+        summary = "\n".join(summary_lines)
+        cand_text = "\n".join(f"- {m['memory_text']}" for m in candidates) or "(none)"
+
+        prompt = (ANALYZE_PATTERNS_PROMPT
+                  .replace("__DAILY_LOGS_SUMMARY__", summary)
+                  .replace("__HABIT_CANDIDATES__", cand_text))
+        parsed = _parse_json_block(await _gemini_text(prompt, 0.2))
+        if not isinstance(parsed, dict):
+            return {"promoted": 0, "rejected": 0, "days_analyzed": n_days}
+
+        def _clean(key):
+            return [s.strip() for s in (parsed.get(key) or [])
+                    if isinstance(s, str) and s.strip()]
+        promote, reject, new_pat = _clean("promote"), _clean("reject"), _clean("new_patterns")
+
+        # Deterministic 5-data-point floor (Chen): without ≥5 logged days, no
+        # candidate can become a spoken habit no matter what the model claims.
+        allow_habit = n_days >= 5
+        promoted = rejected = 0
+
+        if allow_habit:
+            existing_habits = await _sb_fetch_memories(c, token, category="habit")
+            for s in promote + new_pat:
+                await _store_with_dedup(c, token, user["id"], s[:120], "habit",
+                                        existing_habits, expires_at=None)
+                promoted += 1
+            # Remove staging rows for anything just promoted.
+            for s in promote:
+                for m in candidates:
+                    if m.get("id") and _word_overlap(s, m.get("memory_text", "")) > 0.70:
+                        await _sb_delete_memory(c, token, m["id"])
+        else:
+            exp = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            for s in new_pat:
+                await _store_with_dedup(c, token, user["id"], s[:80],
+                                        "habit_candidate", candidates, expires_at=exp)
+
+        for s in reject:
+            for m in candidates:
+                if m.get("id") and _word_overlap(s, m.get("memory_text", "")) > 0.70:
+                    await _sb_delete_memory(c, token, m["id"])
+                    rejected += 1
+
+    return {"promoted": promoted, "rejected": rejected, "days_analyzed": n_days}
 
 
 # ── Daily food logs (per-day rows, multi-device safe) ───────────────
@@ -796,15 +1191,33 @@ async def chat(req: ChatRequest, _user: dict = Depends(rate_limited("butler"))) 
     if req.context:
         c = req.context
 
-        # ── MEMORY FIRST ── the Butler always has this context. It must never
-        # claim it lacks access to the user's data.
-        if c.memories:
-            notes = "; ".join(m.strip() for m in c.memories if m.strip())
-            if notes:
-                system += (
-                    f"\n\n[MEMORY — what you know about this user] {notes}. "
-                    "Use it naturally where relevant; do not list it back verbatim."
-                )
+        # ── MEMORY FIRST ── structured, categorized injection (Marcus). The
+        # Butler always has this context and must never claim it lacks access.
+        # habit_candidate entries are staging only — they are NEVER injected.
+        categorized: dict[str, list[str]] = {}
+        for m in _normalize_memories(c.memories):
+            if m["category"] == "habit_candidate":
+                continue
+            categorized.setdefault(m["category"], []).append(m["memory_text"])
+        category_labels = {
+            "goal":       "Their goals",
+            "habit":      "Their confirmed habits (based on 30+ days of data)",
+            "preference": "Their preferences",
+            "health":     "Health context",
+            "event":      "Upcoming events",
+            "reminder":   "Reminders they set",
+            "reflection": "Their reflections",
+        }
+        memory_block = ""
+        for cat, label in category_labels.items():
+            if cat in categorized:
+                memory_block += f"{label}: {'; '.join(categorized[cat])}\n"
+        if memory_block:
+            system += (
+                "\n\n[WHAT YOU KNOW ABOUT THIS USER]\n" + memory_block +
+                "\nUse this context naturally. Never recite it back verbatim. "
+                "Never mention that you 'remember' things — just use it."
+            )
         system += (
             "\n\nYou ALWAYS have the user's current data and memory below. "
             "NEVER say you don't have access to their data, history, or numbers — you do."
@@ -948,11 +1361,9 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(rate_limit
                 f"{m.name} ({m.portion}, {m.calories} kcal, {m.carbs_g:.0f}g carbs, {m.fat_g:.0f}g fat)"
                 for m in req.last_meal
             )
-            memory_note = ""
-            if req.memories:
-                notes = "; ".join(m.strip() for m in req.memories if m.strip())
-                if notes:
-                    memory_note = f"User context to remember: {notes}.\n\n"
+            mems = _normalize_memories(req.memories)
+            notes = "; ".join(m["memory_text"] for m in mems if m["category"] != "habit_candidate")
+            memory_note = f"User context to remember: {notes}.\n\n" if notes else ""
             health_prompt = (
                 f"Health profile: {', '.join(conditions)}.\n\n"
                 f"{memory_note}"

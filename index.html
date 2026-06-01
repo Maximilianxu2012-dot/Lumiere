@@ -1245,6 +1245,33 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .panel-danger:hover { color: #c05050; }
 
+/* "What I know about you" — confirmed-memory chips inside the (dark) profile panel */
+.panel-memories { margin-bottom: 28px; }
+.panel-mem-head {
+  font-size: 10px; letter-spacing: .36em; text-transform: uppercase;
+  color: var(--gold-glow); opacity: .85; margin-bottom: 16px;
+}
+.mem-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--bg); color: var(--charcoal);
+  border-left: 2px solid var(--gold);
+  padding: 11px 8px 11px 14px; margin-bottom: 8px;
+  font-size: 13px; line-height: 1.45;
+  transition: opacity .2s ease;
+}
+.mem-chip-x {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: var(--ink-mute); font-size: 17px; line-height: 1;
+  min-width: 32px; min-height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .2s;
+}
+.mem-chip-x:hover { color: var(--danger); }
+.panel-mem-empty {
+  color: rgba(237,229,216,.5); font-style: italic;
+  font-size: 13px; line-height: 1.65; padding: 2px 0;
+}
+
 /* Reset-Link (Footer) — leise, klein, kein Drama */
 .reset-foot { text-align: center; margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
 .reset-link {
@@ -3197,6 +3224,26 @@ function renderFoodReview(scan) {
       calories: +i.calories || 0, protein_g: +i.protein_g || 0,
       carbs_g: +i.carbs_g || 0, fat_g: +i.fat_g || 0,
     })));
+
+    // Butler memory — extract habit candidates from this meal in the background.
+    // Fire-and-forget: never await, never block the save. (Julie)
+    (async () => {
+      try {
+        await api("/api/memory/extract-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: items.map(i => ({
+              name: i.name, portion: i.portion,
+              calories: +i.calories || 0, protein_g: +i.protein_g || 0,
+              carbs_g: +i.carbs_g || 0, fat_g: +i.fat_g || 0,
+            })),
+            time_of_day: mealSlot(),
+          }),
+        });
+        await loadMemories();  // refresh so the next Butler call has fresh context
+      } catch {}
+    })();
   });
 }
 
@@ -3665,6 +3712,13 @@ function showProfilePanel() {
         </button>
       </div>
 
+      <div class="panel-memories">
+        <div class="panel-mem-head">What ${escapeHtml(state.butlerName || "Architect")} knows about you</div>
+        <div id="panel-mem-list">
+          <div class="panel-mem-empty">Still learning about you. The more you use Nouri, the sharper I get.</div>
+        </div>
+      </div>
+
       <div class="panel-foot">
         <button class="panel-signout" id="panel-repeat-setup">Repeat Setup</button>
         <button class="panel-signout" id="panel-signout">Sign Out</button>
@@ -3675,6 +3729,8 @@ function showProfilePanel() {
 
   document.body.appendChild(panel);
   requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("open")));
+
+  renderProfileMemories();  // load + fill "What I know about you" (refreshes on open)
 
   panel.addEventListener("click", (e) => { if (e.target === panel) hideProfilePanel(); });
   panel.querySelector("#panel-close").addEventListener("click", hideProfilePanel);
@@ -3722,6 +3778,34 @@ function hideProfilePanel() {
   if (!panel) return;
   panel.classList.remove("open");
   panel.addEventListener("transitionend", () => panel.remove(), { once: true });
+}
+
+// "What I know about you" — confirmed memories only (goal/habit/preference/health),
+// never staging candidates. Each chip can be forgotten with a single tap. (Marcus + Julie)
+const _PROFILE_MEM_CATS = ["goal", "habit", "preference", "health"];
+async function renderProfileMemories() {
+  await loadMemories();
+  const box = document.getElementById("panel-mem-list");
+  if (!box) return;  // panel may have closed while loading
+  const mems = _memories.filter(m => m.memory_text && _PROFILE_MEM_CATS.includes(m.category) && m.id);
+  if (!mems.length) {
+    box.innerHTML = `<div class="panel-mem-empty">Still learning about you. The more you use Nouri, the sharper I get.</div>`;
+    return;
+  }
+  box.innerHTML = mems.map(m => `
+    <div class="mem-chip" data-mem="${escapeHtml(m.id)}">
+      <span>${escapeHtml(m.memory_text)}</span>
+      <button class="mem-chip-x" data-del="${escapeHtml(m.id)}" aria-label="Forget this">×</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", async () => {
+    const id = btn.getAttribute("data-del");
+    if (!id) return;
+    const chip = btn.closest(".mem-chip");
+    if (chip) chip.style.opacity = ".35";
+    _memories = _memories.filter(m => m.id !== id);
+    try { await api(`/api/memory/${id}`, { method: "DELETE" }); } catch {}
+    renderProfileMemories();
+  }));
 }
 
 // â"€â"€ Mode Select Sub-screen â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -4728,22 +4812,49 @@ async function loadMemories() {
   return _memories;
 }
 
+// Once per day on app open: run the 30-day pattern analysis that promotes
+// habit candidates into confirmed habits. Fire-and-forget. (Chen / Julie)
+function maybePatternAnalysis() {
+  try {
+    const d = today();
+    if (localStorage.getItem("_lastPatternAnalysis") === d) return;
+    localStorage.setItem("_lastPatternAnalysis", d);
+    (async () => {
+      try {
+        await api("/api/memory/analyze-patterns", { method: "POST" });
+        await loadMemories();  // pull in any newly confirmed habits
+      } catch {}
+    })();
+  } catch {}
+}
+
 // Round 1b — grouped + recency-weighted list for prompt injection.
-// Order: goals → events → preferences → health → reminders → reflections.
-// Memories from the last 7 days get a "recent:" prefix so the Butler leans on them.
-const _MEM_ORDER = ["goal", "event", "preference", "health", "reminder", "reflection"];
+// Order: goals → confirmed habits → health → preferences → events → reminders → reflections.
+// Returns structured { memory_text, category } objects — the backend groups them
+// into a labelled block. habit_candidate entries are staging and never sent.
+const _MEM_ORDER = ["goal", "habit", "health", "preference", "event", "reminder", "reflection"];
 function memoriesForPrompt(limit = 14) {
-  const recentCutoff = Date.now() - 7 * 864e5;
   const rank = c => { const i = _MEM_ORDER.indexOf(c || "event"); return i < 0 ? 99 : i; };
-  const sorted = [..._memories].sort((a, b) => {
-    const d = rank(a.category) - rank(b.category);
-    if (d !== 0) return d;
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-  });
-  return sorted.slice(0, limit).map(m => {
-    const recent = m.created_at && new Date(m.created_at).getTime() >= recentCutoff;
-    return (recent ? "recent: " : "") + m.memory_text;
-  });
+  const sorted = [..._memories]
+    .filter(m => m.memory_text && m.category !== "habit_candidate")
+    .sort((a, b) => {
+      const d = rank(a.category) - rank(b.category);
+      if (d !== 0) return d;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+  return sorted.slice(0, limit).map(m => ({
+    memory_text: m.memory_text,
+    category: m.category || "general",
+  }));
+}
+
+// breakfast / lunch / dinner / snack for the scan-memory extractor.
+function mealSlot() {
+  const c = mealCategory(Date.now()).toLowerCase();
+  if (c.includes("breakfast")) return "breakfast";
+  if (c.includes("lunch"))     return "lunch";
+  if (c.includes("dinner"))    return "dinner";
+  return "snack";
 }
 
 // Lightweight client-side detection of time-sensitive / durable info worth
@@ -4912,6 +5023,19 @@ function renderChat() {
       const reply = data.reply || "—";
       revealWords(loadBubble, reply, () => { msgs.scrollTop = msgs.scrollHeight; });
       history.push({ role: "assistant", content: reply });
+
+      // Butler memory — extract durable insights from the exchange in the
+      // background. Fire-and-forget: never await, never block the chat. (Julie)
+      (async () => {
+        try {
+          await api("/api/memory/extract-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_message: text, butler_response: reply }),
+          });
+          await loadMemories();
+        } catch {}
+      })();
     } catch (e) {
       loadBubble.textContent = `Error: ${e.message}`;
     } finally {
@@ -5277,6 +5401,8 @@ async function boot() {
     _showLogout();
     await loadFromCloud();
     cleanupMemoryOnce();   // once-per-session prune of stale memories (fire-and-forget)
+    loadMemories();        // warm the local memory cache for the Butler
+    maybePatternAnalysis();// once-per-day habit promotion (fire-and-forget)
     render();
   } catch {
     // Network or Supabase error at boot — fall back to auth screen
