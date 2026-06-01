@@ -505,6 +505,13 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 /* Isabel — over-goal macro: muted gold, never red. The design does not punish. */
 .macro-bar-fill.over { background: rgba(184, 153, 104, 0.45); }
 
+/* Weight module (Elena) */
+.weight-module { padding: var(--space-4) 0; }
+.weight-chart-wrap { width: 100%; height: 80px; margin: 12px 0; }
+.weight-chart-wrap svg { width: 100%; height: 80px; overflow: visible; display: block; }
+.weight-entry-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.weight-entry-row input { flex: 1; font-size: 18px; }
+
 /* Action cards */
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
 .action {
@@ -2603,17 +2610,20 @@ function ringSvg(progress) {
   `;
 }
 
-// Renders a single macro bar (protein/carbs/fat) with progress indicator
-function macroBlock(name, current, target) {
+// Renders a single macro bar (protein/carbs/fat) with progress indicator.
+// isFocus emphasizes the goal-relevant macro (larger label, thicker bar).
+function macroBlock(name, current, target, isFocus = false) {
   const pct = target > 0 ? Math.min(current / target, 1) * 100 : 0;
   const over = target > 0 && current > target;
+  const nameStyle = isFocus ? ' style="font-size:15px;"' : "";
+  const barStyle  = isFocus ? ' style="height:3px;"' : "";
   return `
     <div class="macro">
       <div class="macro-head">
-        <span class="macro-name">${name}</span>
+        <span class="macro-name"${nameStyle}>${name}</span>
         <span class="macro-vals">${Math.round(current)}<span class="target"> / ${target}g</span></span>
       </div>
-      <div class="macro-bar"><div class="macro-bar-fill${over ? " over" : ""}" style="width:${pct}%"></div></div>
+      <div class="macro-bar"${barStyle}><div class="macro-bar-fill${over ? " over" : ""}" style="width:${pct}%"></div></div>
     </div>
   `;
 }
@@ -2657,11 +2667,159 @@ function goalProgressHtml() {
   const status = logged === 0 ? "Just started"
     : (adherent / logged) >= 0.6 ? "On track" : "Behind — tighten this week";
 
+  // Weight-based progress (2D) — only for lose/gain goals with a logged weight.
+  let weightLine = "";
+  if ((g.type === "lose" || g.type === "gain") && g.targetWeight && _weightEntries.length >= 1) {
+    const latest = _weightEntries[0].weight_kg;
+    const start  = g.startWeight;
+    const target = g.targetWeight;
+    if (latest && start && target) {
+      const totalChange = Math.abs(target - start);
+      const achieved    = Math.abs(latest - start);
+      const wpct        = totalChange > 0 ? Math.min(achieved / totalChange, 1) * 100 : 0;
+      const direction   = (latest < start) ? "lost" : "gained";
+      const diff        = Math.abs(latest - start).toFixed(1);
+      const toGo        = Math.abs(latest - target).toFixed(1);
+      weightLine = `
+        <div style="margin-top:8px;">
+          <div class="goal-bar"><div class="goal-bar-fill" style="width:${wpct}%"></div></div>
+          <div class="goal-meta">${diff}kg ${direction} · ${toGo}kg to go</div>
+        </div>`;
+    }
+  }
+
   return `
     <div class="goal-progress" id="goal-progress">
       <div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
       <div class="goal-meta">Week ${weekShown} of ${total} · ${status}</div>
+      ${weightLine}
     </div>`;
+}
+
+// Weight module (Elena) — sparkline + today's entry. Hidden until a goal exists.
+function weightModuleHtml() {
+  if (!state.goals) return "";
+
+  const entries = [..._weightEntries].reverse(); // oldest first for the chart
+  let chartHtml = `<div style="font-size:13px;color:var(--ink-mute);font-style:italic;padding:16px 0;">
+    Log your weight daily to see your trend.</div>`;
+
+  if (entries.length >= 2) {
+    const W = 320, H = 80;
+    const weights = entries.map(e => e.weight_kg);
+    const minW = Math.min(...weights) - 1;
+    const maxW = Math.max(...weights) + 1;
+    const range = maxW - minW || 1;
+    const xs = entries.map((_, i) => (i / (entries.length - 1)) * W);
+    const ys = entries.map(e => H - ((e.weight_kg - minW) / range) * (H - 10) - 5);
+
+    let d = `M ${xs[0]} ${ys[0]}`;
+    for (let i = 1; i < xs.length; i++) {
+      const cpx = (xs[i - 1] + xs[i]) / 2;
+      d += ` C ${cpx} ${ys[i-1]}, ${cpx} ${ys[i]}, ${xs[i]} ${ys[i]}`;
+    }
+
+    const dots = entries.map((e, i) => {
+      const isToday = e.date === today();
+      const r = isToday ? 6 : 4;
+      const glow = isToday ? `filter:drop-shadow(0 0 4px var(--gold));` : "";
+      return `<circle cx="${xs[i]}" cy="${ys[i]}" r="${r}" fill="var(--gold)" style="${glow}"/>`;
+    }).join("");
+
+    chartHtml = `
+      <div class="weight-chart-wrap">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <path d="${d}" stroke="var(--gold)" stroke-width="1.5" fill="none"/>
+          ${dots}
+        </svg>
+      </div>`;
+  }
+
+  const todayEntry = _weightEntries.find(e => e.date === today());
+  const btnLabel   = todayEntry ? "Update" : "Log";
+  const prefill    = todayEntry ? todayEntry.weight_kg : "";
+
+  return `
+    <section class="weight-module anim-up" id="section-weight" style="animation-delay:200ms;">
+      <div class="section-head">
+        <div class="section-title">Weight</div>
+        <div class="eyebrow" id="weight-eyebrow">${_weightEntries.length > 0
+          ? `${_weightEntries[0].weight_kg} kg` : "No entries yet"}</div>
+      </div>
+      ${chartHtml}
+      <div class="weight-entry-row">
+        <input type="number" id="weight-input" step="0.1" min="20" max="300"
+          placeholder="Today's weight (kg)" value="${prefill}"
+          style="flex:1;font-size:18px;padding:10px 14px;border:1px solid var(--line-soft);
+                 border-radius:6px;background:transparent;color:var(--ink);">
+        <button class="btn gold" id="weight-save">${btnLabel}</button>
+      </div>
+      <div id="weight-err" style="font-size:13px;color:var(--ink-mute);min-height:18px;margin-top:6px;"></div>
+    </section>`;
+}
+
+// Wire (or re-wire) the weight save button. Called on first render and again
+// after the section is re-rendered in place — no full dashboard re-render.
+function wireWeightSave() {
+  const btn = document.getElementById("weight-save");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const input = document.getElementById("weight-input");
+    const errEl = document.getElementById("weight-err");
+    const val   = parseFloat(input.value);
+    if (!val || val < 20 || val > 300) {
+      errEl.textContent = "Enter a weight between 20 and 300 kg.";
+      return;
+    }
+    errEl.textContent = "";
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    try {
+      await api("/api/weight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: today(), weight_kg: val })
+      });
+      await loadWeightEntries();   // updates _weightEntries AND refreshes the section in place
+      const fresh = document.getElementById("weight-save");
+      if (fresh) {
+        fresh.textContent = "✓";
+        setTimeout(() => { const b = document.getElementById("weight-save"); if (b) b.textContent = "Update"; }, 1500);
+      }
+    } catch {
+      errEl.textContent = "Couldn't save — try again.";
+      btn.disabled = false;
+      btn.textContent = _weightEntries.some(e => e.date === today()) ? "Update" : "Log";
+    }
+  });
+}
+
+// Adaptive hero subtitle (2A) — speaks to the user's goal and the day's state.
+function getHeroSubCopy() {
+  const g   = state.goals;
+  const t   = todayTotals();
+  const tgt = effectiveCalTarget();
+  const rem = tgt - t.calories;
+  const hr  = new Date().getHours();
+
+  if (!g) return "Scan a meal. I'll handle the math — and tell you what matters.";
+
+  if (g.type === "lose") {
+    if (rem > 500)              return "You have room to eat well today. Stay in the window.";
+    if (rem > 0 && rem <= 200)  return "Almost at your limit. Make the last meal count.";
+    if (rem <= 0)               return "You've hit your target for today. The work is done.";
+    return "Stay in your deficit. Every day compounds.";
+  }
+  if (g.type === "gain") {
+    const protTgt = state.targets?.protein_g || 0;
+    const protPct = protTgt > 0 ? t.protein / protTgt : 0;
+    if (protPct < 0.5 && hr > 14) return "Protein is low for this time of day. Prioritize it.";
+    if (t.calories < tgt * 0.6 && hr > 16) return "Well below target. Eat more — growth requires a surplus.";
+    return "Hit your protein. The rest follows.";
+  }
+  if (g.type === "maintain") return "Keep it steady. Consistency over perfection.";
+  if (g.type === "clean")    return "Focus on quality. Numbers are a guide, not a cage.";
+  return "Scan a meal. I'll handle the math — and tell you what matters.";
 }
 
 function renderDashboard() {
@@ -2674,9 +2832,28 @@ function renderDashboard() {
   const progress  = t.calories / calTarget;
   const pct       = Math.round(Math.min(progress, 1) * 100);
 
+  // Adaptive ring label (2B) — build-muscle users count up "TO TARGET".
+  const isGain    = state.goals?.type === "gain";
+  const ringLabel = isGain ? "TO TARGET" : "REMAINING";
+  const ringValue = Math.max(calTarget - t.calories, 0);
+  // Adaptive macro emphasis (2C) — protein leads for lose/gain goals.
+  const focusMacro = (state.goals?.type === "lose" || state.goals?.type === "gain") ? "Protein" : null;
+
   const hr = new Date().getHours();
   const greeting = hr < 5 ? "Good Night." : hr < 12 ? "Good Morning." : hr < 18 ? "Good Afternoon." : "Good Evening.";
   const dateStr  = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+
+  // Adaptive section order (2E) — build-muscle users see weight above the journal.
+  const weightSection = weightModuleHtml();
+  const journalHtml = `
+    <div id="section-log">
+    <div class="section-head">
+      <div class="section-title">Journal</div>
+      <div class="eyebrow">${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
+    </div>
+    ${renderLedger(entries, calTarget)}
+    </div>`;
+  const stackHtml = isGain ? (weightSection + journalHtml) : (journalHtml + weightSection);
 
   app.innerHTML = `
     <section class="hero-block" id="section-hero">
@@ -2685,7 +2862,7 @@ function renderDashboard() {
         ? `<div style="font-family:'Inter',sans-serif;font-size:12px;letter-spacing:.08em;color:var(--gold);margin-bottom:var(--space-2);">Day ${state.logStreak}</div>`
         : ""}
       <h1 class="hero-display">${greeting}</h1>
-      <p class="hero-sub">Scan a meal. I'll handle the math — and tell you what matters.</p>
+      <p class="hero-sub">${getHeroSubCopy()}</p>
       <div class="hero-cta">
         <button class="btn gold full" id="hero-scan">Scan Meal</button>
         <div style="display:flex;gap:12px;width:100%;">
@@ -2699,8 +2876,8 @@ function renderDashboard() {
       <div class="ring-wrap${progress < 0.5 ? " pulse" : ""}">
         ${ringSvg(progress)}
         <div class="ring-center">
-          <div class="ring-num">${remaining}</div>
-          <div class="ring-cap">REMAINING</div>
+          <div class="ring-num">${ringValue}</div>
+          <div class="ring-cap">${ringLabel}</div>
         </div>
       </div>
       <div class="hero-target">
@@ -2711,7 +2888,7 @@ function renderDashboard() {
     </section>
 
     <div class="macros anim-up" id="section-macros" style="animation-delay:160ms;">
-      ${macroBlock("Protein", t.protein, tgt.protein_g)}
+      ${macroBlock("Protein", t.protein, tgt.protein_g, focusMacro === "Protein")}
       ${macroBlock("Carbs", t.carbs, tgt.carbs_g)}
       ${macroBlock("Fat", t.fat, tgt.fat_g)}
     </div>
@@ -2723,13 +2900,7 @@ function renderDashboard() {
     </div>
     ` : ""}
 
-    <div id="section-log">
-    <div class="section-head">
-      <div class="section-title">Journal</div>
-      <div class="eyebrow">${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
-    </div>
-    ${renderLedger(entries, calTarget)}
-    </div>
+    ${stackHtml}
   `;
 
   $("hero-scan").addEventListener("click", () => pickFile(handleFoodScan));
@@ -2781,6 +2952,7 @@ function renderDashboard() {
       }
     });
   });
+  wireWeightSave();   // weight log save/update — in-place re-render, no full dashboard render
   setBottomTab("home");
   startProactiveSystem();
 }
@@ -4303,6 +4475,9 @@ async function checkButler(mealItems = null) {
         health_context: healthContext,
         last_meal:   mealItems || [],
         memories:    memoriesForPrompt(),
+        recent_weights: _weightEntries.slice(0, 7).map(e => ({ date: e.date, weight_kg: e.weight_kg })),
+        goal_weight:    state.goals?.targetWeight || null,
+        goal_type:      state.goals?.type || null,
       }),
     });
     if (result.triggered && result.message) {
@@ -4803,6 +4978,30 @@ function renderFavRecipe(r, backFn, backLabel) {
 }
 
 // â"€â"€ Butler Chat â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Weight log (client) ────────────────────────────────────────────
+let _weightEntries = [];   // [{ date: "YYYY-MM-DD", weight_kg: 74.5 }, ...] newest first
+let _weightLoaded  = false;
+
+async function loadWeightEntries() {
+  try {
+    const data = await api("/api/weight");
+    _weightEntries = data.entries || [];
+    _weightLoaded  = true;
+    refreshWeightSection();  // update in place if the dashboard is the current view
+  } catch { /* offline — keep whatever we have */ }
+}
+
+// Re-render the weight module + goal progress in place — never a full dashboard
+// render. No-op when the dashboard isn't currently shown (#section-weight absent).
+function refreshWeightSection() {
+  const section = document.getElementById("section-weight");
+  if (!section) return;
+  section.outerHTML = weightModuleHtml();
+  wireWeightSave();
+  const gp = document.getElementById("goal-progress");
+  if (gp) gp.outerHTML = goalProgressHtml() || "";
+}
+
 // ── Butler memory (client) ─────────────────────────────────────────
 let _memories = [];   // full memory objects { memory_text, category, created_at, expires_at }
 
@@ -5019,6 +5218,9 @@ function renderChat() {
             user_name:       state.name || null,
             today_date:      today(),
             memories:        memoriesForPrompt(),
+            recent_weights:  _weightEntries.slice(0, 7).map(e => ({ date: e.date, weight_kg: e.weight_kg })),
+            goal_weight:     state.goals?.targetWeight || null,
+            goal_type:       state.goals?.type || null,
           },
         }),
       });
@@ -5404,6 +5606,7 @@ async function boot() {
     await loadFromCloud();
     cleanupMemoryOnce();   // once-per-session prune of stale memories (fire-and-forget)
     loadMemories();        // warm the local memory cache for the Butler
+    loadWeightEntries();   // warm the weight log (fire-and-forget)
     maybePatternAnalysis();// once-per-day habit promotion (fire-and-forget)
     render();
   } catch {

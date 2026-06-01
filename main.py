@@ -36,6 +36,25 @@ ROOT  = Path(__file__).parent
 
 client = genai.Client(api_key=API_KEY)
 
+# ─────────────────────────────────────────────────────────────────────
+# MIGRATION (Yuki) — run once in the Supabase SQL Editor.
+# Weight log — one entry per user per day, upserted never duplicated.
+# ─────────────────────────────────────────────────────────────────────
+# CREATE TABLE IF NOT EXISTS weight_logs (
+#   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+#   user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+#   date        date NOT NULL,
+#   weight_kg   numeric(5,2) NOT NULL CHECK (weight_kg >= 20 AND weight_kg <= 300),
+#   created_at  timestamptz NOT NULL DEFAULT now(),
+#   UNIQUE (user_id, date)
+# );
+# ALTER TABLE weight_logs ENABLE ROW LEVEL SECURITY;
+# CREATE POLICY "read own"   ON weight_logs FOR SELECT USING (auth.uid() = user_id);
+# CREATE POLICY "insert own" ON weight_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+# CREATE POLICY "update own" ON weight_logs FOR UPDATE USING (auth.uid() = user_id);
+# CREATE POLICY "delete own" ON weight_logs FOR DELETE USING (auth.uid() = user_id);
+# ─────────────────────────────────────────────────────────────────────
+
 # ── JWKS cache (Supabase ECC P-256 JWT verification) ─────────────────
 _jwks_keys: list = []
 
@@ -257,6 +276,9 @@ class ChatContext(BaseModel):
     # Structured [{memory_text, category}] (current frontend) or legacy list[str]
     # from an older cached build — _normalize_memories() accepts both.
     memories: list = []
+    recent_weights: list[dict] | None = None  # last 7: [{"date": "YYYY-MM-DD", "weight_kg": 74.5}]
+    goal_weight: float | None = None
+    goal_type: str | None = None  # "lose" / "gain" / "maintain" / "clean"
 
 
 class ChatRequest(BaseModel):
@@ -280,6 +302,9 @@ class ButlerCheckRequest(BaseModel):
     health_context: HealthContextInput | None = None
     last_meal: list[MealItemForCheck] = []
     memories: list = []  # structured or legacy — see ChatContext.memories
+    recent_weights: list[dict] | None = None
+    goal_weight: float | None = None
+    goal_type: str | None = None
 
 
 # Shared character spine — every mode inherits this. Tone is layered on top.
@@ -295,7 +320,12 @@ _BUTLER_CORE = (
     "number-backed reason drawn from their actual data.\n"
     "Lead with substance: a fact, a status read, or one concrete recommendation. Be brief. "
     "When you cite numbers, use the ones provided. Address the user by first name when known, "
-    "never with titles like 'Sir' or 'Mr.'."
+    "never with titles like 'Sir' or 'Mr.'.\n"
+    "WEIGHT: never use 'obese', 'fat', 'overweight', 'bad', 'cheat', or any shaming language. "
+    "Speak factually — 'You're 1.2kg down', never 'Amazing progress!' or 'You're falling behind'. "
+    "Acknowledge plateaus calmly: 'Plateaus happen. Stay consistent, the trend will resume.' "
+    "Only raise weight if the user asks or there is a meaningful change (>0.5kg over ~7 days). "
+    "Weight is one signal among many — never the primary measure of a person."
 )
 
 BUTLER_PROMPTS: dict[str, str] = {
@@ -980,6 +1010,108 @@ async def save_day_log(
     return {"ok": True}
 
 
+# ── Weight log (Rafael / Yuki) ──────────────────────────────────────
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class WeightEntry(BaseModel):
+    date: str  # YYYY-MM-DD
+    weight_kg: float = Field(ge=20, le=300)
+
+
+def _weight_context_block(recent_weights, goal_weight=None) -> str:
+    """Shared Butler injection for weight context — used by /api/chat and the
+    butler/check health prompt so the two never drift. Returns '' when there's
+    nothing meaningful to say."""
+    if not recent_weights:
+        return ""
+    if len(recent_weights) == 1:
+        return f"\n\nCurrent weight: {recent_weights[0]['weight_kg']}kg."
+    weights = sorted(recent_weights, key=lambda x: x["date"])
+    latest = weights[-1]["weight_kg"]
+    oldest = weights[0]["weight_kg"]
+    change = round(latest - oldest, 1)
+    span = len(weights)
+    direction = "down" if change < 0 else "up" if change > 0 else "stable"
+    block = (f"\n\nWeight tracking ({span} entries): currently {latest}kg, "
+             f"{abs(change)}kg {direction} over this period.")
+    if goal_weight:
+        to_go = round(abs(latest - goal_weight), 1)
+        block += f" Goal: {goal_weight}kg ({to_go}kg remaining)."
+    return block
+
+
+@app.get("/api/weight")
+async def list_weight(
+    _user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Last 90 days of weight entries, newest first. RLS scopes to the caller."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    since = (datetime.now(timezone.utc).date() - timedelta(days=90)).isoformat()
+    async with httpx.AsyncClient() as c:
+        r = await c.get(
+            f"{SUPABASE_URL}/rest/v1/weight_logs",
+            headers=_sb_headers(token),
+            params={"select": "id,date,weight_kg", "date": f"gte.{since}", "order": "date.desc"},
+        )
+    rows = r.json() if r.status_code == 200 else []
+    for row in rows:  # numeric(5,2) returns as string from PostgREST — coerce
+        try:
+            row["weight_kg"] = float(row["weight_kg"])
+        except (TypeError, ValueError):
+            pass
+    return {"entries": rows}
+
+
+@app.post("/api/weight")
+async def save_weight(
+    body: WeightEntry,
+    user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Upsert one entry per (user, date). A retry or same-day re-log updates in
+    place — the UNIQUE(user_id, date) constraint + merge-duplicates make it
+    idempotent, never a duplicate row."""
+    if not _DATE_RE.match(body.date):
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    weight = round(body.weight_kg, 2)
+    async with httpx.AsyncClient() as c:
+        r = await c.post(
+            f"{SUPABASE_URL}/rest/v1/weight_logs",
+            headers={**_sb_headers(token), "Prefer": "resolution=merge-duplicates,return=minimal"},
+            params={"on_conflict": "user_id,date"},
+            json={"user_id": user["id"], "date": body.date, "weight_kg": weight},
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Could not save weight")
+    return {"ok": True, "entry": {"date": body.date, "weight_kg": weight}}
+
+
+@app.delete("/api/weight/{date}")
+async def delete_weight(
+    date: str,
+    _user: dict = Depends(rate_limited("memory")),
+    authorization: str = Header(None),
+) -> dict:
+    """Delete the entry for a date. 404 when there's nothing to delete."""
+    if not _DATE_RE.match(date):
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    async with httpx.AsyncClient() as c:
+        r = await c.delete(
+            f"{SUPABASE_URL}/rest/v1/weight_logs",
+            headers={**_sb_headers(token), "Prefer": "return=representation"},
+            params={"date": f"eq.{date}", "select": "id"},
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Could not delete weight")
+    if not (r.json() if r.status_code < 300 else []):
+        raise HTTPException(status_code=404, detail="No entry for that date")
+    return {"ok": True}
+
+
 # ── Food scan prompt (Maya / DeepMind) ──────────────────────────────
 # Tuned for portion accuracy and zero hallucinated qualifiers.
 #
@@ -1247,6 +1379,9 @@ async def chat(req: ChatRequest, _user: dict = Depends(rate_limited("butler"))) 
             parts.append(f"protein {c.protein_today:.0f}/{c.protein_target}g")
         parts.append(f"carbs {c.carbs_today:.0f}g, fat {c.fat_today:.0f}g")
         system += f"\n\nCurrent day status: {', '.join(parts)}."
+
+        # Weight context — factual trend the Butler uses per the tone rules above.
+        system += _weight_context_block(c.recent_weights, c.goal_weight)
     elif not is_first:
         system += "\n\nConversation is ongoing — respond WITHOUT a greeting or address, go directly to content."
 
@@ -1364,10 +1499,11 @@ async def butler_check(req: ButlerCheckRequest, _user: dict = Depends(rate_limit
             mems = _normalize_memories(req.memories)
             notes = "; ".join(m["memory_text"] for m in mems if m["category"] != "habit_candidate")
             memory_note = f"User context to remember: {notes}.\n\n" if notes else ""
+            weight_note = _weight_context_block(req.recent_weights, req.goal_weight)
             health_prompt = (
                 f"Health profile: {', '.join(conditions)}.\n\n"
                 f"{memory_note}"
-                f"Meal just logged: {meal_desc}.\n\n"
+                f"Meal just logged: {meal_desc}.{weight_note}\n\n"
                 "If any food in this meal is potentially problematic for ONE of the listed health conditions, "
                 "write a single informative note in 1–2 sentences. Be specific — name the food and the concern. "
                 "Do NOT diagnose or prescribe medication. Use language like 'may want to monitor' or "
