@@ -648,6 +648,16 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   font-size: var(--fs-h3);
 }
 
+/* Swipe-to-delete wrapper: the red Delete action sits behind, the row
+   slides left to reveal it (Outlook/iOS Mail style). */
+.ledger-swipe { position: relative; overflow: hidden; }
+.ledger-swipe-del {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 92px; border: none; cursor: pointer;
+  background: #b5544e; color: #fff;
+  font: 500 13px/1 'Inter', sans-serif; letter-spacing: .04em;
+  display: flex; align-items: center; justify-content: center;
+}
 .ledger-row {
   display: grid;
   grid-template-columns: 52px 1fr 60px;
@@ -656,14 +666,16 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   align-items: center;
   border-bottom: 1px solid var(--line-soft);
   position: relative;
-  transition: background .15s;
+  background: var(--surface-2);
+  touch-action: pan-y;             /* let vertical scroll through; we handle horizontal */
+  transition: background .15s, transform .25s cubic-bezier(.2,.7,.2,1);
 }
+.ledger-row.swiped { transform: translateX(-92px); }
 /* min-width:0 lets the flexible Entry cell shrink so its text can ellipsis,
    instead of the long name forcing the column (and Used) wider. */
 .ledger-entry { min-width: 0; }
 .ledger-row:last-of-type { border-bottom: none; }
 .ledger-row:hover { background: var(--surface); }
-.ledger-row:hover .ledger-del { opacity: 1; }
 .ledger-row[data-expandable="true"] { cursor: pointer; }
 .ledger-row[data-expandable="true"]:hover .ledger-name { color: var(--gold-deep); }
 
@@ -715,22 +727,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ledger-del {
-  position: absolute;
-  right: 6px; top: 50%;
-  transform: translateY(-50%);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  color: var(--ink-mute);
-  width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  font-size: 16px; line-height: 1;
-  opacity: 0;
-  transition: opacity .2s, color .2s, border-color .2s;
-}
-.ledger-del:hover { color: var(--danger); border-color: var(--danger); }
-
 .ledger-foot {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -803,10 +799,6 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   .ledger-cols, .ledger-row { grid-template-columns: 44px 1fr 60px; padding-inline: 18px; }
   .ledger-head, .ledger-foot { padding-inline: 18px; }
   .ledger-children { padding-left: 44px; padding-right: 18px; }
-}
-/* No hover on touch — keep the delete affordance reachable, not hidden. */
-@media (hover: none) {
-  .ledger-del { opacity: .55; }
 }
 
 /* Tag list */
@@ -1053,9 +1045,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 .arch-panel[data-severity="info"]     .arch-eyebrow { color: #7A9CBF; }
 
 .arch-message {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.55;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(15px, 1.8vw, 17px);
+  line-height: 1.6;
   color: #EDE5D8;
   margin-bottom: 22px;
 }
@@ -1347,9 +1339,9 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   animation: fadeUp .55s cubic-bezier(.2,.7,.2,1) forwards;
 }
 .onb-bubble.butler {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(22px, 3.5vw, 30px);
-  font-weight: 400; line-height: 1.35;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(17px, 2.4vw, 21px);
+  font-weight: 400; line-height: 1.5;
   color: var(--ink); max-width: 86%;
 }
 .onb-bubble.user {
@@ -2956,32 +2948,92 @@ function renderDashboard() {
       ring.style.strokeDashoffset = c * (1 - Math.min(t.calories / calTarget, 1));
     }
   }));
-  // Lösch-Buttons im Ledger
-  document.querySelectorAll(".ledger-del").forEach(b => b.addEventListener("click", (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    deleteEntry(b.dataset.id);
-  }));
+  // Ledger rows: swipe left to reveal the red Delete action (Outlook/iOS Mail
+  // style); tap to expand the component list on multi-item meals. Pointer
+  // events cover touch, mouse and trackpad in one path.
+  const REVEAL = 92;                              // must match .ledger-row.swiped translateX
+  let _openRow = null;                            // only one row stays open at a time
+  const closeOpenRow = () => { const r = document.querySelector(".ledger-row.swiped"); if (r) r.classList.remove("swiped"); _openRow = null; };
 
-  // Expandable meal rows (show components)
-  document.querySelectorAll('.ledger-row[data-expandable="true"]').forEach(row => {
-    const toggle = () => {
+  document.querySelectorAll(".ledger-swipe").forEach(swipe => {
+    const row    = swipe.querySelector(".ledger-row");
+    const delBtn = swipe.querySelector(".ledger-swipe-del");
+    if (!row) return;
+
+    const toggleExpand = () => {
       const expanded = row.getAttribute("aria-expanded") === "true";
       row.setAttribute("aria-expanded", String(!expanded));
       const children = document.querySelector(`[data-children-of="${row.dataset.id}"]`);
       if (children) children.classList.toggle("open", !expanded);
     };
-    row.addEventListener("click", (ev) => {
-      if (ev.target.closest(".ledger-del")) return;
-      toggle();
+    const expandable = row.getAttribute("data-expandable") === "true";
+
+    delBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      deleteEntry(row.dataset.id);
     });
-    row.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") {
-        ev.preventDefault();
-        toggle();
+
+    let startX = 0, startY = 0, dragging = false, axis = null, tx = 0, moved = false;
+
+    row.addEventListener("pointerdown", (ev) => {
+      if (ev.target.closest(".ledger-swipe-del")) return;
+      dragging = true; axis = null; moved = false; tx = 0;
+      startX = ev.clientX; startY = ev.clientY;
+      row.style.transition = "none";
+    });
+    row.addEventListener("pointermove", (ev) => {
+      if (!dragging) return;
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (axis === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        axis = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+        if (axis === "h") {
+          row.setPointerCapture?.(ev.pointerId);
+          if (_openRow && _openRow !== row) _openRow.classList.remove("swiped");  // close others
+        }
       }
+      if (axis !== "h") return;
+      ev.preventDefault();
+      moved = true;
+      const base = row.classList.contains("swiped") ? -REVEAL : 0;
+      tx = Math.max(-REVEAL, Math.min(0, base + dx));
+      row.style.transform = `translateX(${tx}px)`;
     });
+    const finish = () => {
+      if (!dragging) return;
+      dragging = false;
+      row.style.transition = "";
+      row.style.transform = "";                   // let the .swiped class own the final position
+      if (axis === "h") {
+        const open = tx < -REVEAL / 2;
+        row.classList.toggle("swiped", open);
+        _openRow = open ? row : null;
+      }
+    };
+    row.addEventListener("pointerup", finish);
+    row.addEventListener("pointercancel", finish);
+
+    row.addEventListener("click", (ev) => {
+      if (ev.target.closest(".ledger-swipe-del")) return;
+      if (moved) { moved = false; return; }                       // it was a swipe, not a tap
+      if (row.classList.contains("swiped")) { closeOpenRow(); return; }  // first tap just closes
+      if (expandable) toggleExpand();
+    });
+    if (expandable) {
+      row.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggleExpand(); }
+      });
+    }
   });
+
+  // Tap anywhere outside an open row closes it. Attached once, survives re-renders.
+  if (!window._ledgerOutsideClose) {
+    window._ledgerOutsideClose = true;
+    document.addEventListener("click", (ev) => {
+      const open = document.querySelector(".ledger-row.swiped");
+      if (open && !ev.target.closest(".ledger-swipe")) open.classList.remove("swiped");
+    });
+  }
+
   wireWeightSave();   // weight log save/update — in-place re-render, no full dashboard render
   setBottomTab("home");
   startProactiveSystem();
@@ -3137,14 +3189,16 @@ function ledgerRow(entry) {
     : "";
 
   const head = `
-    <div class="ledger-row" data-id="${entry.id}"${expandAttrs}>
-      <div class="ledger-time">${time}</div>
-      <div class="ledger-entry">
-        <div class="ledger-name">${escapeHtml(entry.name)}</div>
-        <div class="ledger-meta">${meta}</div>
+    <div class="ledger-swipe">
+      <button class="ledger-swipe-del" data-id="${entry.id}" aria-label="Delete entry" tabindex="-1">Delete</button>
+      <div class="ledger-row" data-id="${entry.id}"${expandAttrs}>
+        <div class="ledger-time">${time}</div>
+        <div class="ledger-entry">
+          <div class="ledger-name">${escapeHtml(entry.name)}</div>
+          <div class="ledger-meta">${meta}</div>
+        </div>
+        <div class="ledger-debit">&#8722;${entry.calories}</div>
       </div>
-      <div class="ledger-debit">&#8722;${entry.calories}</div>
-      <button class="ledger-del" data-id="${entry.id}" aria-label="Remove entry">×</button>
     </div>
   `;
 
