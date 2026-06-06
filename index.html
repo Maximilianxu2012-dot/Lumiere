@@ -145,6 +145,12 @@ html, body {
 }
 .scan-reveal { animation: scanReveal .3s cubic-bezier(.16,.84,.44,1) both; }
 
+/* Sofia — shimmer for dish-suggestion loading skeletons */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
 /* Sofia — tactile bottom-nav pop on the newly active tab */
 @keyframes navPop {
   0%   { transform: scale(1); }
@@ -1551,6 +1557,21 @@ function markLogDirty(date) {
   persist();
 }
 
+// Marcus — streak milestones: a single calm acknowledgment, never gamified.
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
+
+function streakMilestoneMessage(days) {
+  const messages = {
+    3:   "Three days in a row. Most people don't make it this far. Keep going.",
+    7:   "A full week. Seven days of showing up — that's not motivation, that's discipline starting to form.",
+    14:  "Two weeks. The data is building. I'm starting to see real patterns in how you eat.",
+    30:  "Thirty days. That's a habit now — not a streak. You've changed something.",
+    60:  "Sixty days. At this point you're not tracking anymore. You're just living this way.",
+    100: "One hundred days. I don't say this lightly: this is rare. Most people quit at day four.",
+  };
+  return messages[days] || `Day ${days}. Keep going.`;
+}
+
 // Alex — quiet streak: consecutive days with at least one logged meal.
 function recordMealForStreak() {
   const d = today();
@@ -2858,7 +2879,16 @@ function renderDashboard() {
   app.innerHTML = `
     <section class="hero-block" id="section-hero">
       <div style="font-size:var(--fs-meta);letter-spacing:.1em;color:var(--ink-mute);margin-bottom:var(--space-2);">${dateStr}</div>
-      ${state.logStreak > 0
+      ${state.logStreak >= 7
+        ? `<div style="font-family:'Inter',sans-serif;font-size:11px;letter-spacing:.12em;
+                       text-transform:uppercase;color:var(--gold);margin-bottom:var(--space-2);
+                       display:flex;align-items:center;gap:6px;">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--gold)">
+               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+             </svg>
+             Day ${state.logStreak}
+           </div>`
+        : state.logStreak > 0
         ? `<div style="font-family:'Inter',sans-serif;font-size:12px;letter-spacing:.08em;color:var(--gold);margin-bottom:var(--space-2);">Day ${state.logStreak}</div>`
         : ""}
       <h1 class="hero-display">${greeting}</h1>
@@ -2956,6 +2986,121 @@ function renderDashboard() {
   setBottomTab("home");
   startProactiveSystem();
 }
+
+// ── Demo Mode (console only — no UI) ────────────────────────────────
+// seedDemoDay() fills today's log with 3–5 coherent meals for screenshots
+// and build-in-public recordings. Console-only on purpose: not wired to any
+// button. Call it from DevTools → window.seedDemoDay().
+const _DEMO_MEALS = {
+  breakfast: [
+    { name: "Oatmeal with Berries",   calories: 380, protein_g: 12, carbs_g: 62, fat_g: 8 },
+    { name: "Greek Yogurt & Granola", calories: 340, protein_g: 22, carbs_g: 41, fat_g: 9 },
+    { name: "Avocado Toast & Eggs",   calories: 430, protein_g: 19, carbs_g: 34, fat_g: 24 },
+    { name: "Protein Pancakes",       calories: 410, protein_g: 30, carbs_g: 45, fat_g: 11 },
+    { name: "Scrambled Eggs & Toast", calories: 360, protein_g: 21, carbs_g: 28, fat_g: 17 },
+  ],
+  lunch: [
+    { name: "Chicken & Rice Bowl",    calories: 620, protein_g: 48, carbs_g: 68, fat_g: 14 },
+    { name: "Turkey Club Sandwich",   calories: 580, protein_g: 36, carbs_g: 52, fat_g: 22 },
+    { name: "Quinoa Salad with Feta", calories: 520, protein_g: 19, carbs_g: 58, fat_g: 23 },
+    { name: "Grilled Chicken Wrap",   calories: 560, protein_g: 40, carbs_g: 49, fat_g: 19 },
+    { name: "Poke Bowl",              calories: 590, protein_g: 34, carbs_g: 66, fat_g: 17 },
+  ],
+  dinner: [
+    { name: "Salmon & Roasted Veggies", calories: 640, protein_g: 44, carbs_g: 32, fat_g: 34 },
+    { name: "Pasta Bolognese",          calories: 720, protein_g: 33, carbs_g: 82, fat_g: 26 },
+    { name: "Steak & Sweet Potato",     calories: 680, protein_g: 46, carbs_g: 48, fat_g: 30 },
+    { name: "Stir-Fry Tofu & Noodles",  calories: 560, protein_g: 24, carbs_g: 71, fat_g: 18 },
+    { name: "Grilled Chicken & Quinoa", calories: 600, protein_g: 47, carbs_g: 52, fat_g: 18 },
+  ],
+  snack: [
+    { name: "Protein Shake",      calories: 220, protein_g: 30, carbs_g: 14, fat_g: 4 },
+    { name: "Apple & Peanut Butter", calories: 250, protein_g: 8,  carbs_g: 30, fat_g: 13 },
+    { name: "Greek Yogurt",       calories: 150, protein_g: 17, carbs_g: 12, fat_g: 4 },
+    { name: "Handful of Almonds", calories: 180, protein_g: 6,  carbs_g: 7,  fat_g: 15 },
+  ],
+};
+
+// Demo data must NEVER reach the cloud. We bypass persist()/markLogDirty()
+// (both trigger _syncToCloud) and write only to localStorage on this device.
+const _DEMO_BACKUP_KEY = "nouri_demo_backup";
+const _saveLocalOnly = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} };
+
+function seedDemoDay() {
+  const d = today();
+  const rand    = (min, max) => Math.random() * (max - min) + min;
+  const jitter  = (v) => v * rand(0.9, 1.1);                 // ±10%
+  const pick    = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const round1  = (v) => Math.round(v * 10) / 10;
+
+  // Snapshot the real values once, so clearDemoDay() can restore them exactly.
+  // If a backup already exists (demo seeded twice), keep the original — don't
+  // overwrite the real data with demo data.
+  if (!localStorage.getItem(_DEMO_BACKUP_KEY)) {
+    const backup = {
+      log: state.log[d] || null,        // today's real entries (null = none)
+      logStreak: state.logStreak,
+      lastLogDate: state.lastLogDate,
+    };
+    try { localStorage.setItem(_DEMO_BACKUP_KEY, JSON.stringify(backup)); } catch {}
+  }
+
+  // Coherent day: always breakfast + lunch + dinner, sometimes 1–2 snacks (→ 3–5 meals).
+  const plan = [
+    { slot: "breakfast", hour: 8  },
+    { slot: "lunch",     hour: 13 },
+    { slot: "dinner",    hour: 19 },
+  ];
+  const extraSnacks = Math.floor(rand(0, 3)); // 0, 1, or 2
+  if (extraSnacks >= 1) plan.push({ slot: "snack", hour: 10 });
+  if (extraSnacks >= 2) plan.push({ slot: "snack", hour: 16 });
+
+  const base = new Date();
+  const entries = plan.map(({ slot, hour }) => {
+    const m  = pick(_DEMO_MEALS[slot]);
+    const ts = new Date(base); ts.setHours(hour, Math.floor(rand(0, 59)), 0, 0);
+    return {
+      id: newId(),
+      timestamp: ts.getTime(),
+      source: "scan",
+      name: m.name,
+      portion: "1 serving",
+      calories: Math.round(jitter(m.calories)),
+      protein_g: round1(jitter(m.protein_g)),
+      carbs_g:   round1(jitter(m.carbs_g)),
+      fat_g:     round1(jitter(m.fat_g)),
+    };
+  });
+
+  state.log[d] = entries;
+  state.logStreak   = Math.floor(rand(5, 13)); // 5–12
+  state.lastLogDate = d;
+
+  _saveLocalOnly();   // local only — no markLogDirty/persist, nothing hits Supabase
+  renderDashboard();
+
+  console.log(`[demo] Seeded ${entries.length} meals for ${d} — streak ${state.logStreak}. Run clearDemoDay() to undo.`);
+  return entries;
+}
+window.seedDemoDay = seedDemoDay;
+
+// Undo seedDemoDay(): restore the real log/streak from the backup snapshot.
+function clearDemoDay() {
+  const raw = localStorage.getItem(_DEMO_BACKUP_KEY);
+  if (!raw) { console.log("[demo] Nothing to clear — no backup found."); return; }
+  const d = today();
+  try {
+    const b = JSON.parse(raw);
+    if (b.log) state.log[d] = b.log; else delete state.log[d];
+    state.logStreak   = b.logStreak;
+    state.lastLogDate = b.lastLogDate;
+  } catch { console.log("[demo] Backup was corrupt — left state untouched."); return; }
+  localStorage.removeItem(_DEMO_BACKUP_KEY);
+  _saveLocalOnly();
+  renderDashboard();
+  console.log("[demo] Restored real data. Demo backup cleared.");
+}
+window.clearDemoDay = clearDemoDay;
 
 // â"€â"€ The Ledger â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 // Caloric ledger modeled on a private bank's transaction book.
@@ -3542,7 +3687,7 @@ async function handleFridgeScan(file) {
     const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
     state.fridge = [...new Set([...state.fridge, ...items])];
     persist();
-    renderFridgeResults(data.items || []);
+    renderDishSuggestions(data.items || []);
   } catch (e) {
     const s = $("fridge-list");
     if (s) s.innerHTML = `<div class="log-empty" style="text-align:center;">${
@@ -3624,6 +3769,221 @@ function renderFridgeResults(items) {
   $("fr-add").addEventListener("click", renderFridge);
 }
 
+// New fridge flow: scan → 5 dish suggestion cards → tap one → full recipe.
+async function renderDishSuggestions(fridgeItems) {
+  // Step 1 — elegant shimmer loading screen
+  app.innerHTML = `
+    <section class="hero anim-up" style="text-align:left;align-items:flex-start;padding:8px 0;">
+      <div class="eyebrow" style="margin-bottom:16px;">Sous-Chef</div>
+      <p style="font-family:'Cormorant Garamond',serif;font-style:italic;
+                font-size:clamp(22px,5vw,30px);line-height:1.3;color:var(--ink);
+                margin:0 0 32px;max-width:20ch;">
+        Checking what you've got…
+      </p>
+      <div style="display:flex;flex-direction:column;gap:12px;width:100%;">
+        ${[1,2,3,4,5].map(() => `
+          <div style="height:88px;border-radius:10px;
+                      background:linear-gradient(90deg,rgba(0,0,0,0.04) 0%,rgba(0,0,0,0.07) 50%,rgba(0,0,0,0.04) 100%);
+                      background-size:800px 100%;
+                      animation:shimmer 1.4s ease-in-out infinite;"></div>
+        `).join("")}
+      </div>
+    </section>`;
+
+  // Step 2 — call suggest endpoint
+  let suggestions = [];
+  try {
+    const t = todayTotals();
+    const remaining = Math.max(effectiveCalTarget() - t.calories, 300);
+    const data = await api("/api/scan/fridge/suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ingredients: state.fridge,
+        remaining_calories: remaining,
+        restrictions: state.restrictions,
+        taste: state.taste,
+      }),
+    });
+    suggestions = data.suggestions || [];
+  } catch {
+    app.innerHTML = `
+      <section class="hero anim-up" style="text-align:left;align-items:flex-start;">
+        <div class="eyebrow">Sous-Chef</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:24px;
+                  line-height:1.4;margin:16px 0;">
+          I couldn't read your fridge right now. Try again or add ingredients by hand.
+        </p>
+        <button class="btn gold full" id="fridge-retry" style="margin-top:24px;">Try Again</button>
+        <div style="text-align:center;margin-top:14px;width:100%;">
+          <button class="link-quiet" id="fridge-manual">Add by hand</button>
+        </div>
+      </section>`;
+    $("fridge-retry")?.addEventListener("click", renderFridge);
+    $("fridge-manual")?.addEventListener("click", renderFridge);
+    return;
+  }
+
+  if (!suggestions.length) { renderFridgeResults(fridgeItems || []); return; }
+
+  // Step 3 — render the 5 dish cards
+  renderDishCards(suggestions, fridgeItems);
+}
+
+function renderDishCards(suggestions, fridgeItems) {
+  const ingCount = fridgeItems?.length || state.fridge.length;
+
+  app.innerHTML = `
+    <section style="padding:8px 0 0;">
+      <div class="eyebrow" style="margin-bottom:6px;">Sous-Chef</div>
+      <p style="font-family:'Cormorant Garamond',serif;font-style:italic;
+                font-size:clamp(18px,4vw,24px);color:var(--ink-soft);
+                margin:0 0 20px;line-height:1.4;">
+        Here's what I'd make with what you have.
+      </p>
+    </section>
+
+    <div id="dish-cards" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
+      ${suggestions.map((s, i) => `
+        <button class="dish-card anim-up" data-idx="${i}"
+          style="animation-delay:${i * 60}ms;text-align:left;width:100%;
+                 background:var(--surface);border:1px solid var(--line-soft);
+                 border-radius:12px;padding:16px 18px;cursor:pointer;
+                 transition:border-color 200ms ease, box-shadow 200ms ease;
+                 -webkit-tap-highlight-color:transparent;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                <span style="font-size:24px;line-height:1;">${escapeHtml(s.emoji)}</span>
+                <span style="font-family:'Cormorant Garamond',serif;font-size:clamp(17px,4vw,20px);
+                             color:var(--ink);line-height:1.2;">${escapeHtml(s.title)}</span>
+              </div>
+              <p style="font-size:13px;color:var(--ink-soft);margin:0 0 10px;line-height:1.5;">
+                ${escapeHtml(s.summary)}
+              </p>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                ${(s.flavor_tags || []).map(tag => `
+                  <span style="font-size:11px;letter-spacing:.06em;padding:3px 9px;
+                               border-radius:20px;border:1px solid var(--line-soft);
+                               color:var(--ink-soft);">${escapeHtml(tag)}</span>
+                `).join("")}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:18px;font-weight:500;color:var(--ink);line-height:1;">
+                ${s.calories_estimate}
+              </div>
+              <div style="font-size:10px;letter-spacing:.1em;color:var(--ink-mute);text-transform:uppercase;">
+                kcal
+              </div>
+              <div style="font-size:12px;color:var(--ink-mute);margin-top:4px;">
+                ${s.protein_g}g protein
+              </div>
+              <div style="font-size:11px;color:var(--ink-mute);margin-top:2px;">
+                ${escapeHtml(s.difficulty)}
+              </div>
+            </div>
+          </div>
+        </button>
+      `).join("")}
+    </div>
+
+    <div style="text-align:center;padding:16px 0 8px;border-top:1px solid var(--line-soft);margin-top:8px;">
+      <button class="link-quiet" id="show-ingredients">
+        See ${ingCount} detected ingredient${ingCount !== 1 ? "s" : ""} ↓
+      </button>
+    </div>
+    <div id="ingredients-drawer" style="display:none;padding:16px 0 8px;"></div>
+
+    <div style="text-align:center;margin-top:8px;padding-bottom:24px;">
+      <button class="link-quiet" id="back-to-fridge">← Scan again</button>
+    </div>
+
+    <div id="recipe-slot" style="margin-top:0;"></div>
+  `;
+
+  // Card tap → generate the full recipe for that dish
+  document.querySelectorAll(".dish-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const idx = parseInt(card.dataset.idx, 10);
+      const chosen = suggestions[idx];
+      document.querySelectorAll(".dish-card").forEach(c => {
+        c.style.borderColor = c === card ? "var(--gold)" : "var(--line-soft)";
+        c.style.boxShadow   = c === card ? "0 0 0 1px var(--gold)" : "none";
+      });
+      makeDishRecipe(chosen);
+    });
+  });
+
+  // Ingredients drawer toggle — categorized chips, hidden by default
+  $("show-ingredients")?.addEventListener("click", () => {
+    const drawer = $("ingredients-drawer");
+    const btn = $("show-ingredients");
+    if (drawer.style.display === "none") {
+      const order = ["Protein", "Vegetables", "Dairy", "Grains", "Other"];
+      const buckets = {}; order.forEach(k => buckets[k] = []);
+      (fridgeItems || []).forEach(it => {
+        const label = it.portion ? `${it.portion} ${it.name}` : it.name;
+        buckets[fridgeBucket(it.category, it.name)].push(label);
+      });
+      drawer.innerHTML = order.filter(k => buckets[k].length).map(k => `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+                      color:var(--ink-mute);margin-bottom:8px;">${k}</div>
+          <div class="fridge-chips">
+            ${buckets[k].map(x => `<span class="fridge-chip">${escapeHtml(x)}</span>`).join("")}
+          </div>
+        </div>`).join("");
+      drawer.style.display = "block";
+      btn.textContent = "Hide ingredients ↑";
+    } else {
+      drawer.style.display = "none";
+      btn.textContent = `See ${ingCount} detected ingredient${ingCount !== 1 ? "s" : ""} ↓`;
+    }
+  });
+
+  $("back-to-fridge")?.addEventListener("click", renderFridge);
+}
+
+// Generate a full recipe tailored to the chosen dish suggestion.
+async function makeDishRecipe(suggestion) {
+  const slot = $("recipe-slot");
+  if (!slot) return;
+  slot.innerHTML = `
+    <div style="padding:24px 0 8px;border-top:1px solid var(--line-soft);margin-top:16px;">
+      <div class="skeleton-card"><span class="loader"></span>
+        Composing ${escapeHtml(suggestion.title)}…
+      </div>
+    </div>`;
+  slot.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  try {
+    const t = todayTotals();
+    const remaining = Math.max(effectiveCalTarget() - t.calories, 300);
+    const recipe = await api("/api/recipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ingredients: state.fridge,
+        targets: state.targets || null,
+        remaining_calories: remaining,
+        restrictions: state.restrictions,
+        taste: state.taste,
+        dish_hint: suggestion.title,
+      }),
+    });
+    slot.innerHTML = `<div style="padding-top:16px;border-top:1px solid var(--line-soft);margin-top:8px;">${recipeHtml(recipe)}</div>`;
+    wireRecipeButtons(recipe);
+  } catch {
+    slot.innerHTML = `
+      <div style="padding:16px 0;color:var(--ink-soft);font-size:14px;text-align:center;">
+        ${navigator.onLine
+          ? "Couldn't compose the recipe right now. Tap the dish again to retry."
+          : "You're offline — reconnect and try again."}
+      </div>`;
+  }
+}
+
 async function makeRecipe() {
   const slot = $("recipe-slot");
   slot.innerHTML = `<div class="skeleton-card"><span class="loader"></span>Composing recipe…</div>`;
@@ -3652,8 +4012,9 @@ async function makeRecipe() {
   }
 }
 
-function renderRecipe(r) {
-  $("recipe-slot").innerHTML = `
+// Pure markup for a recipe — reusable (Fridge flow today, Cookbook tab later).
+function recipeHtml(r) {
+  return `
     <div class="recipe">
       <div class="recipe-head">
         <div class="eyebrow">Recipe</div>
@@ -3699,6 +4060,15 @@ function renderRecipe(r) {
       </div>
     </div>
   `;
+}
+
+function renderRecipe(r) {
+  $("recipe-slot").innerHTML = recipeHtml(r);
+  wireRecipeButtons(r);
+}
+
+// Wire save/log/close on an already-rendered recipe block.
+function wireRecipeButtons(r) {
   $("recipe-back").addEventListener("click", () => $("recipe-slot").innerHTML = "");
   $("recipe-save").addEventListener("click", () => {
     const idx = state.favorites.findIndex(f => f.title === r.title);
@@ -4725,6 +5095,29 @@ async function proactiveCheck() {
       showButlerMessage("Yesterday broke the streak. Today starts a new one.", 8000);
       return;
     }
+  }
+
+  // Streak milestones — a single calm acknowledgment at meaningful days.
+  if (STREAK_MILESTONES.includes(state.logStreak) && !fired.includes(`streak_${state.logStreak}`)) {
+    const days = state.logStreak;
+    fired.push(`streak_${days}`);
+    persist();
+    setTimeout(() => showButlerMessage(streakMilestoneMessage(days), 9000), 600);
+    // Store it so the Butler can reference the milestone naturally later.
+    (async () => {
+      try {
+        await api("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memory_text: `User reached a ${days}-day logging streak on ${today()}`,
+            category: "goal",
+          }),
+        });
+        await loadMemories();
+      } catch {}
+    })();
+    return;
   }
 
   // Round 3a — lunch nudge: not logged by 13:00, only for established streaks.
