@@ -3102,6 +3102,20 @@ function clearDemoDay() {
 }
 window.clearDemoDay = clearDemoDay;
 
+// Hidden URL trigger so the demo works on a phone (no console needed).
+//   open  …/#demo        → seed a demo day on THIS device (local only)
+//   open  …/#demo-clear  → restore real data on THIS device
+// Removing the hash and reloading also brings real data back, because boot()
+// re-pulls it from the cloud. Nothing here ever writes to Supabase.
+function maybeDemoHash() {
+  const h = (window.location.hash || "").toLowerCase();
+  if (h === "#demo-clear") {
+    clearDemoDay();
+  } else if (h === "#demo") {
+    seedDemoDay();
+  }
+}
+
 // â"€â"€ The Ledger â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 // Caloric ledger modeled on a private bank's transaction book.
 // Each entry is a debit; running balance shows kcal remaining vs. the
@@ -6002,6 +6016,7 @@ async function boot() {
     loadWeightEntries();   // warm the weight log (fire-and-forget)
     maybePatternAnalysis();// once-per-day habit promotion (fire-and-forget)
     render();
+    maybeDemoHash();       // hidden URL trigger: ...#demo seeds, ...#demo-clear undoes
   } catch {
     // Network or Supabase error at boot — fall back to auth screen
     renderAuth();
