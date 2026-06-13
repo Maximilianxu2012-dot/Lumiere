@@ -901,6 +901,11 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   background: var(--surface-2);
 }
 @media (max-width: 540px) { .recipe-img { height: 170px; } }
+.recipe-hero-img {
+  width: 100%; height: 260px; object-fit: cover; display: block;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 540px) { .recipe-hero-img { height: 190px; } }
 .recipe-head { padding: 40px 40px 28px; text-align: center; border-bottom: 1px solid var(--line); }
 .recipe-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; margin: 12px 0 8px; }
 .recipe-sub { color: var(--ink-soft); font-style: italic; max-width: 420px; margin: 0 auto; }
@@ -945,6 +950,7 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 10px 32px rgba(0,0,0,0.1);
 }
 .fav-card-img { width:100%; height:130px; object-fit:cover; display:block; background:var(--surface-2); }
+.fav-card-img-placeholder { background: linear-gradient(135deg, var(--surface-2) 0%, var(--line) 100%); }
 .fav-card-body { padding: 16px 18px 18px; }
 .fav-card-title { font-family:'Cormorant Garamond',serif; font-size:19px; margin-bottom:5px; }
 .fav-card-meta { font-size:11px; color:var(--ink-mute); letter-spacing:.05em; }
@@ -957,6 +963,26 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
 }
 .fav-del:hover { background:rgba(139,48,48,.85); }
 @media (max-width: 540px) { .fav-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
+
+/* Cookbook — category chips (horizontal scroll, gold active state) */
+.cb-chips {
+  display:flex; gap:8px; overflow-x:auto; padding:2px 2px 10px;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+}
+.cb-chips::-webkit-scrollbar { display:none; }
+.cb-chip {
+  flex:0 0 auto; padding:7px 14px; border-radius:20px;
+  border:1px solid var(--line-soft); background:transparent;
+  font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-soft); cursor:pointer; white-space:nowrap;
+  transition:color 200ms ease, border-color 200ms ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.cb-chip.active { color:#B89968; border-color:#B89968; }
+.cb-emoji {
+  display:flex; align-items:center; justify-content:center;
+  font-size:42px; line-height:1;
+}
 
 /* â”€â”€ Butler Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .chat-layout { display:flex; flex-direction:column; min-height:calc(100vh - 200px); }
@@ -1425,6 +1451,13 @@ input:focus, select:focus { border-bottom-color: var(--gold); }
     </svg>
     <span class="bnav-label">Home</span>
   </button>
+  <button class="bottom-nav-item" id="bnav-recipes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 6.5C10.5 5.1 8.4 4.5 6 4.5c-1.1 0-2.1.13-3 .38V19.4c.9-.25 1.9-.38 3-.38 2.4 0 4.5.6 6 2 1.5-1.4 3.6-2 6-2 1.1 0 2.1.13 3 .38V4.88c-.9-.25-1.9-.38-3-.38-2.4 0-4.5.6-6 2z"/>
+      <path d="M12 6.5V21"/>
+    </svg>
+    <span class="bnav-label">Recipes</span>
+  </button>
   <button class="bottom-nav-item" id="bnav-butler">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -1693,6 +1726,7 @@ function _applyStateMigrations() {
   if (!state.hasOwnProperty("goalDetails"))        state.goalDetails        = null;
   if (!state.hasOwnProperty("onboardingTemp"))     state.onboardingTemp     = null;
   if (!state.hasOwnProperty("location"))           state.location           = null;
+  if (!state.hasOwnProperty("cookbook"))           state.cookbook           = null;
   if (!state.hasOwnProperty("logStreak"))          state.logStreak          = 0;
   if (!state.hasOwnProperty("lastLogDate"))        state.lastLogDate        = null;
   if (!state.hasOwnProperty("streakAckDate"))      state.streakAckDate      = null;
@@ -3749,7 +3783,7 @@ async function handleFridgeScan(file) {
   if (slot) slot.innerHTML = `<div class="log-empty" style="text-align:center;"><span class="loader"></span>Scanning contents…</div>`;
   try {
     const fd = new FormData();
-    fd.append("image", file);
+    fd.append("images", file);
     const data = await api("/api/scan/fridge", { method: "POST", body: fd });
     // Merge quantity + name into the basket so makeRecipe respects amounts.
     const items = data.items.map(i => i.portion ? `${i.portion} ${i.name}` : i.name);
@@ -4135,6 +4169,31 @@ function renderRecipe(r) {
   wireRecipeButtons(r);
 }
 
+// Generate (and cache) an image for a saved recipe. Lazy — only fires when a
+// recipe is actually saved to My Recipes, never for dish suggestions. Safe to
+// call repeatedly: skips if an image already exists or a request is in flight.
+// In-flight state is kept out of `state` entirely so it never gets persisted.
+const _pendingRecipeImages = new Set();
+async function ensureRecipeImage(fav) {
+  if (!fav || fav.image_url || _pendingRecipeImages.has(fav.id)) return;
+  _pendingRecipeImages.add(fav.id);
+  try {
+    const data = await api("/api/recipe/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: fav.title, summary: fav.summary || "" }),
+    });
+    if (data?.image_url) {
+      fav.image_url = data.image_url;
+      persist();
+      if (document.querySelector(`.fav-card[data-fav-id="${fav.id}"]`)) renderFavorites();
+    }
+  } catch { /* silent — card just keeps its placeholder */ }
+  finally {
+    _pendingRecipeImages.delete(fav.id);
+  }
+}
+
 // Wire save/log/close on an already-rendered recipe block.
 function wireRecipeButtons(r) {
   $("recipe-back").addEventListener("click", () => $("recipe-slot").innerHTML = "");
@@ -4146,6 +4205,7 @@ function wireRecipeButtons(r) {
     } else {
       state.favorites.unshift({ ...r, id: newId(), savedAt: Date.now() });
       $("recipe-save").textContent = "★ Saved";
+      ensureRecipeImage(state.favorites[0]);
     }
     persist();
   });
@@ -5306,6 +5366,239 @@ async function fetchDailyBriefing() {
 }
 
 // â"€â"€ Favorites â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ── Cookbook (Recipes tab) ───────────────────────────────────────────
+// Curated, not searchable: 3–5 picks per category, cached per user+day in
+// state.cookbook (rides the existing user_state cloud sync). "Surprise me"
+// is deliberately uncached.
+const CB_CATEGORIES = [
+  { key: "today",     label: "Today's Picks" },
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch",     label: "Lunch" },
+  { key: "dinner",    label: "Dinner" },
+  { key: "snacks",    label: "Snacks" },
+  { key: "desserts",  label: "Desserts" },
+  { key: "smoothies", label: "Smoothies" },
+];
+
+function renderCookbook(category = "today") {
+  setBottomTab("recipes");
+
+  // PRO: entire tab is a Pro feature — quiet locked state, no upsell popup.
+  if (!isProUser()) {
+    app.innerHTML = `
+      <section class="hero-block">
+        <div class="hero-eyebrow">Nouri Pro</div>
+        <h1 class="hero-display">Recipes</h1>
+        <p class="hero-sub">
+          A curated table, set fresh each day — a handful of dishes chosen
+          around your goals, your tastes, and what's left of your day.
+          Recipes is part of Nouri Pro.
+        </p>
+      </section>`;
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="hero-block">
+      <div class="hero-eyebrow">Nouri</div>
+      <h1 class="hero-display">Recipes</h1>
+    </section>
+
+    <div class="cb-chips" id="cb-chips">
+      ${CB_CATEGORIES.map(c => `
+        <button class="cb-chip${c.key === category ? " active" : ""}" data-cat="${c.key}">${c.label}</button>
+      `).join("")}
+    </div>
+
+    <div id="cb-body"></div>
+
+    <div style="text-align:center;margin:28px 0 16px;">
+      <button class="btn gold" id="cb-surprise">Surprise me</button>
+    </div>
+    <div id="cb-surprise-slot"></div>
+  `;
+
+  document.querySelectorAll(".cb-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      if (chip.dataset.cat === category) return;
+      renderCookbook(chip.dataset.cat);
+    });
+  });
+
+  $("cb-surprise").addEventListener("click", () => loadCookbookSurprise(category));
+
+  loadCookbookPicks(category);
+}
+
+function _cookbookPayload(category) {
+  const t = todayTotals();
+  // PRO: Health-Context Layer — same mapping as checkButler
+  const hc = isProUser() ? state.healthContext : null;
+  return {
+    category,
+    remaining_calories: Math.max(effectiveCalTarget() - t.calories, 300),
+    daily_target: effectiveCalTarget(),
+    targets: state.targets || null,
+    restrictions: state.restrictions,
+    taste: state.taste,
+    health: hc ? {
+      diabetes_type:      hc.diabetesType       || null,
+      lactose_intolerant: hc.lactoseIntolerant  || false,
+      gluten_intolerant:  hc.glutenIntolerant   || false,
+      hypertension:       hc.hypertension       || false,
+      other_notes:        hc.otherNotes         || "",
+    } : null,
+    local_hour: new Date().getHours(),
+  };
+}
+
+async function loadCookbookPicks(category) {
+  const body = $("cb-body");
+  if (!body) return;
+
+  // Yesterday's picks are stale — start the day fresh.
+  if (state.cookbook && state.cookbook.day !== today()) { state.cookbook = null; persist(); }
+
+  const cached = state.cookbook?.picks?.[category];
+  if (cached?.length) { _renderCbCards(body, cached, category); return; }
+
+  body.innerHTML = `<div class="skeleton-card"><span class="loader"></span>Setting your table…</div>`;
+  try {
+    const data = await api("/api/cookbook/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_cookbookPayload(category)),
+    });
+    const dishes = data.suggestions || [];
+    if (!dishes.length) throw new Error("empty");
+    if (!state.cookbook || state.cookbook.day !== today()) state.cookbook = { day: today(), picks: {} };
+    state.cookbook.picks[category] = dishes;
+    persist();
+    if (!document.getElementById("cb-body")) return; // user navigated away
+    _renderCbCards(body, dishes, category);
+  } catch {
+    if (!document.getElementById("cb-body")) return;
+    body.innerHTML = `
+      <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:20px;
+                line-height:1.4;color:var(--ink-soft);margin:16px 0;">
+        ${navigator.onLine
+          ? "I couldn't set the table just now. Give it a moment."
+          : "You're offline — reconnect and I'll set the table."}
+      </p>
+      <button class="btn ghost" id="cb-retry">Try again</button>`;
+    $("cb-retry")?.addEventListener("click", () => loadCookbookPicks(category));
+  }
+}
+
+function _cbCardHtml(dish, idx) {
+  return `
+    <div class="fav-card" data-cb-idx="${idx}">
+      <div class="fav-card-img fav-card-img-placeholder cb-emoji">${escapeHtml(dish.emoji || "🍽️")}</div>
+      <div class="fav-card-body">
+        <div class="fav-card-title">${escapeHtml(dish.title)}</div>
+        <div class="fav-card-meta">${dish.calories_estimate} kcal · ${dish.protein_g}g P · ${dish.carbs_g}g C · ${dish.fat_g}g F</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
+          ${(dish.flavor_tags || []).map(tag => `
+            <span style="font-size:11px;letter-spacing:.06em;padding:3px 9px;border-radius:20px;
+                         border:1px solid var(--line-soft);color:var(--ink-soft);">${escapeHtml(tag)}</span>
+          `).join("")}
+        </div>
+      </div>
+    </div>`;
+}
+
+function _renderCbCards(body, dishes, category) {
+  body.innerHTML = `<div class="fav-grid">${dishes.map((d, i) => _cbCardHtml(d, i)).join("")}</div>`;
+  body.querySelectorAll(".fav-card").forEach(card => {
+    card.addEventListener("click", () => openCookbookDish(dishes[+card.dataset.cbIdx], category));
+  });
+}
+
+async function loadCookbookSurprise(category) {
+  const slot = $("cb-surprise-slot");
+  if (!slot) return;
+  slot.innerHTML = `<div class="skeleton-card"><span class="loader"></span>One moment…</div>`;
+  slot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const data = await api("/api/cookbook/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ..._cookbookPayload("surprise") }),
+    });
+    const dish = (data.suggestions || [])[0];
+    if (!dish) throw new Error("empty");
+    if (!document.getElementById("cb-surprise-slot")) return;
+    slot.innerHTML = `<div class="fav-grid" style="margin-top:0;">${_cbCardHtml(dish, 0)}</div>`;
+    slot.querySelector(".fav-card").addEventListener("click", () => openCookbookDish(dish, category));
+  } catch {
+    if (!document.getElementById("cb-surprise-slot")) return;
+    slot.innerHTML = `
+      <p style="text-align:center;color:var(--ink-soft);font-size:14px;margin:8px 0;">
+        No surprise this time — try again in a moment.
+      </p>`;
+  }
+}
+
+// Tap on a pick → full recipe via the existing generator, rendered with the
+// existing favorite-recipe layout (save toggle + log button come for free).
+async function openCookbookDish(dish, category) {
+  app.innerHTML = `<div class="skeleton-card" style="margin-top:24px;"><span class="loader"></span>Composing ${escapeHtml(dish.title)}…</div>`;
+  const backFn = () => renderCookbook(category);
+  try {
+    const t = todayTotals();
+    const recipe = await api("/api/recipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ingredients: [],
+        targets: state.targets || null,
+        remaining_calories: Math.max(effectiveCalTarget() - t.calories, 300),
+        restrictions: state.restrictions,
+        taste: state.taste,
+        dish_hint: dish.title,
+      }),
+    });
+    const r = { ...recipe, id: newId(), savedAt: null };
+    renderFavRecipe(r, backFn, "← Recipes");
+
+    // Hero image, fire-and-forget — globally cached by title, so popular
+    // dishes are generated once ever across all users.
+    api("/api/recipe/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: r.title, summary: r.summary || "" }),
+    }).then(d => {
+      if (!d?.image_url) return;
+      r.image_url = d.image_url;
+      const head = document.querySelector(".recipe-head");
+      // Only inject if the user is still looking at this exact recipe.
+      if (head && head.querySelector("h2")?.textContent === r.title
+          && !document.querySelector(".recipe-hero-img")) {
+        const img = document.createElement("img");
+        img.className = "recipe-hero-img";
+        img.src = d.image_url;
+        img.alt = "";
+        head.parentElement.insertBefore(img, head);
+      }
+      const fav = state.favorites.find(f => f.title === r.title && !f.image_url);
+      if (fav) { fav.image_url = d.image_url; persist(); }
+    }).catch(() => {});
+  } catch {
+    app.innerHTML = `
+      <section class="hero-block">
+        <div class="hero-eyebrow">Nouri</div>
+        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:22px;
+                  line-height:1.4;color:var(--ink-soft);margin:16px 0;">
+          ${navigator.onLine
+            ? "I couldn't compose that recipe just now. Try once more."
+            : "You're offline — reconnect and try again."}
+        </p>
+        <button class="btn ghost" id="cb-recipe-back">← Recipes</button>
+      </section>`;
+    $("cb-recipe-back")?.addEventListener("click", backFn);
+  }
+}
+
 function renderFavorites() {
   if (!state.favorites.length) {
     app.innerHTML = `
@@ -5332,8 +5625,12 @@ function renderFavorites() {
 
     <div class="fav-grid">
       ${state.favorites.map(fav => {
+        const img = fav.image_url
+          ? `<img class="fav-card-img" src="${escapeHtml(fav.image_url)}" alt="" loading="lazy">`
+          : `<div class="fav-card-img fav-card-img-placeholder"></div>`;
         return `
           <div class="fav-card" data-fav-id="${escapeHtml(fav.id)}">
+            ${img}
             <div class="fav-card-body">
               <div class="fav-card-title">${escapeHtml(fav.title)}</div>
               <div class="fav-card-meta">${fav.duration_min} min · ${fav.calories_per_serving} kcal · ${fav.protein_g}g P</div>
@@ -5375,6 +5672,7 @@ function renderFavRecipe(r, backFn, backLabel) {
   const isSaved = state.favorites.some(f => f.id === r.id);
   app.innerHTML = `
     <div class="recipe" style="margin-top:0;">
+      ${r.image_url ? `<img class="recipe-hero-img" src="${escapeHtml(r.image_url)}" alt="">` : ""}
       <div class="recipe-head">
         <div class="eyebrow">Recipe</div>
         <h2>${escapeHtml(r.title)}</h2>
@@ -5415,8 +5713,10 @@ function renderFavRecipe(r, backFn, backLabel) {
       persist();
       backFn();
     } else {
+      if (!r.id) r.id = newId();
       state.favorites.unshift({ ...r, savedAt: Date.now() });
       persist();
+      ensureRecipeImage(state.favorites[0]);
       $("fav-recipe-toggle").textContent = "★ Remove";
     }
   });
@@ -6004,7 +6304,7 @@ function setChrome(visible) {
 }
 
 function setBottomTab(tab) {
-  ["home","butler","profile"].forEach(id => {
+  ["home","recipes","butler","profile"].forEach(id => {
     const btn = document.getElementById("bnav-" + id);
     if (!btn) return;
     const becomingActive = id === tab && !btn.classList.contains("active");
@@ -6025,6 +6325,9 @@ function initBottomNav() {
     } else {
       renderDashboard();
     }
+  });
+  document.getElementById("bnav-recipes").addEventListener("click", () => {
+    renderCookbook();
   });
   document.getElementById("bnav-butler").addEventListener("click", () => {
     renderChat();

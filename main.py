@@ -31,7 +31,8 @@ SUPABASE_ANON_KEY   = os.getenv("SUPABASE_ANON_KEY", "").strip()
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()  # legacy fallback
 OPENWEATHER_KEY     = os.getenv("OPENWEATHER_API_KEY", "").strip()
 
-MODEL = "gemini-2.5-flash"
+MODEL       = "gemini-2.5-flash"
+IMAGE_MODEL = "gemini-2.5-flash-image"
 ROOT  = Path(__file__).parent
 
 client = genai.Client(api_key=API_KEY)
@@ -127,6 +128,10 @@ _RATE_LIMITS: dict[str, int] = {
     "butler": 30,
     "memory": 120,
     "goals":  60,
+    "image":  15,
+    # Cookbook suggestions are cached client-side per day — 10/min covers
+    # category taps + "Surprise me" without letting anyone hammer Gemini.
+    "cookbook": 10,
 }
 _rate_buckets: dict[str, deque] = defaultdict(deque)
 _rate_lock = threading.Lock()
@@ -178,6 +183,10 @@ class FridgeItem(BaseModel):
     portion: str = ""
     # Tolerant gegenüber dem, was das Modell vorschlägt — verhindert Schema-Crashs
     category: str = "other"
+    # True wenn das Modell etwas sieht (Glas, Dose, Schublade), aber nicht sicher
+    # identifizieren kann — Frontend soll dann nachfragen statt zu raten/weglassen.
+    needs_clarification: bool = False
+    clarification_question: str = ""
 
 
 class FridgeScan(BaseModel):
@@ -240,6 +249,28 @@ class RecipeRequest(BaseModel):
     remaining_calories: int | None = None
     restrictions: Restrictions | None = None
     taste: TastePrefs | None = None
+    dish_hint: str | None = None   # if set, the recipe must be this specific dish
+
+
+class DishSuggestion(BaseModel):
+    title: str
+    emoji: str = Field(description="Single emoji that best represents the finished dish.")
+    summary: str = Field(description="One elegant sentence, max 10 words. No exclamation marks.")
+    flavor_tags: list[str] = Field(description="Exactly 3 tags; the third is prep time, e.g. '15 min'.")
+    calories_estimate: int
+    protein_g: int
+    difficulty: Literal["Easy", "Medium", "Advanced"]
+
+
+class SuggestRequest(BaseModel):
+    ingredients: list[str] = []
+    remaining_calories: int | None = None
+    restrictions: Restrictions | None = None
+    taste: TastePrefs | None = None
+
+
+class SuggestResponse(BaseModel):
+    suggestions: list[DishSuggestion]
 
 
 class HealthContextInput(BaseModel):
@@ -248,6 +279,33 @@ class HealthContextInput(BaseModel):
     gluten_intolerant: bool = False
     hypertension: bool = False
     other_notes: str = ""
+
+
+class CookbookDish(DishSuggestion):
+    # Cookbook cards show the full macro estimate, not just protein.
+    carbs_g: int
+    fat_g: int
+
+
+CookbookCategory = Literal[
+    "today", "breakfast", "lunch", "dinner",
+    "snacks", "desserts", "smoothies", "surprise",
+]
+
+
+class CookbookRequest(BaseModel):
+    category: CookbookCategory = "today"
+    remaining_calories: int | None = None
+    daily_target: int | None = None
+    targets: Targets | None = None
+    restrictions: Restrictions | None = None
+    taste: TastePrefs | None = None
+    health: HealthContextInput | None = None
+    local_hour: int | None = Field(default=None, ge=0, le=23)
+
+
+class CookbookResponse(BaseModel):
+    suggestions: list[CookbookDish]
 
 
 class MealItemForCheck(BaseModel):
@@ -427,6 +485,12 @@ async def generate_structured(parts: list, schema: type[BaseModel], temperature:
 
 def image_part(image: UploadFile, data: bytes) -> types.Part:
     return types.Part.from_bytes(data=data, mime_type=image.content_type or "image/jpeg")
+
+
+def _recipe_image_title_key(title: str) -> str:
+    """Normalize a recipe title into a stable cache key / storage filename stem."""
+    key = re.sub(r"[^a-z0-9]+", "-", title.strip().lower())
+    return key.strip("-")
 
 
 # ── Routes ─────────────────────────────────────────────────────────
@@ -1201,21 +1265,225 @@ async def scan_barcode(req: BarcodeRequest, _user: dict = Depends(rate_limited("
     return FoodScan(items=[item], confidence="high")
 
 
+MAX_FRIDGE_IMAGES = 6
+
+
 @app.post("/api/scan/fridge", response_model=FridgeScan)
-async def scan_fridge(image: UploadFile = File(...), _user: dict = Depends(rate_limited("scan"))) -> FridgeScan:
-    data = await image.read()
+async def scan_fridge(images: list[UploadFile] = File(...), _user: dict = Depends(rate_limited("scan"))) -> FridgeScan:
+    if not images:
+        raise HTTPException(status_code=400, detail="No images provided.")
+    if len(images) > MAX_FRIDGE_IMAGES:
+        raise HTTPException(status_code=400, detail=f"Too many images — max {MAX_FRIDGE_IMAGES} per scan.")
+
+    image_parts = [image_part(img, await img.read()) for img in images]
+
     prompt = (
-        "Erkenne nur die Lebensmittel und Zutaten, die im Bild EINDEUTIG sichtbar sind. "
-        "Sei sehr konservativ: lieber etwas weglassen als raten. "
-        "WICHTIG bei Verpackungen: Wenn du eine Konservendose, Tüte, geschlossene Verpackung "
-        "oder ein nicht eindeutig erkennbares Etikett siehst, schreibe nur was du WIRKLICH "
-        "sehen kannst (z.B. 'Konservendose, Inhalt unklar') — erfinde NIEMALS den vermuteten "
-        "Inhalt. Nur klar erkennbare Lebensmittel benennen. "
+        f"You are looking at {len(images)} photo(s) of the same fridge, pantry, or drawers — "
+        "taken so the user can capture everything they have in one go.\n\n"
+        "Treat all photos together as ONE inventory. The same item may appear in more than one "
+        "photo (e.g. a wide shot and a close-up of an opened drawer) — list it only ONCE, using "
+        "whichever photo gives the clearest identification and the most accurate quantity.\n\n"
+        "Erkenne nur die Lebensmittel und Zutaten, die EINDEUTIG sichtbar sind. "
+        "Sei konservativ bei der IDENTITÄT, aber NICHT bei der Sichtbarkeit: "
+        "Wenn du etwas siehst (ein Glas, eine Dose, ein Behälter, ein Rest in Folie), aber nicht "
+        "sicher weißt WAS genau es ist, lass es NICHT weg und rate NICHT — setze stattdessen "
+        "needs_clarification=true und formuliere eine kurze, konkrete clarification_question "
+        "auf Englisch (z.B. 'What's in the unlabeled jar on the middle shelf?'). "
+        "Für solche Items reicht ein grober Platzhalter-Name (z.B. 'Unlabeled jar') und category='other'.\n\n"
+        "Wenn du eine Marke/ein Logo klar erkennst (z.B. ein Nutella-Glas, eine Coca-Cola-Dose), "
+        "nenne das konkrete Produkt im Namen — das hilft später bei der Kalorien-Genauigkeit.\n\n"
         "Schätze Mengen so genau wie möglich anhand der sichtbaren Anzahl/Größe "
-        "(z.B. '4 Stück', '1 Bund', '500 g'). Kategorisiere jedes Item nach dem Schema. "
-        "Return all food names, categories, and quantities in English."
+        "(z.B. '4 Stück', '1 Bund', '500 g'). Kategorisiere jedes Item nach dem Schema.\n\n"
+        "Return all food names, categories, quantities and clarification questions in English."
     )
-    return await generate_structured([prompt, image_part(image, data)], FridgeScan)
+    return await generate_structured([prompt, *image_parts], FridgeScan)
+
+
+@app.post("/api/scan/fridge/suggest", response_model=SuggestResponse)
+async def suggest_dishes(req: SuggestRequest, _user: dict = Depends(rate_limited("scan"))) -> SuggestResponse:
+    ingredients = ", ".join(req.ingredients) or "not specified"
+    remaining = str(req.remaining_calories) if req.remaining_calories is not None else "not specified"
+
+    restriction_line = "none"
+    if req.restrictions:
+        avoid = req.restrictions.allergies + req.restrictions.noGos
+        if avoid:
+            restriction_line = ", ".join(avoid)
+
+    prompt = (
+        "You are a world-class chef and nutritionist for a premium app called Nouri.\n"
+        "Given these fridge ingredients, suggest exactly 5 dishes the user could make.\n\n"
+        "Rules:\n"
+        "- Each suggestion must be a REAL, RECOGNIZABLE dish — something with an established name "
+        "or clear culinary identity that a person would actually search for, order, or recognize "
+        "(e.g. 'Greek-style chicken salad', 'vegetable fried rice', 'tomato and lentil soup', "
+        "'Spanish omelette'). Never invent an arbitrary mashup of leftover ingredients just because "
+        "they happen to be available.\n"
+        "- It is fine — and often better — to use only SOME of the available ingredients. Do not "
+        "force an ingredient into a dish where it doesn't culinarily belong. 5 simple, well-known "
+        "dishes that each use a sensible subset beat 5 forced combinations that use everything.\n"
+        "- If the available ingredients don't support 5 distinct creative dishes, it's better to "
+        "repeat a well-known dish format (e.g. two different salads, two different stir-fries) than "
+        "to invent something incoherent.\n"
+        "- Vary the suggestions: different cuisines, different cooking methods, different calorie levels\n"
+        "- Each dish must be genuinely makeable from the given ingredients (plus basic pantry staples: "
+        "oil, salt, pepper, garlic, onion, eggs)\n"
+        "- Calorie estimates must be realistic and precise — not round numbers\n"
+        "- Flavor tags must be specific and honest: use descriptors like \"Filling\", \"Light\", \"Spicy\", "
+        "\"Creamy\", \"Quick\", \"Crispy\", \"High-protein\", \"Low-carb\", \"Comfort food\", \"Fresh\" — "
+        "always include prep time as the third tag (e.g. \"15 min\")\n"
+        "- emoji: pick the single emoji that best represents the finished dish visually\n"
+        "- difficulty: Easy = one pan, no technique needed. Medium = some prep, basic technique. "
+        "Advanced = multiple components or technique required.\n"
+        "- summary: one elegant sentence, max 10 words. No exclamation marks.\n"
+        "- If a remaining calorie budget is provided, at least 2 of the 5 suggestions should fit within it\n"
+        f"- ABSOLUTE BAN — never use, not even traces: {restriction_line}\n\n"
+        f"Ingredients available: {ingredients}\n"
+        f"Remaining calorie budget today: {remaining}\n\n"
+        "Return all text in English. Always return exactly 5 suggestions."
+    )
+    return await generate_structured([prompt], SuggestResponse, temperature=0.4)
+
+
+# ── Cookbook (Recipes tab) ──────────────────────────────────────────
+_COOKBOOK_MEAL_GUIDANCE: dict[str, str] = {
+    "breakfast": "All dishes must be breakfast dishes.",
+    "lunch":     "All dishes must be lunch dishes — substantial but not heavy.",
+    "dinner":    "All dishes must be dinner dishes.",
+    "snacks":    "All dishes must be snacks — small, simple, between-meal portions.",
+    "desserts":  "All dishes must be desserts — elegant, portion-controlled, never excessive.",
+    "smoothies": "All dishes must be smoothies or blended drinks.",
+}
+
+
+def _cookbook_time_guidance(local_hour: int | None) -> str:
+    if local_hour is None:
+        return "Offer a balanced mix across the remaining meals of the day."
+    if local_hour < 10:
+        return "It is morning — lean towards breakfast, with one or two lunch ideas."
+    if local_hour < 14:
+        return "It is midday — lean towards lunch, with one lighter option."
+    if local_hour < 17:
+        return "It is afternoon — lean towards a light snack and early-dinner ideas."
+    if local_hour < 22:
+        return "It is evening — lean towards dinner, nothing too heavy."
+    return "It is late at night — suggest only light, easy-to-digest dishes."
+
+
+def _cookbook_health_lines(h: HealthContextInput | None) -> list[str]:
+    if not h:
+        return []
+    lines: list[str] = []
+    if h.diabetes_type:
+        lines.append("The user has diabetes — favor blood-sugar-friendly dishes: "
+                     "low glycemic load, no sugar bombs, pair carbs with protein and fiber.")
+    if h.lactose_intolerant:
+        lines.append("The user is lactose intolerant — no regular dairy; "
+                     "lactose-free or plant-based alternatives are fine.")
+    if h.gluten_intolerant:
+        lines.append("The user avoids gluten — no wheat, barley or rye in any dish.")
+    if h.hypertension:
+        lines.append("The user has high blood pressure — keep dishes low in sodium, "
+                     "no heavily salted or cured components.")
+    if h.other_notes.strip():
+        lines.append(f"Additional health notes from the user: {h.other_notes.strip()[:100]}")
+    return lines
+
+
+@app.post("/api/cookbook/suggestions", response_model=CookbookResponse)
+async def cookbook_suggestions(
+    req: CookbookRequest,
+    _user: dict = Depends(rate_limited("cookbook")),
+    authorization: str = Header(None),
+) -> CookbookResponse:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+
+    count = {"today": 4, "surprise": 1}.get(req.category, 5)
+
+    # Long-term habits the butler has confirmed — read-only, fail-soft.
+    habit_line = ""
+    try:
+        async with httpx.AsyncClient(timeout=6) as c:
+            habits = await _sb_fetch_memories(c, token, category="habit")
+        if habits:
+            texts = [m.get("memory_text", "").strip() for m in habits[:8]]
+            habit_line = ("Known eating habits of this user (use them to personalize, "
+                          "never mention them explicitly): "
+                          + "; ".join(t for t in texts if t) + "\n")
+    except Exception:
+        pass
+
+    restriction_line = "none"
+    if req.restrictions:
+        avoid = req.restrictions.allergies + req.restrictions.noGos
+        if avoid:
+            restriction_line = ", ".join(avoid)
+
+    taste_lines: list[str] = []
+    if req.taste:
+        if req.taste.cuisines:
+            taste_lines.append(f"Preferred cuisines: {', '.join(req.taste.cuisines[:4])}.")
+        if req.taste.goals:
+            taste_lines.append(f"Cooking preferences: {', '.join(req.taste.goals)}.")
+
+    # Calorie guardrails — a dish must fit the user's day, not blow it up.
+    budget_lines: list[str] = []
+    if req.daily_target:
+        budget_lines.append(
+            f"The user's daily calorie target is {req.daily_target} kcal. "
+            f"No single dish may exceed roughly 40% of that target."
+        )
+    if req.remaining_calories is not None:
+        budget_lines.append(
+            f"The user has about {req.remaining_calories} kcal left today — "
+            f"every suggestion must realistically fit within that budget."
+        )
+
+    if req.category == "surprise":
+        category_block = (
+            "Suggest exactly 1 dish as a delightful surprise — something the user "
+            "would not think of themselves, yet still within their budget and preferences. "
+            "Unexpected cuisine or technique is welcome; absurdity is not."
+        )
+    elif req.category == "today":
+        category_block = (
+            f"Curate exactly {count} dishes as today's personal picks. "
+            + _cookbook_time_guidance(req.local_hour)
+        )
+    else:
+        category_block = (
+            f"Curate exactly {count} dishes. {_COOKBOOK_MEAL_GUIDANCE[req.category]}"
+        )
+
+    prompt = (
+        "You are the private chef and nutritionist behind Nouri, a premium app. "
+        "You curate a small, considered daily selection — like a concierge's "
+        "recommendation list, never a catalog.\n\n"
+        f"{category_block}\n\n"
+        "Rules:\n"
+        "- Each suggestion must be a REAL, RECOGNIZABLE dish — something with an established "
+        "name or clear culinary identity that a person would actually search for, order, or "
+        "recognize. Never invent arbitrary ingredient mashups.\n"
+        "- Vary the suggestions: different cuisines, different cooking methods, "
+        "different calorie levels within the budget.\n"
+        "- Calorie and macro estimates must be realistic and precise — not round numbers. "
+        "Fill carbs_g and fat_g with honest per-serving estimates.\n"
+        "- Flavor tags must be specific and honest: use descriptors like \"Filling\", \"Light\", "
+        "\"Spicy\", \"Creamy\", \"Quick\", \"Crispy\", \"High-protein\", \"Low-carb\", "
+        "\"Comfort food\", \"Fresh\" — always include prep time as the third tag (e.g. \"15 min\")\n"
+        "- emoji: pick the single emoji that best represents the finished dish visually\n"
+        "- difficulty: Easy = one pan, no technique needed. Medium = some prep, basic technique. "
+        "Advanced = multiple components or technique required.\n"
+        "- summary: one elegant sentence, max 10 words. No exclamation marks.\n"
+        f"- ABSOLUTE BAN — never use, not even traces: {restriction_line}\n"
+        + ("".join(f"- {l}\n" for l in budget_lines))
+        + ("".join(f"- {l}\n" for l in _cookbook_health_lines(req.health)))
+        + ("".join(f"- {l}\n" for l in taste_lines))
+        + habit_line
+        + f"\nReturn all text in English. Always return exactly {count} suggestion"
+        + ("s." if count != 1 else ".")
+    )
+    return await generate_structured([prompt], CookbookResponse, temperature=0.4)
 
 
 @app.post("/api/profile/targets", response_model=Targets)
@@ -1303,13 +1571,116 @@ async def generate_recipe(req: RecipeRequest, _user: dict = Depends(get_current_
             "aber rechne nichts hinzu, was nicht in der Liste steht (außer Grundwürze: Salz, Pfeffer, Öl)."
         )
 
+    dish_block = ""
+    if req.dish_hint and req.dish_hint.strip():
+        dish_block = (
+            f"The user has specifically chosen to make: {req.dish_hint.strip()}. "
+            "Build the full recipe for exactly this dish using the available ingredients.\n\n"
+        )
+
     prompt = (
+        f"{dish_block}"
         f"{ingredient_block}\n\n"
         f"{chr(10).join(constraints)}\n\n"
         "Style: refined, high-quality, practical. Clear steps, precise metric measurements. No filler. "
         "Return the recipe title, summary, all ingredients, and all steps in English."
     )
     return await generate_structured([prompt], Recipe)
+
+
+# ── Recipe images (My Recipes / Kochbuch) ───────────────────────────
+class RecipeImageRequest(BaseModel):
+    title: str
+    summary: str = ""
+
+
+@app.post("/api/recipe/image")
+async def recipe_image(
+    body: RecipeImageRequest,
+    _user: dict = Depends(rate_limited("image")),
+    authorization: str = Header(None),
+) -> dict:
+    """Return an image URL for a recipe, generating + caching one if needed.
+
+    Cached by a normalized version of the recipe title, so the same dish name
+    is only ever generated once across all users (Supabase table
+    recipe_image_cache + Storage bucket recipe-images — see setup notes).
+    """
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    key = _recipe_image_title_key(body.title)
+    if not key:
+        raise HTTPException(status_code=400, detail="Recipe title is required")
+
+    # 1. Cache lookup — if another user already generated this dish, reuse it.
+    async with httpx.AsyncClient() as c:
+        r = await c.get(
+            f"{SUPABASE_URL}/rest/v1/recipe_image_cache",
+            headers=_sb_headers(token),
+            params={"select": "image_url", "title_key": f"eq.{key}"},
+        )
+    cached = r.json() if r.status_code == 200 else []
+    if cached:
+        return {"image_url": cached[0]["image_url"]}
+
+    # 2. Cache miss — generate a new image with Gemini.
+    prompt = (
+        f"A single elegant editorial food photograph of '{body.title}'. {body.summary}\n\n"
+        "Style: quiet-luxury hotel restaurant plating (Aman Resorts / Four Seasons aesthetic) — "
+        "soft natural daylight, neutral cream and stone tones, minimal styling, shallow depth of "
+        "field, shot from a 45-degree angle on simple ceramic or stoneware. "
+        "No text, no watermark, no hands, no people, no logos."
+    )
+    try:
+        response = client.models.generate_content(
+            model=IMAGE_MODEL,
+            contents=[prompt],
+            config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"]),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Image generation failed: {exc}") from exc
+
+    image_bytes: bytes | None = None
+    mime_type = "image/png"
+    candidates = response.candidates or []
+    parts = candidates[0].content.parts if candidates and candidates[0].content else []
+    for part in parts or []:
+        inline = getattr(part, "inline_data", None)
+        if inline and inline.data:
+            image_bytes = inline.data
+            mime_type = inline.mime_type or mime_type
+            break
+
+    if not image_bytes:
+        raise HTTPException(status_code=502, detail="Image generation returned no image data")
+
+    # 3. Upload to Supabase Storage (public bucket "recipe-images").
+    ext = "png" if "png" in mime_type else "jpg"
+    storage_path = f"{key}.{ext}"
+    async with httpx.AsyncClient() as c:
+        upload = await c.post(
+            f"{SUPABASE_URL}/storage/v1/object/recipe-images/{storage_path}",
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {token}",
+                "Content-Type": mime_type,
+                "x-upsert": "true",
+            },
+            content=image_bytes,
+        )
+    if upload.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"Image upload failed: {upload.text[:200]}")
+
+    image_url = f"{SUPABASE_URL}/storage/v1/object/public/recipe-images/{storage_path}"
+
+    # 4. Write cache entry so future requests (any user) hit step 1 instead.
+    async with httpx.AsyncClient() as c:
+        await c.post(
+            f"{SUPABASE_URL}/rest/v1/recipe_image_cache",
+            headers={**_sb_headers(token), "Prefer": "resolution=merge-duplicates"},
+            json={"title_key": key, "image_url": image_url},
+        )
+
+    return {"image_url": image_url}
 
 
 @app.post("/api/chat")
